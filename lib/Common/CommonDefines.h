@@ -333,6 +333,13 @@
 //Also makes step out behave the same as step back
 #define TTD_VSCODE_WORK_AROUNDS 1
 
+//A workaround for some unimplemented code parse features (force debug mode)
+//Enable to turn these features off for good performance measurements.
+#define TTD_DYNAMIC_DECOMPILATION_WORK_AROUNDS 1
+
+//A workaround for copy on access native arrays -- disable them for now and we should have support later
+#define TTD_DISABLE_COPYONACCESS_ARRAY_WORD_AROUNDS 1
+
 //Enable various sanity checking features and asserts
 #define ENABLE_TTD_INTERNAL_DIAGNOSTICS 1
 

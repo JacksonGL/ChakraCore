@@ -272,6 +272,7 @@ JsErrorCode CreateContextCore(_In_ JsRuntimeHandle runtimeHandle, _In_ bool crea
             HostScriptContextCallbackFunctor callbackFunctor(context, &JsrtContext::OnScriptLoad_TTDCallback);
             threadContext->BeginCtxTimeTravel(context->GetScriptContext(), callbackFunctor);
 
+#if TTD_DYNAMIC_DECOMPILATION_WORK_AROUNDS
             if(threadContext->IsTTRecordRequested)
             {
                 //
@@ -280,6 +281,7 @@ JsErrorCode CreateContextCore(_In_ JsRuntimeHandle runtimeHandle, _In_ bool crea
                 //
                 context->GetScriptContext()->GetDebugContext()->SetDebuggerMode(Js::DebuggerMode::Debugging);
             }
+#endif
 
             threadContext->TTDLog->PushMode(TTD::TTDMode::ExcludedExecution);
             context->GetScriptContext()->InitializeCoreImage_TTD();
