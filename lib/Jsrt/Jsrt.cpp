@@ -3529,6 +3529,48 @@ CHAKRA_API JsTTDNotifyYield()
 #endif
 }
 
+CHAKRA_API JsTTDRawBufferModifyNotify(_In_ byte* buffer, _In_ UINT32 index, _In_ UINT32 count)
+{
+#if !ENABLE_TTD
+    return JsErrorCategoryUsage;
+#else
+    //
+    //TODO: link up to log
+    //
+    wprintf(L"Modified %p [%i, %i)\n", buffer, index, (index + count));
+
+    return JsNoError;
+#endif
+}
+
+CHAKRA_API JsTTDRawBufferNotifyRegisterForModification(_In_ JsValueRef instance)
+{
+#if !ENABLE_TTD
+    return JsErrorCategoryUsage;
+#else
+    //
+    //TODO: link up to log
+    //
+    Js::ArrayBuffer* arrayBuffer = nullptr;
+    byte* buffer = nullptr;
+    UINT32 length = 0;
+    BEGIN_JSRT_NO_EXCEPTION
+    {
+        if(!Js::ArrayBuffer::Is(instance))
+        {
+            RETURN_NO_EXCEPTION(JsErrorInvalidArgument);
+        }
+
+        arrayBuffer = Js::ArrayBuffer::FromVar(instance);
+        buffer = arrayBuffer->GetBuffer();
+        length = arrayBuffer->GetByteLength();
+
+        wprintf(L"Registered buffer %p, @%p -- %i\n", arrayBuffer, buffer, length);
+    }
+    END_JSRT_NO_EXCEPTION
+#endif
+}
+
 CHAKRA_API JsTTDPrepContextsForTopLevelEventMove(_In_ JsRuntimeHandle runtimeHandle, _In_ INT64 targetEventTime, _Out_ INT64* targetStartSnapTime)
 {
 #if !ENABLE_TTD_DEBUGGING

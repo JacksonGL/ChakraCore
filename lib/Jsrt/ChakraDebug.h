@@ -870,6 +870,30 @@
     CHAKRA_API
         JsTTDNotifyYield();
 
+
+    /// <summary>
+    ///     TTD API -- may change in future versions:
+    ///     Notify the event log that the contents of a naked byte* buffer passed to the host have been modified.
+    /// </summary>
+    /// <param name="buffer">The buffer that was modified.</param>
+    /// <param name="index">The first index modified (inclusive).</param>
+    /// <param name="count">The number of locations written (starting from <c>index</c>).</param>
+    CHAKRA_API 
+        JsTTDRawBufferModifyNotify(
+            _In_ byte* buffer,
+            _In_ UINT32 index,
+            _In_ UINT32 count);
+
+    /// <summary>
+    ///     TTD API -- may change in future versions:
+    ///     Get info for notifying the TTD system that a raw buffer it shares with the host has been modified.
+    /// </summary>
+    /// <param name="instance">The array buffer we want to monitor for contents modification.</param>
+    /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
+    CHAKRA_API
+        JsTTDRawBufferNotifyRegisterForModification(
+            _In_ JsValueRef instance);
+
     /// <summary>
     ///     TTD API -- may change in future versions:
     ///     Before calling JsTTDMoveToTopLevelEvent (which inflates a snapshot and replays) check to see if we want to reset the script context.
