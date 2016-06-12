@@ -870,17 +870,33 @@
     CHAKRA_API
         JsTTDNotifyYield();
 
+    /// <summary>
+    ///     TTD API -- may change in future versions:
+    ///     Notify the event log that the contents of one buffer have been copied to a second buffer.
+    /// </summary>
+    /// <param name="dst">The buffer that was written into.</param>
+    /// <param name="dstIndex">The first index modified.</param>
+    /// <param name="src">The buffer that was copied from.</param>
+    /// <param name="srcIndex">The first index copied.</param>
+    /// <param name="count">The number of bytes copied.</param>
+    CHAKRA_API
+        JsTTDRawBufferCopySyncIndirect(
+            _In_ JsValueRef dst,
+            _In_ UINT32 dstIndex,
+            _In_ JsValueRef src,
+            _In_ UINT32 srcIndex,
+            _In_ UINT32 count);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
-    ///     Notify the event log that the contents of a naked byte* buffer passed to the host have been modified.
+    ///     Notify the event log that the contents of a naked byte* buffer passed to the host have been modified synchronously.
     /// </summary>
     /// <param name="buffer">The buffer that was modified.</param>
-    /// <param name="index">The first index modified (inclusive).</param>
-    /// <param name="count">The number of locations written (starting from <c>index</c>).</param>
-    CHAKRA_API 
-        JsTTDRawBufferModifyNotify(
-            _In_ byte* buffer,
+    /// <param name="index">The first index modified.</param>
+    /// <param name="count">The number of bytes written.</param>
+    CHAKRA_API
+        JsTTDRawBufferModifySyncIndirect(
+            _In_ JsValueRef buffer,
             _In_ UINT32 index,
             _In_ UINT32 count);
 
@@ -891,8 +907,38 @@
     /// <param name="instance">The array buffer we want to monitor for contents modification.</param>
     /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
     CHAKRA_API
-        JsTTDRawBufferNotifyRegisterForModification(
+        JsTTDRawBufferAsyncModificationRegister(
             _In_ JsValueRef instance);
+
+    /// <summary>
+    ///     TTD API -- may change in future versions:
+    ///     Get info for notifying the TTD system that a raw buffer it shares with the host has been modified.
+    /// </summary>
+    /// <param name="instance">The array buffer we are done monitoring for contents modification.</param>
+    /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
+    CHAKRA_API
+        JsTTDRawBufferAsyncModificationFinished(
+            _In_ byte* buffer);
+
+    /// <summary>
+    ///     TTD API -- may change in future versions:
+    ///     Notify the event log that the contents of a naked byte* buffer are about to be modified asynchronously.
+    /// </summary>
+    CHAKRA_API
+        JsTTDRawBufferAsyncModifyNotifyPre();
+
+    /// <summary>
+    ///     TTD API -- may change in future versions:
+    ///     Notify the event log that the contents of a naked byte* buffer passed to the host have been modified asynchronously.
+    /// </summary>
+    /// <param name="buffer">The buffer that was modified.</param>
+    /// <param name="index">The first index modified.</param>
+    /// <param name="count">The number of bytes written.</param>
+    CHAKRA_API
+        JsTTDRawBufferAsyncModifyNotifyPost(
+            _In_ byte* buffer,
+            _In_ UINT32 index,
+            _In_ UINT32 count);
 
     /// <summary>
     ///     TTD API -- may change in future versions:

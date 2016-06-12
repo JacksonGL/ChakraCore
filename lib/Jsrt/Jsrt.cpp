@@ -3529,7 +3529,7 @@ CHAKRA_API JsTTDNotifyYield()
 #endif
 }
 
-CHAKRA_API JsTTDRawBufferModifyNotify(_In_ byte* buffer, _In_ UINT32 index, _In_ UINT32 count)
+CHAKRA_API JsTTDRawBufferCopySyncIndirect(_In_ JsValueRef dst, _In_ UINT32 dstIndex, _In_ JsValueRef src, _In_ UINT32 srcIndex, _In_ UINT32 count)
 {
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
@@ -3537,13 +3537,29 @@ CHAKRA_API JsTTDRawBufferModifyNotify(_In_ byte* buffer, _In_ UINT32 index, _In_
     //
     //TODO: link up to log
     //
+
+    wprintf(L"Modified %p [%i, %i) via %p\n", dst, dstIndex, (dstIndex + count), src);
+
+    return JsNoError;
+#endif
+}
+
+CHAKRA_API JsTTDRawBufferModifySyncIndirect(_In_ JsValueRef buffer, _In_ UINT32 index, _In_ UINT32 count)
+{
+#if !ENABLE_TTD
+    return JsErrorCategoryUsage;
+#else
+    //
+    //TODO: link up to log
+    //
+
     wprintf(L"Modified %p [%i, %i)\n", buffer, index, (index + count));
 
     return JsNoError;
 #endif
 }
 
-CHAKRA_API JsTTDRawBufferNotifyRegisterForModification(_In_ JsValueRef instance)
+CHAKRA_API JsTTDRawBufferAsyncModificationRegister(_In_ JsValueRef instance)
 {
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
@@ -3551,9 +3567,7 @@ CHAKRA_API JsTTDRawBufferNotifyRegisterForModification(_In_ JsValueRef instance)
     //
     //TODO: link up to log
     //
-    Js::ArrayBuffer* arrayBuffer = nullptr;
-    byte* buffer = nullptr;
-    UINT32 length = 0;
+
     BEGIN_JSRT_NO_EXCEPTION
     {
         if(!Js::ArrayBuffer::Is(instance))
@@ -3561,13 +3575,73 @@ CHAKRA_API JsTTDRawBufferNotifyRegisterForModification(_In_ JsValueRef instance)
             RETURN_NO_EXCEPTION(JsErrorInvalidArgument);
         }
 
-        arrayBuffer = Js::ArrayBuffer::FromVar(instance);
-        buffer = arrayBuffer->GetBuffer();
-        length = arrayBuffer->GetByteLength();
+        //
+        //TODO: aquire lock here
+        //
 
-        wprintf(L"Registered buffer %p, @%p -- %i\n", arrayBuffer, buffer, length);
+        Js::ArrayBuffer* arrayBuffer = arrayBuffer = Js::ArrayBuffer::FromVar(instance);
+        wprintf(L"Registered buffer %p, @%p\n", arrayBuffer, arrayBuffer->GetBuffer());
+
+        //
+        //TODO: release lock here
+        //
     }
     END_JSRT_NO_EXCEPTION
+#endif
+}
+
+CHAKRA_API JsTTDRawBufferAsyncModificationFinished(_In_ byte* buffer)
+{
+#if !ENABLE_TTD
+    return JsErrorCategoryUsage;
+#else
+    //
+    //TODO: link up to log
+    //
+
+    //
+    //TODO: aquire lock here
+    //
+
+    wprintf(L"Finished buffer @%p\n", buffer);
+
+    //
+    //TODO: release lock here
+    //
+
+    return JsNoError;
+#endif
+}
+
+CHAKRA_API JsTTDRawBufferAsyncModifyNotifyPre()
+{
+#if !ENABLE_TTD
+    return JsErrorCategoryUsage;
+#else
+    //
+    //TODO: aquire lock here
+    //
+
+    return JsNoError;
+#endif
+}
+
+CHAKRA_API JsTTDRawBufferAsyncModifyNotifyPost(_In_ byte* buffer, _In_ UINT32 index, _In_ UINT32 count)
+{
+#if !ENABLE_TTD
+    return JsErrorCategoryUsage;
+#else
+    //
+    //TODO: link up to log
+    //
+
+    wprintf(L"Modified %p [%i, %i)\n", buffer, index, (index + count));
+
+    //
+    //TODO: release lock here
+    //
+
+    return JsNoError;
 #endif
 }
 

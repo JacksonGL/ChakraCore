@@ -754,13 +754,22 @@ namespace TTD
 
         if(tEvent->InfoString.Length != infoStrLength)
         {
+            wprintf(L"New Telemetry Msg: %ls\n", infoStr);
+            wprintf(L"Original Telemetry Msg: %ls\n", tEvent->InfoString.Contents);
             AssertMsg(false, "Telemetry messages differ??");
         }
         else
         {
             for(uint32 i = 0; i < infoStrLength; ++i)
             {
-                AssertMsg(tEvent->InfoString.Contents[i] == infoStr[i], "Telemetry messages differ??");
+                if(tEvent->InfoString.Contents[i] != infoStr[i])
+                {
+                    wprintf(L"New Telemetry Msg: %ls\n", infoStr);
+                    wprintf(L"Original Telemetry Msg: %ls\n", tEvent->InfoString.Contents);
+                    AssertMsg(false, "Telemetry messages differ??");
+
+                    break;
+                }
             }
         }
 #endif
