@@ -1853,14 +1853,10 @@ namespace TTD
         TTD::EventLog* elog = ctx->GetThreadContext()->TTDLog;
         if(elog->IsTimeForSnapshot())
         {
-            BEGIN_ENTER_SCRIPT(ctx, true, true, true);
-            {
-                elog->PushMode(TTD::TTDMode::ExcludedExecution);
-                elog->DoSnapshotExtract();
-                elog->PruneLogLength();
-                elog->PopMode(TTD::TTDMode::ExcludedExecution);
-            }
-            END_ENTER_SCRIPT;
+            elog->PushMode(TTD::TTDMode::ExcludedExecution);
+            elog->DoSnapshotExtract();
+            elog->PruneLogLength();
+            elog->PopMode(TTD::TTDMode::ExcludedExecution);
         }
     }
 

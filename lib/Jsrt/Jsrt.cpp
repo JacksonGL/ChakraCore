@@ -3315,38 +3315,36 @@ CHAKRA_API JsTTDStartTimeTravelRecording()
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    JsrtContext *currentContext = JsrtContext::GetCurrent();
-    Js::ScriptContext* scriptContext = currentContext->GetScriptContext();
-    ThreadContext* threadContext = scriptContext->GetThreadContext();
-    if (threadContext->TTDLog == nullptr)
-    {
-        AssertMsg(false, "Need to create in TTD mode.");
-        return JsErrorCategoryUsage;
-    }
+    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+        ThreadContext* threadContext = scriptContext->GetThreadContext();
+        if (threadContext->TTDLog == nullptr)
+        {
+            AssertMsg(false, "Need to create in TTD mode.");
+            return JsErrorCategoryUsage;
+        }
 
-    if (scriptContext->IsTTDDetached())
-    {
-        AssertMsg(false, "Cannot re-start TTD after detach.");
-        return JsErrorCategoryUsage;
-    }
+        if (scriptContext->IsTTDDetached())
+        {
+            AssertMsg(false, "Cannot re-start TTD after detach.");
+            return JsErrorCategoryUsage;
+        }
 
-    if (scriptContext->IsTTDActive())
-    {
-        AssertMsg(false, "Already started TTD.");
-        return JsErrorCategoryUsage;
-    }
+        if (scriptContext->IsTTDActive())
+        {
+            AssertMsg(false, "Already started TTD.");
+            return JsErrorCategoryUsage;
+        }
 
-    threadContext->TTDLog->SetGlobalMode(TTD::TTDMode::RecordEnabled);
+        threadContext->TTDLog->SetGlobalMode(TTD::TTDMode::RecordEnabled);
 
-    threadContext->TTDLog->PushMode(TTD::TTDMode::ExcludedExecution);
-    BEGIN_JS_RUNTIME_CALLROOT_EX(scriptContext, false)
-    {
+        threadContext->TTDLog->PushMode(TTD::TTDMode::ExcludedExecution);
+
         threadContext->TTDLog->DoSnapshotExtract();
-    }
-    END_JS_RUNTIME_CALL(scriptContext);
-    threadContext->TTDLog->PopMode(TTD::TTDMode::ExcludedExecution);
 
-    return JsNoError;
+        threadContext->TTDLog->PopMode(TTD::TTDMode::ExcludedExecution);
+
+        return JsNoError;
+    });
 #endif
 }
 
@@ -3355,37 +3353,35 @@ CHAKRA_API JsTTDStopTimeTravelRecording()
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    JsrtContext *currentContext = JsrtContext::GetCurrent();
-    Js::ScriptContext* scriptContext = currentContext->GetScriptContext();
-    ThreadContext* threadContext = scriptContext->GetThreadContext();
-    if (threadContext->TTDLog == nullptr)
-    {
-        AssertMsg(false, "Need to create in TTD mode.");
-        return JsErrorCategoryUsage;
-    }
+    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+        ThreadContext* threadContext = scriptContext->GetThreadContext();
+        if (threadContext->TTDLog == nullptr)
+        {
+            AssertMsg(false, "Need to create in TTD mode.");
+            return JsErrorCategoryUsage;
+        }
 
-    if (scriptContext->IsTTDDetached())
-    {
-        AssertMsg(false, "Already stopped TTD.");
-        return JsErrorCategoryUsage;
-    }
+        if (scriptContext->IsTTDDetached())
+        {
+            AssertMsg(false, "Already stopped TTD.");
+            return JsErrorCategoryUsage;
+        }
 
-    if (!scriptContext->IsTTDActive())
-    {
-        AssertMsg(false, "TTD was never started.");
-        return JsErrorCategoryUsage;
-    }
+        if (!scriptContext->IsTTDActive())
+        {
+            AssertMsg(false, "TTD was never started.");
+            return JsErrorCategoryUsage;
+        }
 
-    threadContext->TTDLog->PushMode(TTD::TTDMode::ExcludedExecution);
-    BEGIN_JS_RUNTIME_CALLROOT_EX(scriptContext, false)
-    {
+        threadContext->TTDLog->PushMode(TTD::TTDMode::ExcludedExecution);
+
         threadContext->EmitTTDLogIfNeeded();
         threadContext->EndCtxTimeTravel(scriptContext);
-    }
-    END_JS_RUNTIME_CALL(scriptContext);
-    threadContext->TTDLog->PopMode(TTD::TTDMode::ExcludedExecution);
 
-    return JsNoError;
+        threadContext->TTDLog->PopMode(TTD::TTDMode::ExcludedExecution);
+
+        return JsNoError;
+    });
 #endif
 }
 
@@ -3394,36 +3390,34 @@ CHAKRA_API JsTTDEmitTimeTravelRecording()
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    JsrtContext *currentContext = JsrtContext::GetCurrent();
-    Js::ScriptContext* scriptContext = currentContext->GetScriptContext();
-    ThreadContext* threadContext = scriptContext->GetThreadContext();
-    if (threadContext->TTDLog == nullptr)
-    {
-        AssertMsg(false, "Need to create in TTD mode.");
-        return JsErrorCategoryUsage;
-    }
+    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+        ThreadContext* threadContext = scriptContext->GetThreadContext();
+        if (threadContext->TTDLog == nullptr)
+        {
+            AssertMsg(false, "Need to create in TTD mode.");
+            return JsErrorCategoryUsage;
+        }
 
-    if (scriptContext->IsTTDDetached())
-    {
-        AssertMsg(false, "Already stopped TTD.");
-        return JsErrorCategoryUsage;
-    }
+        if (scriptContext->IsTTDDetached())
+        {
+            AssertMsg(false, "Already stopped TTD.");
+            return JsErrorCategoryUsage;
+        }
 
-    if (!scriptContext->IsTTDActive())
-    {
-        AssertMsg(false, "TTD was never started.");
-        return JsErrorCategoryUsage;
-    }
+        if (!scriptContext->IsTTDActive())
+        {
+            AssertMsg(false, "TTD was never started.");
+            return JsErrorCategoryUsage;
+        }
 
-    threadContext->TTDLog->PushMode(TTD::TTDMode::ExcludedExecution);
-    BEGIN_JS_RUNTIME_CALLROOT_EX(scriptContext, false)
-    {
+        threadContext->TTDLog->PushMode(TTD::TTDMode::ExcludedExecution);
+
         threadContext->EmitTTDLogIfNeeded();
-    }
-    END_JS_RUNTIME_CALL(scriptContext);
-    threadContext->TTDLog->PopMode(TTD::TTDMode::ExcludedExecution);
 
-    return JsNoError;
+        threadContext->TTDLog->PopMode(TTD::TTDMode::ExcludedExecution);
+
+        return JsNoError;
+    });
 #endif
 }
 
@@ -3432,30 +3426,30 @@ CHAKRA_API JsTTDStartTimeTravelDebugging()
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    JsrtContext *currentContext = JsrtContext::GetCurrent();
-    Js::ScriptContext* scriptContext = currentContext->GetScriptContext();
-    ThreadContext* threadContext = scriptContext->GetThreadContext();
-    if (threadContext->TTDLog == nullptr)
-    {
-        AssertMsg(false, "Need to create in TTD mode.");
-        return JsErrorCategoryUsage;
-    }
+    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+        ThreadContext* threadContext = scriptContext->GetThreadContext();
+        if (threadContext->TTDLog == nullptr)
+        {
+            AssertMsg(false, "Need to create in TTD mode.");
+            return JsErrorCategoryUsage;
+        }
 
-    if (scriptContext->IsTTDDetached())
-    {
-        AssertMsg(false, "Cannot re-start TTD after detach.");
-        return JsErrorCategoryUsage;
-    }
+        if (scriptContext->IsTTDDetached())
+        {
+            AssertMsg(false, "Cannot re-start TTD after detach.");
+            return JsErrorCategoryUsage;
+        }
 
-    if (scriptContext->IsTTDActive())
-    {
-        AssertMsg(false, "Already started TTD.");
-        return JsErrorCategoryUsage;
-    }
+        if (scriptContext->IsTTDActive())
+        {
+            AssertMsg(false, "Already started TTD.");
+            return JsErrorCategoryUsage;
+        }
 
-    scriptContext->GetThreadContext()->TTDLog->SetIntoDebuggingMode();
+        scriptContext->GetThreadContext()->TTDLog->SetIntoDebuggingMode();
 
-    return JsNoError;
+        return JsNoError;
+    });
 #endif
 }
 
@@ -3464,14 +3458,16 @@ CHAKRA_API JsTTDPauseTimeTravelBeforeRuntimeOperation()
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    JsrtContext *currentContext = JsrtContext::GetCurrent();
+    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+        ThreadContext* threadContext = scriptContext->GetThreadContext();
 
-    if (currentContext->GetRuntime()->GetThreadContext()->TTDLog != nullptr)
-    {
-        currentContext->GetRuntime()->GetThreadContext()->TTDLog->PushMode(TTD::TTDMode::ExcludedExecution);
-    }
+        if (threadContext->TTDLog != nullptr)
+        {
+            threadContext->TTDLog->PushMode(TTD::TTDMode::ExcludedExecution);
+        }
 
-    return JsNoError;
+        return JsNoError;
+    });
 #endif
 }
 
@@ -3480,13 +3476,15 @@ CHAKRA_API JsTTDReStartTimeTravelAfterRuntimeOperation()
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    JsrtContext *currentContext = JsrtContext::GetCurrent();
-    if (currentContext->GetRuntime()->GetThreadContext()->TTDLog != nullptr)
-    {
-        currentContext->GetRuntime()->GetThreadContext()->TTDLog->PopMode(TTD::TTDMode::ExcludedExecution);
-    }
+    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+        ThreadContext* threadContext = scriptContext->GetThreadContext();
+        if (threadContext->TTDLog != nullptr)
+        {
+            threadContext->TTDLog->PopMode(TTD::TTDMode::ExcludedExecution);
+        }
 
-    return JsNoError;
+        return JsNoError;
+    });
 #endif
 }
 
@@ -3517,15 +3515,14 @@ CHAKRA_API JsTTDNotifyYield()
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    JsrtContext *currentContext = JsrtContext::GetCurrent();
-    Js::ScriptContext* scriptContext = currentContext->GetScriptContext();
+    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+        if (PERFORM_JSRT_TTD_RECORD_ACTION_CHECK(scriptContext))
+        {
+            scriptContext->GetThreadContext()->TTDLog->RecordJsRTEventLoopYieldPoint(scriptContext);
+        }
 
-    if (PERFORM_JSRT_TTD_RECORD_ACTION_CHECK(scriptContext))
-    {
-        scriptContext->GetThreadContext()->TTDLog->RecordJsRTEventLoopYieldPoint(scriptContext);
-    }
-
-    return JsNoError;
+        return JsNoError;
+    });
 #endif
 }
 
