@@ -3559,7 +3559,7 @@ CHAKRA_API JsTTDRawBufferModifySyncIndirect(_In_ JsValueRef buffer, _In_ UINT32 
 #endif
 }
 
-CHAKRA_API JsTTDRawBufferAsyncModificationRegister(_In_ JsValueRef instance)
+CHAKRA_API JsTTDRawBufferAsyncModificationRegister(_In_ JsValueRef instance, _In_ byte* initialModPos)
 {
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
@@ -3580,7 +3580,7 @@ CHAKRA_API JsTTDRawBufferAsyncModificationRegister(_In_ JsValueRef instance)
         //
 
         Js::ArrayBuffer* arrayBuffer = arrayBuffer = Js::ArrayBuffer::FromVar(instance);
-        wprintf(L"Registered buffer %p, @%p\n", arrayBuffer, arrayBuffer->GetBuffer());
+        wprintf(L"Registered buffer %p start mod at @%p max position is %p\n", arrayBuffer, initialModPos, arrayBuffer->GetBuffer() + arrayBuffer->GetBufferOffset() + arrayBuffer->GetByteLength());
 
         //
         //TODO: release lock here
@@ -3590,7 +3590,7 @@ CHAKRA_API JsTTDRawBufferAsyncModificationRegister(_In_ JsValueRef instance)
 #endif
 }
 
-CHAKRA_API JsTTDRawBufferAsyncModificationFinished(_In_ byte* buffer)
+CHAKRA_API JsTTDRawBufferAsyncModifyComplete(_In_ byte* finalModPos)
 {
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
@@ -3599,43 +3599,7 @@ CHAKRA_API JsTTDRawBufferAsyncModificationFinished(_In_ byte* buffer)
     //TODO: link up to log
     //
 
-    //
-    //TODO: aquire lock here
-    //
-
-    wprintf(L"Finished buffer @%p\n", buffer);
-
-    //
-    //TODO: release lock here
-    //
-
-    return JsNoError;
-#endif
-}
-
-CHAKRA_API JsTTDRawBufferAsyncModifyNotifyPre()
-{
-#if !ENABLE_TTD
-    return JsErrorCategoryUsage;
-#else
-    //
-    //TODO: aquire lock here
-    //
-
-    return JsNoError;
-#endif
-}
-
-CHAKRA_API JsTTDRawBufferAsyncModifyNotifyPost(_In_ byte* buffer, _In_ UINT32 index, _In_ UINT32 count)
-{
-#if !ENABLE_TTD
-    return JsErrorCategoryUsage;
-#else
-    //
-    //TODO: link up to log
-    //
-
-    wprintf(L"Modified %p [%i, %i)\n", buffer, index, (index + count));
+    wprintf(L"Async modify done ending at @%p\n", finalModPos);
 
     //
     //TODO: release lock here

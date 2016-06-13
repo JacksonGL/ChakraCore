@@ -905,40 +905,21 @@
     ///     Get info for notifying the TTD system that a raw buffer it shares with the host has been modified.
     /// </summary>
     /// <param name="instance">The array buffer we want to monitor for contents modification.</param>
+    /// <param name="initialPos">The first position in the buffer that may be modified.</param>
     /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
     CHAKRA_API
         JsTTDRawBufferAsyncModificationRegister(
-            _In_ JsValueRef instance);
-
-    /// <summary>
-    ///     TTD API -- may change in future versions:
-    ///     Get info for notifying the TTD system that a raw buffer it shares with the host has been modified.
-    /// </summary>
-    /// <param name="instance">The array buffer we are done monitoring for contents modification.</param>
-    /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
-    CHAKRA_API
-        JsTTDRawBufferAsyncModificationFinished(
-            _In_ byte* buffer);
-
-    /// <summary>
-    ///     TTD API -- may change in future versions:
-    ///     Notify the event log that the contents of a naked byte* buffer are about to be modified asynchronously.
-    /// </summary>
-    CHAKRA_API
-        JsTTDRawBufferAsyncModifyNotifyPre();
+            _In_ JsValueRef instance,
+            _In_ byte* initialModPos);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
     ///     Notify the event log that the contents of a naked byte* buffer passed to the host have been modified asynchronously.
     /// </summary>
-    /// <param name="buffer">The buffer that was modified.</param>
-    /// <param name="index">The first index modified.</param>
-    /// <param name="count">The number of bytes written.</param>
+    /// <param name="finalModPos">One past the last modified position in the buffer.</param>
     CHAKRA_API
-        JsTTDRawBufferAsyncModifyNotifyPost(
-            _In_ byte* buffer,
-            _In_ UINT32 index,
-            _In_ UINT32 count);
+        JsTTDRawBufferAsyncModifyComplete(
+            _In_ byte* finalModPos);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
