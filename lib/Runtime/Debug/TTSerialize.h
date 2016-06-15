@@ -809,6 +809,8 @@ namespace TTD
         void WriteReturnException(Js::JavascriptFunction* function, int64 etime);
 
         void WriteStmtIndex(uint32 line, uint32 column);
+
+        void WriteTraceValue(Js::Var var);
     };
 #endif
 }

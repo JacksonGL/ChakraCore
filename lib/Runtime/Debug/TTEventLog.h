@@ -330,6 +330,11 @@ namespace TTD
         EventLog(ThreadContext* threadContext, LPCWSTR logDir, uint32 snapInterval, uint32 snapHistoryLength);
         ~EventLog();
 
+#if ENABLE_BASIC_TRACE || ENABLE_FULL_BC_TRACE
+        //Get the trace logger for this 
+        TraceLogger* GetTraceLogger();
+#endif
+
         //Initialize the log so that it is ready to perform TTD (record or replay) and set into the correct global mode
         void InitForTTDRecord();
         void InitForTTDReplay();

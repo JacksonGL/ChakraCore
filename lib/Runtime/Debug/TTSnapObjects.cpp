@@ -1626,20 +1626,21 @@ namespace TTD
             const SnapArrayBufferInfo* buffInfo2 = SnapObjectGetAddtlInfoAs<SnapArrayBufferInfo*, SnapObjectType::SnapArrayBufferObject>(sobj2);
 
             compareMap.DiagnosticAssert(buffInfo1->Length == buffInfo2->Length);
-            for(uint32 i = 0; i < buffInfo1->Length; ++i)
+
+            //
+            //Pending buffers cannot be accessed by the program until they are off the pending lists.
+            //So we do not force the updates in closer sync than this and they may not be updated in sync so (as long as they are pending) in both.
+            //
+            if(compareMap.H1PendingAsyncModBufferSet.Contains(sobj1->ObjectPtrId) || compareMap.H2PendingAsyncModBufferSet.Contains(sobj2->ObjectPtrId))
             {
-                //
-                //TODO: Node uses the JsRT JsGetTypedArrayInfo API to get the raw buffer for some typed arrays and the directly writes to the contents.
-                //      We don't see these writes (and this is kinda sketchy) so we need to resolve this issue on the Node/JsRT side.
-                //
-
-                if(buffInfo1->Buff[i] != buffInfo2->Buff[i])
+                compareMap.DiagnosticAssert(compareMap.H1PendingAsyncModBufferSet.Contains(sobj1->ObjectPtrId) && compareMap.H2PendingAsyncModBufferSet.Contains(sobj2->ObjectPtrId));
+            }
+            else
+            {
+                for(uint32 i = 0; i < buffInfo1->Length; ++i)
                 {
-                    wprintf(_u("Array buffer contents don't match at %I32i -- see known issue with array buffer modifications.\n"), i);
-                    break;
+                    compareMap.DiagnosticAssert(buffInfo1->Buff[i] == buffInfo2->Buff[i]);
                 }
-
-                //compareMap.DiagnosticAssert(buffInfo1->Buff[i] == buffInfo2->Buff[i]);
             }
         }
 #endif

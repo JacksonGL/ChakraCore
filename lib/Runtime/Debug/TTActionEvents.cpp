@@ -459,7 +459,8 @@ namespace TTD
             byte* dstBuff = Js::ArrayBuffer::FromVar(dst)->GetBuffer() + action->DstIndx;
             byte* srcBuff = Js::ArrayBuffer::FromVar(src)->GetBuffer() + action->SrcIndx;
 
-            js_memcpy_s(dstBuff, action->Count, srcBuff, action->Count);
+            //node uses mmove so we do too
+            memmove(dstBuff, srcBuff, action->Count);
         }
 
         void RawBufferModifySync_Execute(const EventLogEntry* evt, Js::ScriptContext* ctx)

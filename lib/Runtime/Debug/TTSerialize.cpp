@@ -1856,7 +1856,15 @@ namespace TTD
                 break;
             case Js::TypeIds_String:
                 this->AppendLiteral("'");
-                this->AppendText(Js::JavascriptString::FromVar(var)->GetSz(), Js::JavascriptString::FromVar(var)->GetLength());
+                if(Js::JavascriptString::FromVar(var)->GetLength() <= 20)
+                {
+                    this->AppendText(Js::JavascriptString::FromVar(var)->GetSz(), Js::JavascriptString::FromVar(var)->GetLength());
+                }
+                else
+                {
+                    this->AppendText(Js::JavascriptString::FromVar(var)->GetSz(), 20);
+                    this->AppendText("...", 3);
+                }
                 this->AppendLiteral("'");
                 break;
             default:
@@ -1979,6 +1987,12 @@ namespace TTD
         this->ForceFlush();
         //
         ////
+    }
+
+    void TraceLogger::WriteTraceValue(Js::Var var)
+    {
+        this->WriteVar(var);
+        this->WriteLiteralMsg("\n");
     }
 #endif
 }

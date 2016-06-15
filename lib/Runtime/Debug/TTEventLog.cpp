@@ -595,6 +595,13 @@ namespace TTD
         JsSupport::DeleteStringFromHeapAllocator(this->m_logInfoRootDir);
     }
 
+#if ENABLE_BASIC_TRACE || ENABLE_FULL_BC_TRACE
+    TraceLogger* EventLog::GetTraceLogger()
+    {
+        return &(this->m_diagnosticLogger);
+    }
+#endif
+
     void EventLog::InitForTTDRecord()
     {
         //Prepare the logging stream so it is ready for us to write into

@@ -1837,16 +1837,22 @@ namespace TTD
 
             compareMap.DiagnosticAssert(snapCtx1->m_globalRootCount == snapCtx2->m_globalRootCount);
 
+            JsUtil::BaseDictionary<TTD_LOG_PTR_ID, TTD_PTR_ID, HeapAllocator> allRootMap1(&HeapAllocator::Instance);
+            JsUtil::BaseDictionary<TTD_LOG_PTR_ID, TTD_PTR_ID, HeapAllocator> allRootMap2(&HeapAllocator::Instance);
+
             JsUtil::BaseDictionary<TTD_LOG_PTR_ID, TTD_PTR_ID, HeapAllocator> globalRootMap1(&HeapAllocator::Instance);
             for(uint32 i = 0; i < snapCtx1->m_globalRootCount; ++i)
             {
                 const SnapRootPinEntry& rootEntry1 = snapCtx1->m_globalRootArray[i];
+                allRootMap1.AddNew(rootEntry1.LogId, rootEntry1.LogObject);
+
                 globalRootMap1.AddNew(rootEntry1.LogId, rootEntry1.LogObject);
             }
 
             for(uint32 i = 0; i < snapCtx2->m_globalRootCount; ++i)
             {
                 const SnapRootPinEntry& rootEntry2 = snapCtx2->m_globalRootArray[i];
+                allRootMap2.AddNew(rootEntry2.LogId, rootEntry2.LogObject);
 
                 TTD_PTR_ID id1 = globalRootMap1.LookupWithKey(rootEntry2.LogId, TTD_INVALID_PTR_ID);
                 compareMap.CheckConsistentAndAddPtrIdMapping_Root(id1, rootEntry2.LogObject, rootEntry2.LogId);
@@ -1858,12 +1864,21 @@ namespace TTD
             for(uint32 i = 0; i < snapCtx1->m_localRootCount; ++i)
             {
                 const SnapRootPinEntry& rootEntry1 = snapCtx1->m_localRootArray[i];
+                if(!allRootMap1.ContainsKey(rootEntry1.LogId))
+                {
+                    allRootMap1.AddNew(rootEntry1.LogId, rootEntry1.LogObject);
+                }
+
                 localRootMap1.AddNew(rootEntry1.LogId, rootEntry1.LogObject);
             }
 
             for(uint32 i = 0; i < snapCtx2->m_localRootCount; ++i)
             {
                 const SnapRootPinEntry& rootEntry2 = snapCtx2->m_localRootArray[i];
+                if(!allRootMap2.ContainsKey(rootEntry2.LogId))
+                {
+                    allRootMap2.AddNew(rootEntry2.LogId, rootEntry2.LogObject);
+                }
 
                 TTD_PTR_ID id1 = localRootMap1.LookupWithKey(rootEntry2.LogId, TTD_INVALID_PTR_ID);
                 compareMap.CheckConsistentAndAddPtrIdMapping_Root(id1, rootEntry2.LogObject, rootEntry2.LogId);
@@ -1874,15 +1889,12 @@ namespace TTD
             for(uint32 i = 0; i < snapCtx1->m_pendingAsyncModCount; ++i)
             {
                 const SnapPendingAsyncBufferModification& pendEntry1 = snapCtx1->m_pendingAsyncModArray[i];
+                const SnapPendingAsyncBufferModification& pendEntry2 = snapCtx2->m_pendingAsyncModArray[i];
 
-                bool found = false;
-                for(uint32 j = 0; j < snapCtx2->m_pendingAsyncModCount; ++j)
-                {
-                    const SnapPendingAsyncBufferModification& pendEntry2 = snapCtx2->m_pendingAsyncModArray[j];
-                    found |= (pendEntry1.LogId == pendEntry2.LogId && pendEntry1.Index == pendEntry2.Index);
-                }
+                compareMap.DiagnosticAssert(pendEntry1.LogId == pendEntry2.LogId && pendEntry1.Index == pendEntry2.Index);
 
-                compareMap.DiagnosticAssert(found);
+                compareMap.H1PendingAsyncModBufferSet.AddNew(allRootMap1.LookupWithKey(pendEntry1.LogId, TTD_INVALID_PTR_ID));
+                compareMap.H2PendingAsyncModBufferSet.AddNew(allRootMap2.LookupWithKey(pendEntry2.LogId, TTD_INVALID_PTR_ID));
             }
         }
 #endif
