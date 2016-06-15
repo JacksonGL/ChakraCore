@@ -607,6 +607,12 @@ namespace TTD
         //Record a get info from a typed array
         void RecordJsRTGetTypedArrayInfo(Js::ScriptContext* ctx, Js::Var var, TTDVar** resultVarPtr);
 
+        //Record various raw byte* from ArrayBuffer manipulations
+        void RecordJsRTRawBufferCopySync(Js::ScriptContext* ctx, Js::Var dst, uint32 dstIndex, Js::Var src, uint32 srcIndex, uint32 length);
+        void RecordJsRTRawBufferModifySync(Js::ScriptContext* ctx, Js::Var dst, uint32 index, uint32 count);
+        void RecordJsRTRawBufferAsyncModificationRegister(Js::ScriptContext* ctx, Js::Var dst, byte* initialModPos);
+        void RecordJsRTRawBufferAsyncModifyComplete(Js::ScriptContext* ctx, byte* finalModPos);
+
         //Record a constructor call from JsRT
         void RecordJsRTConstructCall(Js::ScriptContext* ctx, Js::JavascriptFunction* func, uint32 argCount, Js::Var* args, TTDVar** resultVarPtr);
 

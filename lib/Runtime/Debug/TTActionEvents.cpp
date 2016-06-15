@@ -413,7 +413,91 @@ namespace TTD
 
             JsRTActionHandleResultForReplay<JsRTVarsArgumentAction, EventKind::GetTypedArrayInfoActionTag>(ctx, evt, res);
         }
-        
+
+        //////////////////
+
+        void JsRTRawBufferCopyAction_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        {
+            const JsRTRawBufferCopyAction* rbcAction = GetInlineEventDataAs<JsRTRawBufferCopyAction, EventKind::RawBufferCopySync>(evt);
+
+            writer->WriteKey(NSTokens::Key::argRetVal, NSTokens::Separator::CommaSeparator);
+            NSSnapValues::EmitTTDVar(rbcAction->Dst, writer, NSTokens::Separator::NoSeparator);
+
+            writer->WriteKey(NSTokens::Key::argRetVal, NSTokens::Separator::CommaSeparator);
+            NSSnapValues::EmitTTDVar(rbcAction->Src, writer, NSTokens::Separator::NoSeparator);
+
+            writer->WriteUInt32(NSTokens::Key::u32Val, rbcAction->DstIndx, NSTokens::Separator::CommaSeparator);
+            writer->WriteUInt32(NSTokens::Key::u32Val, rbcAction->SrcIndx, NSTokens::Separator::CommaSeparator);
+            writer->WriteUInt32(NSTokens::Key::u32Val, rbcAction->Count, NSTokens::Separator::CommaSeparator);
+        }
+
+        void JsRTRawBufferCopyAction_Parse(EventLogEntry* evt, ThreadContext* threadContext, FileReader* reader, UnlinkableSlabAllocator& alloc)
+        {
+            JsRTRawBufferCopyAction* rbcAction = GetInlineEventDataAs<JsRTRawBufferCopyAction, EventKind::RawBufferCopySync>(evt);
+
+            reader->ReadKey(NSTokens::Key::argRetVal, true);
+            rbcAction->Dst = NSSnapValues::ParseTTDVar(false, reader);
+
+            reader->ReadKey(NSTokens::Key::argRetVal, true);
+            rbcAction->Src = NSSnapValues::ParseTTDVar(false, reader);
+
+            rbcAction->DstIndx = reader->ReadUInt32(NSTokens::Key::u32Val, true);
+            rbcAction->SrcIndx = reader->ReadUInt32(NSTokens::Key::u32Val, true);
+            rbcAction->Count = reader->ReadUInt32(NSTokens::Key::u32Val, true);
+        }
+
+        void RawBufferCopySync_Execute(const EventLogEntry* evt, Js::ScriptContext* ctx)
+        {
+            const JsRTRawBufferCopyAction* action = GetInlineEventDataAs<JsRTRawBufferCopyAction, EventKind::RawBufferCopySync>(evt);
+            Js::Var dst = InflateVarInReplay(ctx, action->Dst);
+            Js::Var src = InflateVarInReplay(ctx, action->Src);
+
+            AssertMsg(Js::ArrayBuffer::Is(dst) && Js::ArrayBuffer::Is(src), "Not array buffer objects!!!");
+            AssertMsg(action->DstIndx + action->Count <= Js::ArrayBuffer::FromVar(dst)->GetByteLength(), "Copy off end of buffer!!!");
+            AssertMsg(action->SrcIndx + action->Count <= Js::ArrayBuffer::FromVar(src)->GetByteLength(), "Copy off end of buffer!!!");
+
+            byte* dstBuff = Js::ArrayBuffer::FromVar(dst)->GetBuffer() + action->DstIndx;
+            byte* srcBuff = Js::ArrayBuffer::FromVar(src)->GetBuffer() + action->SrcIndx;
+
+            js_memcpy_s(dstBuff, action->Count, srcBuff, action->Count);
+        }
+
+        void RawBufferModifySync_Execute(const EventLogEntry* evt, Js::ScriptContext* ctx)
+        {
+            const JsRTRawBufferModifyAction* action = GetInlineEventDataAs<JsRTRawBufferModifyAction, EventKind::RawBufferModifySync>(evt);
+            Js::Var trgt = InflateVarInReplay(ctx, action->Trgt);
+
+            AssertMsg(Js::ArrayBuffer::Is(trgt), "Not array buffer object!!!");
+            AssertMsg(action->Index + action->Length <= Js::ArrayBuffer::FromVar(trgt)->GetByteLength(), "Copy off end of buffer!!!");
+
+            byte* trgtBuff = Js::ArrayBuffer::FromVar(trgt)->GetBuffer() + action->Index;
+            js_memcpy_s(trgtBuff, action->Length, action->Data, action->Length);
+        }
+
+        void RawBufferAsyncModificationRegister_Execute(const EventLogEntry* evt, Js::ScriptContext* ctx)
+        {
+            const JsRTRawBufferModifyAction* action = GetInlineEventDataAs<JsRTRawBufferModifyAction, EventKind::RawBufferAsyncModificationRegister>(evt);
+            Js::Var trgt = InflateVarInReplay(ctx, action->Trgt);
+
+            ctx->TTDContextInfo->AddToAsyncPendingList(Js::ArrayBuffer::FromVar(trgt), action->Index);
+        }
+
+        void RawBufferAsyncModifyComplete_Execute(const EventLogEntry* evt, Js::ScriptContext* ctx)
+        {
+            const JsRTRawBufferModifyAction* action = GetInlineEventDataAs<JsRTRawBufferModifyAction, EventKind::RawBufferAsyncModifyComplete>(evt);
+            Js::Var trgt = InflateVarInReplay(ctx, action->Trgt);
+
+            const Js::ArrayBuffer* dstBuff = Js::ArrayBuffer::FromVar(trgt);
+            byte* copyBuff = dstBuff->GetBuffer() + action->Index;
+            byte* finalModPos = dstBuff->GetBuffer() + action->Index + action->Length;
+
+            TTDPendingAsyncBufferModification pendingAsyncInfo = { 0 };
+            ctx->TTDContextInfo->GetFromAsyncPendingList(&pendingAsyncInfo, finalModPos);
+            AssertMsg(dstBuff == pendingAsyncInfo.ArrayBufferVar && action->Index == pendingAsyncInfo.Index, "Something is not right.");
+
+            js_memcpy_s(copyBuff, action->Length, action->Data, action->Length);
+        }
+
         //////////////////
 
         void JsRTConstructCallAction_Execute(const EventLogEntry* evt, Js::ScriptContext* ctx)

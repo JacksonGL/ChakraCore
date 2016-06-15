@@ -1524,6 +1524,18 @@ namespace TTD
 
                 j++;
             }
+
+            //Extract pending async modification info
+            const JsUtil::List<TTDPendingAsyncBufferModification, HeapAllocator>& pendingAsyncList = ctx->TTDContextInfo->GetPendingAsyncModListForSnapshot();
+            snapCtx->m_pendingAsyncModCount = pendingAsyncList.Count();
+            snapCtx->m_pendingAsyncModArray = (snapCtx->m_pendingAsyncModCount != 0) ? alloc.SlabAllocateArray<SnapPendingAsyncBufferModification>(snapCtx->m_pendingAsyncModCount) : nullptr;
+
+            for(int32 k = 0; k < pendingAsyncList.Count(); ++k)
+            {
+                const TTDPendingAsyncBufferModification& pk = pendingAsyncList.Item(k);
+                snapCtx->m_pendingAsyncModArray[k].LogId = objToLogIdMap.LookupWithKey(Js::RecyclableObject::FromVar(pk.ArrayBufferVar), TTD_INVALID_LOG_PTR_ID);
+                snapCtx->m_pendingAsyncModArray[k].Index = pk.Index;
+            }
         }
 
         void InflateScriptContext(const SnapContext* snpCtx, Js::ScriptContext* intoCtx, InflateMap* inflator, 
@@ -1599,6 +1611,20 @@ namespace TTD
             }
         }
 
+        void ResetPendingAsyncBufferModInfo(const SnapContext* snpCtx, Js::ScriptContext* intoCtx, InflateMap* inflator)
+        {
+            intoCtx->TTDContextInfo->ClearPendingAsyncModListForSnapRestore();
+
+            for(uint32 i = 0; i < snpCtx->m_pendingAsyncModCount; ++i)
+            {
+                Js::RecyclableObject* buff = inflator->LookupObject(snpCtx->m_pendingAsyncModArray[i].LogId);
+                uint32 index = snpCtx->m_pendingAsyncModArray[i].Index;
+
+                AssertMsg(Js::ArrayBuffer::Is(buff), "Not an ArrayBuffer!!!");
+                intoCtx->TTDContextInfo->AddToAsyncPendingList(Js::ArrayBuffer::FromVar(buff), index);
+            }
+        }
+
         void EmitSnapContext(const SnapContext* snapCtx, FileWriter* writer, NSTokens::Separator separator)
         {
             writer->WriteRecordStart(separator);
@@ -1671,6 +1697,18 @@ namespace TTD
                 writer->WriteRecordStart(sep);
                 writer->WriteLogTag(NSTokens::Key::logTag, snapCtx->m_localRootArray[i].LogId);
                 writer->WriteAddr(NSTokens::Key::objectId, snapCtx->m_localRootArray[i].LogObject, NSTokens::Separator::CommaSeparator);
+                writer->WriteRecordEnd();
+            }
+            writer->WriteSequenceEnd();
+
+            writer->WriteLengthValue(snapCtx->m_pendingAsyncModCount, NSTokens::Separator::CommaSeparator);
+            writer->WriteSequenceStart_DefaultKey(NSTokens::Separator::CommaSeparator);
+            for(uint32 i = 0; i < snapCtx->m_pendingAsyncModCount; ++i)
+            {
+                NSTokens::Separator sep = (i != 0) ? NSTokens::Separator::CommaSeparator : NSTokens::Separator::NoSeparator;
+                writer->WriteRecordStart(sep);
+                writer->WriteLogTag(NSTokens::Key::logTag, snapCtx->m_pendingAsyncModArray[i].LogId);
+                writer->WriteUInt32(NSTokens::Key::u32Val, snapCtx->m_pendingAsyncModArray[i].Index, NSTokens::Separator::CommaSeparator);
                 writer->WriteRecordEnd();
             }
             writer->WriteSequenceEnd();
@@ -1756,6 +1794,19 @@ namespace TTD
             }
             reader->ReadSequenceEnd();
 
+            intoCtx->m_pendingAsyncModCount = reader->ReadLengthValue(true);
+            intoCtx->m_pendingAsyncModArray = (intoCtx->m_pendingAsyncModCount != 0) ? alloc.SlabAllocateArray<SnapPendingAsyncBufferModification>(intoCtx->m_pendingAsyncModCount) : nullptr;
+
+            reader->ReadSequenceStart_WDefaultKey(true);
+            for(uint32 i = 0; i < intoCtx->m_pendingAsyncModCount; ++i)
+            {
+                reader->ReadRecordStart(i != 0);
+                intoCtx->m_pendingAsyncModArray[i].LogId = reader->ReadLogTag(NSTokens::Key::logTag);
+                intoCtx->m_pendingAsyncModArray[i].Index = reader->ReadUInt32(NSTokens::Key::u32Val, true);
+                reader->ReadRecordEnd();
+            }
+            reader->ReadSequenceEnd();
+
             reader->ReadRecordEnd();
         }
 
@@ -1816,6 +1867,22 @@ namespace TTD
 
                 TTD_PTR_ID id1 = localRootMap1.LookupWithKey(rootEntry2.LogId, TTD_INVALID_PTR_ID);
                 compareMap.CheckConsistentAndAddPtrIdMapping_Root(id1, rootEntry2.LogObject, rootEntry2.LogId);
+            }
+
+            compareMap.DiagnosticAssert(snapCtx1->m_pendingAsyncModCount == snapCtx2->m_pendingAsyncModCount);
+
+            for(uint32 i = 0; i < snapCtx1->m_pendingAsyncModCount; ++i)
+            {
+                const SnapPendingAsyncBufferModification& pendEntry1 = snapCtx1->m_pendingAsyncModArray[i];
+
+                bool found = false;
+                for(uint32 j = 0; j < snapCtx2->m_pendingAsyncModCount; ++j)
+                {
+                    const SnapPendingAsyncBufferModification& pendEntry2 = snapCtx2->m_pendingAsyncModArray[j];
+                    found |= (pendEntry1.LogId == pendEntry2.LogId && pendEntry1.Index == pendEntry2.Index);
+                }
+
+                compareMap.DiagnosticAssert(found);
             }
         }
 #endif

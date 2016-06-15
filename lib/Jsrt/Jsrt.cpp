@@ -3531,13 +3531,14 @@ CHAKRA_API JsTTDRawBufferCopySyncIndirect(_In_ JsValueRef dst, _In_ UINT32 dstIn
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    //
-    //TODO: link up to log
-    //
+    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+        if (PERFORM_JSRT_TTD_RECORD_ACTION_CHECK(scriptContext))
+        {
+            scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferCopySync(scriptContext, dst, dstIndex, src, srcIndex, count);
+        }
 
-    wprintf(L"Modified %p [%i, %i) via %p\n", dst, dstIndex, (dstIndex + count), src);
-
-    return JsNoError;
+        return JsNoError;
+    });
 #endif
 }
 
@@ -3546,13 +3547,14 @@ CHAKRA_API JsTTDRawBufferModifySyncIndirect(_In_ JsValueRef buffer, _In_ UINT32 
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    //
-    //TODO: link up to log
-    //
+    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+        if (PERFORM_JSRT_TTD_RECORD_ACTION_CHECK(scriptContext))
+        {
+            scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferModifySync(scriptContext, buffer, index, count);
+        }
 
-    wprintf(L"Modified %p [%i, %i)\n", buffer, index, (index + count));
-
-    return JsNoError;
+        return JsNoError;
+    });
 #endif
 }
 
@@ -3561,29 +3563,14 @@ CHAKRA_API JsTTDRawBufferAsyncModificationRegister(_In_ JsValueRef instance, _In
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    //
-    //TODO: link up to log
-    //
-
-    BEGIN_JSRT_NO_EXCEPTION
-    {
-        if(!Js::ArrayBuffer::Is(instance))
+    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+        if (scriptContext->ShouldPerformAsyncBufferModAction())
         {
-            RETURN_NO_EXCEPTION(JsErrorInvalidArgument);
+            scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferAsyncModificationRegister(scriptContext, instance, initialModPos);
         }
 
-        //
-        //TODO: aquire lock here
-        //
-
-        Js::ArrayBuffer* arrayBuffer = arrayBuffer = Js::ArrayBuffer::FromVar(instance);
-        wprintf(L"Registered buffer %p start mod at @%p max position is %p\n", arrayBuffer, initialModPos, arrayBuffer->GetBuffer() + arrayBuffer->GetBufferOffset() + arrayBuffer->GetByteLength());
-
-        //
-        //TODO: release lock here
-        //
-    }
-    END_JSRT_NO_EXCEPTION
+        return JsNoError;
+    });
 #endif
 }
 
@@ -3592,17 +3579,14 @@ CHAKRA_API JsTTDRawBufferAsyncModifyComplete(_In_ byte* finalModPos)
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    //
-    //TODO: link up to log
-    //
+    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+        if(scriptContext->ShouldPerformAsyncBufferModAction())
+        {
+            scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferAsyncModifyComplete(scriptContext, finalModPos);
+        }
 
-    wprintf(L"Async modify done ending at @%p\n", finalModPos);
-
-    //
-    //TODO: release lock here
-    //
-
-    return JsNoError;
+        return JsNoError;
+    });
 #endif
 }
 

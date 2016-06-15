@@ -10,7 +10,7 @@ namespace TTD
 {
     ScriptContextTTD::ScriptContextTTD(Js::ScriptContext* ctx)
         : m_ctx(ctx),
-        m_ttdRootSet(nullptr), m_ttdLocalRootSet(nullptr), m_ttdRootTagIdMap(&HeapAllocator::Instance),
+        m_ttdRootSet(nullptr), m_ttdLocalRootSet(nullptr), m_ttdRootTagIdMap(&HeapAllocator::Instance), m_ttdPendingAsyncModList(&HeapAllocator::Instance),
         m_ttdTopLevelScriptLoad(&HeapAllocator::Instance), m_ttdTopLevelNewFunction(&HeapAllocator::Instance), m_ttdTopLevelEval(&HeapAllocator::Instance),
         m_ttdPinnedRootFunctionSet(nullptr), m_ttdFunctionBodyParentMap(&HeapAllocator::Instance),
         TTDWeakReferencePinSet(nullptr)
@@ -45,6 +45,8 @@ namespace TTD
         }
 
         this->m_ttdRootTagIdMap.Clear();
+
+        this->m_ttdPendingAsyncModList.Clear();
 
         this->m_ttdTopLevelScriptLoad.Clear();
         this->m_ttdTopLevelNewFunction.Clear();
@@ -159,6 +161,56 @@ namespace TTD
         this->m_ttdLocalRootSet->Clear();
 
         this->m_ttdRootTagIdMap.Clear();
+    }
+
+    void ScriptContextTTD::AddToAsyncPendingList(Js::ArrayBuffer* trgt, uint32 index)
+    {
+        TTDPendingAsyncBufferModification pending = { trgt, index };
+        this->m_ttdPendingAsyncModList.Add(pending);
+    }
+
+    void ScriptContextTTD::GetFromAsyncPendingList(TTDPendingAsyncBufferModification* pendingInfo, byte* finalModPos)
+    {
+        pendingInfo->ArrayBufferVar = nullptr;
+        pendingInfo->Index = 0;
+
+        const byte* currentBegin = nullptr;
+        int32 pos = -1;
+        for(int32 i = 0; i < this->m_ttdPendingAsyncModList.Count(); ++i)
+        {
+            const TTDPendingAsyncBufferModification& pi = this->m_ttdPendingAsyncModList.Item(i);
+            const Js::ArrayBuffer* pbuff = Js::ArrayBuffer::FromVar(pi.ArrayBufferVar);
+            const byte* pbuffBegin = pbuff->GetBuffer() + pi.Index;
+            const byte* pbuffMax = pbuff->GetBuffer() + pbuff->GetByteLength();
+
+            //if the final mod is less than the start of this buffer + index or off then end then this definitely isn't it so skip
+            if(pbuffBegin > finalModPos || pbuffMax < finalModPos)
+            {
+                continue;
+            }
+
+            //it is in the right range so now we assume non-overlapping so we see if this pbuffBegin is closer than the current best
+            AssertMsg(finalModPos != currentBegin, "We have something strange!!!");
+            if(currentBegin == nullptr || finalModPos < currentBegin)
+            {
+                currentBegin = pbuffBegin;
+                pos = (int32)i;
+            }
+        }
+        AssertMsg(pos != -1, "Missing matching register!!!");
+
+        *pendingInfo = this->m_ttdPendingAsyncModList.Item(pos);
+        this->m_ttdPendingAsyncModList.RemoveAt(pos);
+    }
+
+    const JsUtil::List<TTDPendingAsyncBufferModification, HeapAllocator>& ScriptContextTTD::GetPendingAsyncModListForSnapshot() const
+    {
+        return this->m_ttdPendingAsyncModList;
+    }
+
+    void ScriptContextTTD::ClearPendingAsyncModListForSnapRestore()
+    {
+        this->m_ttdPendingAsyncModList.Clear();
     }
 
     void ScriptContextTTD::GetLoadedSources(JsUtil::List<TTD::TopLevelFunctionInContextRelation, HeapAllocator>& topLevelScriptLoad, JsUtil::List<TTD::TopLevelFunctionInContextRelation, HeapAllocator>& topLevelNewFunction, JsUtil::List<TTD::TopLevelFunctionInContextRelation, HeapAllocator>& topLevelEval)

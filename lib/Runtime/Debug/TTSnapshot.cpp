@@ -444,6 +444,7 @@ namespace TTD
 
         Js::ScriptContext* tCtx = inflator->LookupScriptContext(sCtx->m_scriptContextLogId);
         NSSnapValues::ReLinkRoots(sCtx, tCtx, inflator);
+        NSSnapValues::ResetPendingAsyncBufferModInfo(sCtx, tCtx, inflator);
     }
 
     void SnapShot::EmitSnapshot(LPCWSTR sourceDir, DWORD snapId, ThreadContext* threadContext) const

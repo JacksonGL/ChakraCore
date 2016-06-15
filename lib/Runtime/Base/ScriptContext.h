@@ -1143,6 +1143,16 @@ private:
             return ((modeIsPending | modeIsRecord) & inDebugableCode);
         }
 
+        //A special record check because we want to take action on async buffer registration and completion even if we have not started actively logging (but are planning to do so in the future)
+        bool ShouldPerformAsyncBufferModAction() const
+        {
+            bool modeIsPending = (this->TTDMode & TTD::TTDMode::Pending) == TTD::TTDMode::Pending;
+            bool modeIsRecord = (this->TTDMode & TTD::TTDMode::RecordEnabled) == TTD::TTDMode::RecordEnabled;
+            bool inDebugableCode = (this->TTDMode & TTD::TTDMode::ExcludedExecution) == TTD::TTDMode::Invalid;
+
+            return ((modeIsPending | modeIsRecord) & inDebugableCode);
+        }
+
         //
         //TODO: this is currently called explicitly -- we need to fix up the core image computation and this will be eliminated then
         //

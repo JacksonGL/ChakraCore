@@ -174,6 +174,11 @@ namespace TTD
 
             GetTypedArrayInfoActionTag,
 
+            RawBufferCopySync,
+            RawBufferModifySync,
+            RawBufferAsyncModificationRegister,
+            RawBufferAsyncModifyComplete,
+
             ConstructCallActionTag,
             CallbackOpActionTag,
             CodeParseActionTag,
