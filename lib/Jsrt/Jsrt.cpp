@@ -3563,14 +3563,24 @@ CHAKRA_API JsTTDRawBufferAsyncModificationRegister(_In_ JsValueRef instance, _In
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+
+    JsValueRef addRefObj = nullptr;
+    JsErrorCode res = ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
         if (scriptContext->ShouldPerformAsyncBufferModAction())
         {
-            scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferAsyncModificationRegister(scriptContext, instance, initialModPos);
+            addRefObj = scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferAsyncModificationRegister(scriptContext, instance, initialModPos);
         }
 
         return JsNoError;
     });
+
+    //We need to root add ref so we can find this during replay!!!
+    if(addRefObj != nullptr)
+    {
+        JsAddRef(addRefObj, nullptr);
+    }
+
+    return res;
 #endif
 }
 
@@ -3579,14 +3589,24 @@ CHAKRA_API JsTTDRawBufferAsyncModifyComplete(_In_ byte* finalModPos)
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+
+    JsValueRef releaseObj = nullptr;
+    JsErrorCode res = ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
         if(scriptContext->ShouldPerformAsyncBufferModAction())
         {
-            scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferAsyncModifyComplete(scriptContext, finalModPos);
+            releaseObj = scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferAsyncModifyComplete(scriptContext, finalModPos);
         }
 
         return JsNoError;
     });
+
+    //We need to root release ref so we can free this in replay if needed!!!
+    if(releaseObj != nullptr)
+    {
+        JsRelease(releaseObj, nullptr);
+    }
+
+    return res;
 #endif
 }
 

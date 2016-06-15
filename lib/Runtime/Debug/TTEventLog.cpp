@@ -2017,7 +2017,7 @@ namespace TTD
         js_memcpy_s(rbmAction->Data, rbmAction->Length, copyBuff, count);
     }
 
-    void EventLog::RecordJsRTRawBufferAsyncModificationRegister(Js::ScriptContext* ctx, Js::Var dst, byte* initialModPos)
+    Js::Var EventLog::RecordJsRTRawBufferAsyncModificationRegister(Js::ScriptContext* ctx, Js::Var dst, byte* initialModPos)
     {
         AssertMsg(Js::ArrayBuffer::Is(dst), "Not array buffer object!!!");
         Js::ArrayBuffer* dstBuff = Js::ArrayBuffer::FromVar(dst);
@@ -2028,22 +2028,28 @@ namespace TTD
 
         ctx->TTDContextInfo->AddToAsyncPendingList(dstBuff, (uint32)index);
 
+        Js::Var addRefObj = nullptr;
         if(ctx->ShouldPerformRecordAction())
         {
             NSLogEvents::JsRTRawBufferModifyAction* rbrAction = this->RecordGetInitializedEvent_Helper<NSLogEvents::JsRTRawBufferModifyAction, NSLogEvents::EventKind::RawBufferAsyncModificationRegister>();
             rbrAction->Trgt = TTD_CONVERT_JSVAR_TO_TTDVAR(dst);
             rbrAction->Index = (uint32)index;
+
+            addRefObj = dst;
         }
+
+        return addRefObj;
     }
 
-    void EventLog::RecordJsRTRawBufferAsyncModifyComplete(Js::ScriptContext* ctx, byte* finalModPos)
+    Js::Var EventLog::RecordJsRTRawBufferAsyncModifyComplete(Js::ScriptContext* ctx, byte* finalModPos)
     {
         TTDPendingAsyncBufferModification pendingAsyncInfo = { 0 };
         ctx->TTDContextInfo->GetFromAsyncPendingList(&pendingAsyncInfo, finalModPos);
 
+        Js::Var releaseObj = nullptr;
         if(ctx->ShouldPerformRecordAction())
         {
-            const Js::ArrayBuffer* dstBuff = Js::ArrayBuffer::FromVar(pendingAsyncInfo.ArrayBufferVar);
+            Js::ArrayBuffer* dstBuff = Js::ArrayBuffer::FromVar(pendingAsyncInfo.ArrayBufferVar);
             byte* copyBuff = dstBuff->GetBuffer() + pendingAsyncInfo.Index;
 
             NSLogEvents::JsRTRawBufferModifyAction* rbrAction = this->RecordGetInitializedEvent_Helper<NSLogEvents::JsRTRawBufferModifyAction, NSLogEvents::EventKind::RawBufferAsyncModifyComplete>();
@@ -2053,7 +2059,11 @@ namespace TTD
 
             rbrAction->Data = (rbrAction->Length != 0) ? this->m_eventSlabAllocator.SlabAllocateArray<byte>(rbrAction->Length) : nullptr;
             js_memcpy_s(rbrAction->Data, rbrAction->Length, copyBuff, rbrAction->Length);
+
+            releaseObj = dstBuff;
         }
+
+        return releaseObj;
     }
 
     void EventLog::RecordJsRTConstructCall(Js::ScriptContext* ctx, Js::JavascriptFunction* func, uint32 argCount, Js::Var* args, TTDVar** resultVarPtr)

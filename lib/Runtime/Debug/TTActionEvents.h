@@ -357,8 +357,7 @@ namespace TTD
             writer->WriteKey(NSTokens::Key::argRetVal, NSTokens::Separator::CommaSeparator);
             NSSnapValues::EmitTTDVar(bufferAction->Trgt, writer, NSTokens::Separator::NoSeparator);
 
-            writer->WriteUInt32(NSTokens::Key::index, bufferAction->Index, NSTokens::Separator::NoSeparator);
-            writer->WriteUInt32(NSTokens::Key::count, bufferAction->Length, NSTokens::Separator::NoSeparator);
+            writer->WriteUInt32(NSTokens::Key::index, bufferAction->Index, NSTokens::Separator::CommaSeparator);
 
             writer->WriteLengthValue(bufferAction->Length, NSTokens::Separator::CommaSeparator);
             writer->WriteSequenceStart_DefaultKey(NSTokens::Separator::CommaSeparator);
