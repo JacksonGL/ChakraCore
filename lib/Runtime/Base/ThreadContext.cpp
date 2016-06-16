@@ -1930,9 +1930,29 @@ ThreadContext::ExecuteRecyclerCollectionFunction(Recycler * recycler, Collection
             }
         }
 
+#if ENABLE_TTD
+        //
+        //TODO: We leak any references that are JsReleased by the host in collection callbacks. Later we should defer these events to the end of the 
+        //      top-level call or the next external call and then append them to the log.
+        //
+
+        bool preventRecording = this->GetScriptEntryExit()->scriptContext->ShouldPerformRecordAction();
+        if(preventRecording)
+        {
+            this->TTDLog->PushMode(TTD::TTDMode::ExcludedExecution);
+        }
+#endif
+
         this->LeaveScriptStart<false>(frameAddr);
         ret = this->ExecuteRecyclerCollectionFunctionCommon(recycler, function, flags);
         this->LeaveScriptEnd<false>(frameAddr);
+
+#if ENABLE_TTD
+        if(preventRecording)
+        {
+            this->TTDLog->PopMode(TTD::TTDMode::ExcludedExecution);
+        }
+#endif
 
         if (this->callRootLevel != 0)
         {

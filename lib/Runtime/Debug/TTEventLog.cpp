@@ -2050,6 +2050,8 @@ namespace TTD
 
     Js::Var EventLog::RecordJsRTRawBufferAsyncModifyComplete(Js::ScriptContext* ctx, byte* finalModPos)
     {
+        AssertMsg(this->m_ttdContext->TTDRootNestingCount == 0, "We should only be doing this on the main thread with no-one else pending!!!");
+
         TTDPendingAsyncBufferModification pendingAsyncInfo = { 0 };
         ctx->TTDContextInfo->GetFromAsyncPendingList(&pendingAsyncInfo, finalModPos);
 
