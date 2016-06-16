@@ -1937,7 +1937,7 @@ ThreadContext::ExecuteRecyclerCollectionFunction(Recycler * recycler, Collection
         //      top-level call or the next external call and then append them to the log.
         //
 
-        bool preventRecording = this->GetScriptEntryExit()->scriptContext->ShouldPerformRecordAction();
+        bool preventRecording = (this->entryExitRecord != nullptr) && this->entryExitRecord->scriptContext->ShouldPerformRecordAction();
         if(preventRecording)
         {
             this->TTDLog->PushMode(TTD::TTDMode::ExcludedExecution);
