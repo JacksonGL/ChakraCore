@@ -216,9 +216,9 @@ namespace TTD
         return entry;
     }
 
-    void TTEventList::DeleteFirstEntry(TTEventListLink* block, NSLogEvents::EventLogEntry* data, NSLogEvents::EventLogEntryVTableEntry* vtable)
+    void TTEventList::DeleteFirstEntry(NSLogEvents::EventLogEntry* data, NSLogEvents::EventLogEntryVTableEntry* vtable)
     {
-        AssertMsg(block->Previous == nullptr, "Not first event block in log!!!");
+        TTEventListLink* block = this->m_headBlock;
         AssertMsg((block->BlockData + block->StartPos) == data, "Not the data at the start of the list!!!");
 
         auto unloadFP = vtable[(uint32)data->EventKind].UnloadFP; //use vtable magic here
@@ -1503,9 +1503,33 @@ namespace TTD
 
     void EventLog::PruneLogLength()
     {
-        //
-        //TODO: add code to see if we have more snapshots than the specified limit and if so unload them
-        //
+        uint32 maxEvents = this->m_snapHistoryLength;
+        auto tailIter = this->m_eventList.GetIteratorAtLast();
+        while(maxEvents != 0 && tailIter.IsValid())
+        {
+            if(tailIter.Current()->EventKind == NSLogEvents::EventKind::SnapshotTag)
+            {
+                maxEvents--;
+            }
+
+            if(maxEvents != 0)
+            {
+                //don't move when we point to the last snapshot we want to preserve (have as the new eventList start)
+                tailIter.MovePrevious();
+            }
+        }
+
+        if(maxEvents == 0 && tailIter.IsValid())
+        {
+            auto delIter = this->m_eventList.GetIteratorAtFirst(); //we know tailIter is valid so at least 1 entry
+            while(delIter.Current() != tailIter.Current())
+            {
+                NSLogEvents::EventLogEntry* evt = delIter.Current();
+                delIter.MoveNext();
+
+                this->m_eventList.DeleteFirstEntry(evt, this->m_eventListVTable);
+            }
+        }
     }
 
     void EventLog::IncrementElapsedSnapshotTime(double addtlTime)

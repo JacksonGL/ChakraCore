@@ -126,7 +126,7 @@ namespace TTD
 
         //Delete the entry from the list (must always be the first link/entry in the list)
         //This also calls unload on the entry
-        void DeleteFirstEntry(TTEventListLink* block, NSLogEvents::EventLogEntry* data, NSLogEvents::EventLogEntryVTableEntry* vtable);
+        void DeleteFirstEntry(NSLogEvents::EventLogEntry* data, NSLogEvents::EventLogEntryVTableEntry* vtable);
 
         //Return true if this is empty
         bool IsEmpty() const;
@@ -363,7 +363,7 @@ namespace TTD
         //pop the top debugger mode
         void PopMode(TTDMode m);
 
-        //Set the log into debugging mode (it must already be in replay mode)
+        //Set the log into debugging mode
         void SetIntoDebuggingMode();
 
         //Use this to check specifically if we are in record AND this code is being run on behalf of the user application when doing symbol creation
