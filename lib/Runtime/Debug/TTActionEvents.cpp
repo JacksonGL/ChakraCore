@@ -242,7 +242,7 @@ namespace TTD
             const JsRTVarsWithIntegralUnionArgumentAction* action = GetInlineEventDataAs<JsRTVarsWithIntegralUnionArgumentAction, EventKind::AllocateFunctionActionTag>(evt);
 
             Js::Var res = nullptr;
-            if(action->u_bVal)
+            if(!action->u_bVal)
             {
                 res = ctx->GetLibrary()->CreateStdCallExternalFunction(nullptr, 0, nullptr);
             }

@@ -92,6 +92,7 @@ namespace TTD
     //A list class for the events that we accumulate in the event log
     class TTEventList
     {
+    public:
         struct TTEventListLink
         {
             //The current end of the allocated data in the block
@@ -108,6 +109,7 @@ namespace TTD
             TTEventListLink* Previous;
         };
 
+    private:
         //The the data in this
         TTEventListLink* m_headBlock;
 
@@ -126,7 +128,7 @@ namespace TTD
 
         //Delete the entry from the list (must always be the first link/entry in the list)
         //This also calls unload on the entry
-        void DeleteFirstEntry(NSLogEvents::EventLogEntry* data, NSLogEvents::EventLogEntryVTableEntry* vtable);
+        void DeleteFirstEntry(TTEventListLink* block, NSLogEvents::EventLogEntry* data, NSLogEvents::EventLogEntryVTableEntry* vtable);
 
         //Return true if this is empty
         bool IsEmpty() const;
@@ -146,6 +148,9 @@ namespace TTD
 
             const NSLogEvents::EventLogEntry* Current() const;
             NSLogEvents::EventLogEntry* Current();
+
+            //Get the underlying block for deletion support
+            TTEventListLink* GetBlock();
 
             bool IsValid() const;
 

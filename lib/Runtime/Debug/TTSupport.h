@@ -307,12 +307,13 @@ namespace TTD
         //The large allocation list
         LargeSlabBlock* m_largeBlockList;
 
+        //Allow us to speculatively reserve blocks for data and make sure we don't double allocate anything
+        uint32 m_reserveActiveBytes;
+        LargeSlabBlock* m_reserveActiveLargeBlock;
+
 #if ENABLE_TTD_INTERNAL_DIAGNOSTICS
         //The amount of allocated memory with useful data
         uint64 m_totalAllocatedSize;
-
-        //Make sure we don't double allocate anything
-        uint32 m_reserveActive;
 #endif
 
         //Get a new block in the slab
@@ -340,9 +341,7 @@ namespace TTD
         template <size_t n>
         byte* SlabAllocateTypeRawSize()
         {
-#if ENABLE_TTD_INTERNAL_DIAGNOSTICS
-            AssertMsg(this->m_reserveActive == 0, "Don't double allocate memory.");
-#endif
+            AssertMsg(this->m_reserveActiveBytes == 0, "Don't double allocate memory.");
             AssertMsg(n <= TTD_SLAB_LARGE_BLOCK_SIZE, "Don't allocate large requests in the bump pool.");
 
             uint32 desiredsize = TTD_WORD_ALIGN_ALLOC_SIZE(n + canUnlink); //make alloc size word aligned
@@ -389,9 +388,7 @@ namespace TTD
 
             if(reserve)
             {
-#if ENABLE_TTD_INTERNAL_DIAGNOSTICS
-                AssertMsg(this->m_reserveActive == 0, "Don't double allocate memory.");
-#endif
+                AssertMsg(this->m_reserveActiveBytes == 0, "Don't double allocate memory.");
 
                 if(this->m_currPos + desiredsize > this->m_endPos)
                 {
@@ -416,7 +413,7 @@ namespace TTD
                 this->m_currPos += desiredsize;
 
 #if ENABLE_TTD_INTERNAL_DIAGNOSTICS
-                this->m_totalAllocatedSize += TTD_WORD_ALIGN_ALLOC_SIZE(requestedBytes);
+                this->m_totalAllocatedSize += desiredsize;
 #endif
 
                 if(canUnlink)
@@ -425,24 +422,38 @@ namespace TTD
                 }
             }
 
-#if ENABLE_TTD_INTERNAL_DIAGNOSTICS
             if(reserve & !commit)
             {
-                this->m_reserveActive = desiredsize;
+                this->m_reserveActiveBytes = desiredsize;
             }
 
             if(!reserve & commit)
             {
-                AssertMsg(desiredsize <= this->m_reserveActive, "We are commiting more that we reserved.");
+                AssertMsg(desiredsize <= this->m_reserveActiveBytes, "We are commiting more that we reserved.");
 
-                this->m_reserveActive = 0;
+                this->m_reserveActiveBytes = 0;
             }
-#endif
 
             return res;
         }
 
+        //Commit the allocation of a large block
+        void CommitLargeBlockAllocation(LargeSlabBlock* newBlock, size_t blockSize)
+        {
+#if ENABLE_TTD_INTERNAL_DIAGNOSTICS
+            this->m_totalAllocatedSize += blockSize;
+#endif
+
+            if(this->m_largeBlockList != nullptr)
+            {
+                this->m_largeBlockList->Next = newBlock;
+            }
+
+            this->m_largeBlockList = newBlock;
+        }
+
         //Allocate a byte* of the the given size (word aligned) in the large block pool
+        template<bool commit>
         byte* SlabAllocateLargeBlockSize(size_t requestedBytes)
         {
             AssertMsg(requestedBytes > TTD_SLAB_LARGE_BLOCK_SIZE, "Don't allocate small requests in the large pool.");
@@ -450,9 +461,7 @@ namespace TTD
             uint32 desiredsize = TTD_WORD_ALIGN_ALLOC_SIZE(requestedBytes + TTD_LARGE_SLAB_BLOCK_SIZE); //make alloc size word aligned
             AssertMsg((desiredsize % 4 == 0) & (desiredsize >= (requestedBytes + TTD_LARGE_SLAB_BLOCK_SIZE)), "We can never allocate a block this big with the slab allocator!!");
 
-#if ENABLE_TTD_INTERNAL_DIAGNOSTICS
-            AssertMsg(this->m_reserveActive == 0, "Don't double allocate memory.");
-#endif
+            AssertMsg(this->m_reserveActiveBytes == 0, "Don't double allocate memory.");
 
             byte* tmp = HeapNewArray(byte, desiredsize);
 
@@ -465,18 +474,17 @@ namespace TTD
 
             newBlock->MetaDataSential = 0;
 
-            if(this->m_largeBlockList != nullptr)
+            if(commit)
             {
-                this->m_largeBlockList->Next = newBlock;
+                this->CommitLargeBlockAllocation(newBlock, desiredsize);
+            }
+            else
+            {
+                this->m_reserveActiveBytes = desiredsize;
+                this->m_reserveActiveLargeBlock = newBlock;
             }
 
-            this->m_largeBlockList = newBlock;
-
-#if ENABLE_TTD_INTERNAL_DIAGNOSTICS
-            this->m_totalAllocatedSize += TTD_WORD_ALIGN_ALLOC_SIZE(requestedBytes);
-#endif
-
-            return this->m_largeBlockList->BlockData;
+            return newBlock->BlockData;
         }
 
     public:
@@ -501,8 +509,10 @@ namespace TTD
 
 #if ENABLE_TTD_INTERNAL_DIAGNOSTICS
             this->m_totalAllocatedSize = 0;
-            this->m_reserveActive = 0;
 #endif
+
+            this->m_reserveActiveBytes = 0;
+            this->m_reserveActiveLargeBlock = nullptr;
         }
 
         ~SlabAllocatorBase()
@@ -523,6 +533,12 @@ namespace TTD
                 currLargeBlock = currLargeBlock->Previous;
 
                 HeapDeleteArray(tmp->TotalBlockSize, (byte*)tmp);
+            }
+
+            if(this->m_reserveActiveLargeBlock != nullptr)
+            {
+                HeapDeleteArray(this->m_reserveActiveBytes, (byte*)this->m_reserveActiveLargeBlock);
+                this->m_reserveActiveLargeBlock = nullptr;
             }
         }
 
@@ -631,7 +647,7 @@ namespace TTD
             }
             else
             {
-                return (T*)this->SlabAllocateLargeBlockSize(size);
+                return (T*)this->SlabAllocateLargeBlockSize<true>(size);
             }
         }
 
@@ -648,7 +664,7 @@ namespace TTD
             }
             else
             {
-                res = (T*)this->SlabAllocateLargeBlockSize(size);
+                res = (T*)this->SlabAllocateLargeBlockSize<true>(size);
             }
 
             memset(res, 0, size);
@@ -665,7 +681,7 @@ namespace TTD
             }
             else
             {
-                return (T*)this->SlabAllocateLargeBlockSize(count * sizeof(T));
+                return (T*)this->SlabAllocateLargeBlockSize<true>(count * sizeof(T));
             }
         }
 
@@ -680,7 +696,7 @@ namespace TTD
             }
             else
             {
-                return (T*)this->SlabAllocateLargeBlockSize(size);
+                return (T*)this->SlabAllocateLargeBlockSize<false>(size);
             }
         }
 
@@ -688,37 +704,56 @@ namespace TTD
         template <typename T>
         void SlabCommitArraySpace(size_t actualCount, size_t reservedCount)
         {
+            AssertMsg(this->m_reserveActiveBytes != 0, "We don't have anything reserved.");
+
             size_t reservedSize = reservedCount * sizeof(T);
             if(reservedSize <= TTD_SLAB_LARGE_BLOCK_SIZE)
             {
+                AssertMsg(this->m_reserveActiveLargeBlock == nullptr, "We should not have a large block active!!!");
+
                 size_t actualSize = actualCount * sizeof(T);
                 this->SlabAllocateRawSize<false, true>(actualSize);
             }
-            //we always commit large allocs so no need to clear reserved count info
+            else
+            {
+                AssertMsg(this->m_reserveActiveLargeBlock != nullptr, "We should have a large block active!!!");
+
+                this->CommitLargeBlockAllocation(this->m_reserveActiveLargeBlock, this->m_reserveActiveBytes);
+
+                this->m_reserveActiveLargeBlock = nullptr;
+                this->m_reserveActiveBytes = 0;
+            }
         }
 
         //Abort the allocation of the elements of the given type that were reserved previously
         template <typename T>
         void SlabAbortArraySpace(size_t reservedCount)
         {
-#if ENABLE_TTD_INTERNAL_DIAGNOSTICS
+            AssertMsg(this->m_reserveActiveBytes != 0, "We don't have anything reserved.");
+
             size_t reservedSize = reservedCount * sizeof(T);
             if(reservedSize <= TTD_SLAB_LARGE_BLOCK_SIZE)
             {
-                AssertMsg(this->m_reserveActive != 0, "We don't have anything reserved.");
-                this->m_reserveActive = 0;
+                AssertMsg(this->m_reserveActiveLargeBlock == nullptr, "We should not have a large block active!!!");
+
+                this->m_reserveActiveBytes = 0;
             }
-            //we always commit large allocs so no need to clear reserved count info
-#endif
+            else
+            {
+                AssertMsg(this->m_reserveActiveLargeBlock != nullptr, "We should have a large block active!!!");
+
+                HeapDeleteArray(this->m_reserveActiveBytes, (byte*)this->m_reserveActiveLargeBlock);
+
+                this->m_reserveActiveLargeBlock = nullptr;
+                this->m_reserveActiveBytes = 0;
+            }
         }
 
         //If allowed unlink the memory allocation specified and free the block if it is no longer used by anyone
         void UnlinkAllocation(const void* allocation)
         {
             AssertMsg(canUnlink, "Unlink not allowed with this slab allocator.");
-#if ENABLE_TTD_INTERNAL_DIAGNOSTICS
-            AssertMsg(this->m_reserveActive == 0, "We don't have anything reserved.");
-#endif
+            AssertMsg(this->m_reserveActiveBytes == 0, "We don't have anything reserved.");
 
             //get the meta-data for this allocation and see if it is a 
             byte* realBase = ((byte*)allocation) - canUnlink;
@@ -729,23 +764,28 @@ namespace TTD
                 //it is a large allocation just free it
                 LargeSlabBlock* largeBlock = (LargeSlabBlock*)(((byte*)allocation) - TTD_LARGE_SLAB_BLOCK_SIZE);
 
-                if(largeBlock->Next != nullptr)
-                {
-                    largeBlock->Next->Previous = largeBlock->Previous;
-                }
-
-                if(largeBlock->Previous != nullptr)
-                {
-                    largeBlock->Previous->Next = largeBlock->Next;
-                }
-
                 if(largeBlock == this->m_largeBlockList)
                 {
-                    AssertMsg(this->m_largeBlockList->Next == nullptr && this->m_largeBlockList->Previous == nullptr, "We should be de-allocating in order so this should all be don if we reach the head.");
+                    AssertMsg(largeBlock->Next == nullptr, "Should always have a null next at head");
 
-                    this->m_largeBlockList = nullptr;
+                    this->m_largeBlockList = this->m_largeBlockList->Previous;
+                    if(this->m_largeBlockList != nullptr)
+                    {
+                        this->m_largeBlockList->Next = nullptr;
+                    }
                 }
+                else
+                {
+                    if(largeBlock->Next != nullptr)
+                    {
+                        largeBlock->Next->Previous = largeBlock->Previous;
+                    }
 
+                    if(largeBlock->Previous != nullptr)
+                    {
+                        largeBlock->Previous->Next = largeBlock->Next;
+                    }
+                }
 
                 HeapDeleteArray(largeBlock->TotalBlockSize, (byte*)largeBlock);
             }
