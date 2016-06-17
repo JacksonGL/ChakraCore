@@ -1401,32 +1401,6 @@ namespace TTD
         }
 #endif
 
-        Js::RecyclableObject* DoObjectInflation_SnapArrayInfo(const SnapObject* snpObject, InflateMap* inflator)
-        {
-            //Arrays can change type on us so seems easiest to always re-create them.
-            //We can re-evaluate this choice later if needed and add checks for same type-ness.
-
-            Js::ScriptContext* ctx = inflator->LookupScriptContext(snpObject->SnapType->ScriptContextLogId);
-
-            if(snpObject->SnapType->JsTypeId == Js::TypeIds_Array)
-            {
-                return ctx->GetLibrary()->CreateArray();
-            }
-            else if(snpObject->SnapType->JsTypeId == Js::TypeIds_NativeIntArray)
-            {
-                return ctx->GetLibrary()->CreateNativeIntArray();
-            }
-            else if(snpObject->SnapType->JsTypeId == Js::TypeIds_NativeFloatArray)
-            {
-                return ctx->GetLibrary()->CreateNativeFloatArray();
-            }
-            else
-            {
-                AssertMsg(false, "Unknown array type!");
-                return nullptr;
-            }
-        }
-
         //////////////////
 
         Js::RecyclableObject* DoObjectInflation_SnapES5ArrayInfo(const SnapObject* snpObject, InflateMap* inflator)

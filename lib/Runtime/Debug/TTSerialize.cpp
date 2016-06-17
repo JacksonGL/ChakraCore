@@ -1856,9 +1856,18 @@ namespace TTD
                 break;
             case Js::TypeIds_String:
                 this->AppendLiteral("'");
-                if(!skipStringContents && Js::JavascriptString::FromVar(var)->GetLength() <= 20)
+                if(!skipStringContents)
                 {
-                    this->AppendText(Js::JavascriptString::FromVar(var)->GetSz(), Js::JavascriptString::FromVar(var)->GetLength());
+                    if(Js::JavascriptString::FromVar(var)->GetLength() <= 40)
+                    {
+                        this->AppendText(Js::JavascriptString::FromVar(var)->GetSz(), Js::JavascriptString::FromVar(var)->GetLength());
+                    }
+                    else
+                    {
+                        this->AppendText(Js::JavascriptString::FromVar(var)->GetSz(), 40);
+                        this->AppendLiteral("...");
+                        this->AppendInteger(Js::JavascriptString::FromVar(var)->GetLength());
+                    }
                 }
                 else
                 {
