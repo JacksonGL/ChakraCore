@@ -3620,7 +3620,7 @@ CHAKRA_API JsTTDPrepContextsForTopLevelEventMove(_In_ JsRuntimeHandle runtimeHan
     if (scriptContext->GetThreadContext()->TTDLog == nullptr)
     {
         AssertMsg(false, "Should only happen in TT debugging mode.");
-        return JsErrorCategoryUsage;
+        return JsErrorFatal;
     }
 
     //Make sure we don't have any pending recorded exceptions
@@ -3633,6 +3633,10 @@ CHAKRA_API JsTTDPrepContextsForTopLevelEventMove(_In_ JsRuntimeHandle runtimeHan
     if (targetEventTime == -2)
     {
         targetEventTime = scriptContext->GetThreadContext()->TTDLog->GetKthEventTime(Js::Configuration::Global.flags.TTDStartEvent);
+        if(targetEventTime == -1)
+        {
+            return JsErrorCategoryUsage;
+        }
     }
 
     bool createFreshCtxs = false;
@@ -3697,7 +3701,7 @@ CHAKRA_API JsTTDMoveToTopLevelEvent(_In_ INT64 snapshotTime, _In_ INT64 eventTim
     if (scriptContext->GetThreadContext()->TTDLog == nullptr)
     {
         AssertMsg(false, "Should only happen in TT debugging mode.");
-        return JsErrorCategoryUsage;
+        return JsErrorFatal;
     }
 
     TTD::EventLog* elog = scriptContext->GetThreadContext()->TTDLog;
@@ -3707,6 +3711,10 @@ CHAKRA_API JsTTDMoveToTopLevelEvent(_In_ INT64 snapshotTime, _In_ INT64 eventTim
     if (eventTime == -2)
     {
         eventTime = scriptContext->GetThreadContext()->TTDLog->GetKthEventTime(Js::Configuration::Global.flags.TTDStartEvent);
+        if(eventTime == -1)
+        {
+            return JsErrorCategoryUsage;
+        }
     }
 
     try
@@ -3718,6 +3726,10 @@ CHAKRA_API JsTTDMoveToTopLevelEvent(_In_ INT64 snapshotTime, _In_ INT64 eventTim
         }
         END_JS_RUNTIME_CALL(scriptContext);
         elog->PopMode(TTD::TTDMode::ExcludedExecution);
+
+        //
+        //TODO: not sure if this is the best place to enable TTLog driven BP -- seems like after move to target event time or even in replay execution would be preffered.
+        //
 
         //If the log has a BP requested then we should set the actual bp here
         if (scriptContext->GetThreadContext()->TTDLog->HasPendingTTDBP())

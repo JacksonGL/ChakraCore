@@ -1481,7 +1481,6 @@ namespace TTD
             }
         }
 
-        AssertMsg(false, "Bad event index!!!");
         return -1;
     }
 #endif

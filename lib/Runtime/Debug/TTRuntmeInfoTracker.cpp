@@ -101,7 +101,12 @@ namespace TTD
     void ScriptContextTTD::AddLocalRoot(TTD_LOG_PTR_ID origId, Js::RecyclableObject* newRoot)
     {
         this->m_ttdLocalRootSet->AddNew(newRoot);
-        this->m_ttdRootTagIdMap.Item(origId, newRoot);
+
+        //if the pinned root set already has an entry then don't overwrite that one with a local entry (e.g. we will keep the current value)
+        if(!this->m_ttdRootSet->ContainsKey(newRoot))
+        {
+            this->m_ttdRootTagIdMap.Item(origId, newRoot);
+        }
     }
 
     void ScriptContextTTD::ClearLocalRootsAndRefreshMap()

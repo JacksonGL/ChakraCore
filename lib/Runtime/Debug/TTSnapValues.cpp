@@ -1511,20 +1511,36 @@ namespace TTD
             }
 
             //Extract local roots
-            snapCtx->m_localRootCount = ctx->TTDContextInfo->GetLocalRootSet()->Count();
-            snapCtx->m_localRootArray = (snapCtx->m_localRootCount != 0) ? alloc.SlabAllocateArray<SnapRootPinEntry>(snapCtx->m_localRootCount) : nullptr;
-
-            int32 j = 0;
-            for(auto iter = ctx->TTDContextInfo->GetLocalRootSet()->GetIterator(); iter.IsValid(); iter.MoveNext())
+            if(ctx->TTDContextInfo->GetLocalRootSet()->Count() == 0)
             {
-                AssertMsg(objToLogIdMap.ContainsKey(iter.CurrentValue()), "We are missing a value mapping!!!");
-
-                snapCtx->m_localRootArray[j].LogObject = TTD_CONVERT_OBJ_TO_LOG_PTR_ID(iter.CurrentValue()); 
-                snapCtx->m_localRootArray[j].LogId = objToLogIdMap.LookupWithKey(iter.CurrentValue(), TTD_INVALID_LOG_PTR_ID);
-
-                j++;
+                snapCtx->m_localRootCount = 0;
+                snapCtx->m_localRootArray = nullptr;
             }
+            else
+            {
+                snapCtx->m_localRootCount = 0;
+                snapCtx->m_localRootArray = alloc.SlabReserveArraySpace<SnapRootPinEntry>(ctx->TTDContextInfo->GetLocalRootSet()->Count());
 
+                for(auto iter = ctx->TTDContextInfo->GetLocalRootSet()->GetIterator(); iter.IsValid(); iter.MoveNext())
+                {
+                    if(objToLogIdMap.ContainsKey(iter.CurrentValue()))
+                    {
+                        snapCtx->m_localRootArray[snapCtx->m_localRootCount].LogObject = TTD_CONVERT_OBJ_TO_LOG_PTR_ID(iter.CurrentValue());
+                        snapCtx->m_localRootArray[snapCtx->m_localRootCount].LogId = objToLogIdMap.LookupWithKey(iter.CurrentValue(), TTD_INVALID_LOG_PTR_ID);
+
+                        snapCtx->m_localRootCount++;
+                    }
+                }
+
+                if(snapCtx->m_localRootCount != 0)
+                {
+                    alloc.SlabCommitArraySpace<SnapRootPinEntry>(snapCtx->m_localRootCount, ctx->TTDContextInfo->GetLocalRootSet()->Count());
+                }
+                else
+                {
+                    alloc.SlabAbortArraySpace<SnapRootPinEntry>(ctx->TTDContextInfo->GetLocalRootSet()->Count());
+                }
+            }
             //Extract pending async modification info
             const JsUtil::List<TTDPendingAsyncBufferModification, HeapAllocator>& pendingAsyncList = ctx->TTDContextInfo->GetPendingAsyncModListForSnapshot();
             snapCtx->m_pendingAsyncModCount = pendingAsyncList.Count();

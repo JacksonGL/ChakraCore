@@ -245,7 +245,20 @@ HRESULT RunScript(const char* fileName, LPCWSTR fileContents, BYTE *bcBuffer, ch
 
             while(true)
             {
-                IfJsErrorFailLog(ChakraRTInterface::JsTTDPrepContextsForTopLevelEventMove(chRuntime, nextEventTime, &snapEventTime));
+                JsErrorCode error = ChakraRTInterface::JsTTDPrepContextsForTopLevelEventMove(chRuntime, nextEventTime, &snapEventTime);
+                if(error != JsNoError)
+                {
+                    if(error == JsErrorCategoryUsage)
+                    {
+                        wprintf(_u("Start time not in log range."));
+                        break;
+                    }
+                    else
+                    {
+                        wprintf(_u("Fatal Error in Move!!!"));
+                        break;
+                    }
+                }
 
                 ChakraRTInterface::JsTTDMoveToTopLevelEvent(snapEventTime, nextEventTime);
 
