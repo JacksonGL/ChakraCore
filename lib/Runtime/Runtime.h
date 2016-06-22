@@ -58,6 +58,7 @@ class ActiveScriptProfilerHeapEnum;
 
 #include "Debug/TTSupport.h"
 #include "Debug/TTSerialize.h"
+
 ////////
 
 namespace Js
