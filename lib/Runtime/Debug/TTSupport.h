@@ -53,10 +53,11 @@ namespace TTD
 }
 ////////
 //Memory allocators used by the TT code
-#define TT_HEAP_ALLOC(T) HeapNew(T)
-#define TT_HEAP_ALLOC_ARRAY(T, SIZE_IN_ELEMENTS) HeapNewArray(T, SIZE_IN_ELEMENTS)
+#define TT_HEAP_NEW(T, ...) HeapNewNoThrow(T, __VA_ARGS__)
+#define TT_HEAP_ALLOC_ARRAY(T, SIZE_IN_ELEMENTS) HeapNewNoThrowArray(T, SIZE_IN_ELEMENTS)
+#define TT_HEAP_ALLOC_ARRAY_ZERO(T, SIZE_IN_ELEMENTS) HeapNewNoThrowArrayZ(T, SIZE_IN_ELEMENTS)
 
-#define TT_HEAP_FREE(T, ELEM) HeapDelete(ELEM)
+#define TT_HEAP_DELETE(T, ELEM) HeapDelete(ELEM)
 #define TT_HEAP_FREE_ARRAY(T, ELEM, SIZE_IN_ELEMENTS) HeapDeleteArray(SIZE_IN_ELEMENTS, ELEM)
 
 ////////
@@ -361,7 +362,7 @@ namespace TTD
         //Get a new block in the slab
         void AddNewBlock()
         {
-            byte* allocBlock = HeapNewArray(byte, this->m_slabBlockSize);
+            byte* allocBlock = TT_HEAP_ALLOC_ARRAY(byte, this->m_slabBlockSize);
             AssertMsg((reinterpret_cast<uint64>(allocBlock) & 0x3) == 0, "We have non-word aligned allocations so all our later work is not so useful");
 
             SlabBlock* newBlock = (SlabBlock*)allocBlock;
@@ -505,7 +506,7 @@ namespace TTD
 
             AssertMsg(this->m_reserveActiveBytes == 0, "Don't double allocate memory.");
 
-            byte* tmp = HeapNewArray(byte, desiredsize);
+            byte* tmp = TT_HEAP_ALLOC_ARRAY(byte, desiredsize);
 
             LargeSlabBlock* newBlock = (LargeSlabBlock*)tmp;
             newBlock->BlockData = (tmp + TTD_LARGE_SLAB_BLOCK_SIZE);
@@ -533,7 +534,7 @@ namespace TTD
         SlabAllocatorBase(uint32 slabBlockSize)
             : m_largeBlockList(nullptr), m_slabBlockSize(slabBlockSize)
         {
-            byte* allocBlock = HeapNewArray(byte, this->m_slabBlockSize);
+            byte* allocBlock = TT_HEAP_ALLOC_ARRAY(byte, this->m_slabBlockSize);
             AssertMsg((reinterpret_cast<uint64>(allocBlock) & 0x3) == 0, "We have non-word aligned allocations so all our later work is not so useful");
 
             this->m_headBlock = (SlabBlock*)allocBlock;
@@ -565,7 +566,7 @@ namespace TTD
                 SlabBlock* tmp = currBlock;
                 currBlock = currBlock->Previous;
 
-                HeapDeleteArray(this->m_slabBlockSize, (byte*)tmp);
+                TT_HEAP_FREE_ARRAY(byte, (byte*)tmp, this->m_slabBlockSize);
             }
 
             LargeSlabBlock* currLargeBlock = this->m_largeBlockList;
@@ -574,12 +575,12 @@ namespace TTD
                 LargeSlabBlock* tmp = currLargeBlock;
                 currLargeBlock = currLargeBlock->Previous;
 
-                HeapDeleteArray(tmp->TotalBlockSize, (byte*)tmp);
+                TT_HEAP_FREE_ARRAY(byte, (byte*)tmp, tmp->TotalBlockSize);
             }
 
             if(this->m_reserveActiveLargeBlock != nullptr)
             {
-                HeapDeleteArray(this->m_reserveActiveBytes, (byte*)this->m_reserveActiveLargeBlock);
+                TT_HEAP_FREE_ARRAY(byte, (byte*)this->m_reserveActiveLargeBlock, this->m_reserveActiveBytes);
                 this->m_reserveActiveLargeBlock = nullptr;
             }
         }
@@ -784,7 +785,7 @@ namespace TTD
             {
                 AssertMsg(this->m_reserveActiveLargeBlock != nullptr, "We should have a large block active!!!");
 
-                HeapDeleteArray(this->m_reserveActiveBytes, (byte*)this->m_reserveActiveLargeBlock);
+                TT_HEAP_FREE_ARRAY(byte, (byte*)this->m_reserveActiveLargeBlock, this->m_reserveActiveBytes);
 
                 this->m_reserveActiveLargeBlock = nullptr;
                 this->m_reserveActiveBytes = 0;
@@ -829,7 +830,7 @@ namespace TTD
                     }
                 }
 
-                HeapDeleteArray(largeBlock->TotalBlockSize, (byte*)largeBlock);
+                TT_HEAP_FREE_ARRAY(byte, (byte*)largeBlock, largeBlock->TotalBlockSize);
             }
             else
             {
@@ -861,7 +862,7 @@ namespace TTD
                             block->Previous->Next = block->Next;
                         }
 
-                        HeapDeleteArray(this->m_slabBlockSize, (byte*)block);
+                        TT_HEAP_FREE_ARRAY(byte, (byte*)block, this->m_slabBlockSize);
                     }
                 }
             }
@@ -1117,7 +1118,7 @@ namespace TTD
         {
             if(this->m_hashArray != nullptr)
             {
-                HeapDeleteArray(this->m_capacity, this->m_hashArray);
+                TT_HEAP_FREE_ARRAY(Entry, this->m_hashArray, this->m_capacity);
                 this->m_hashArray = nullptr;
                 this->m_capacity = 0;
 
@@ -1136,7 +1137,7 @@ namespace TTD
 
             LoadValuesForHashTables(desiredSize, &(this->m_capacity), &(this->m_h1Prime), &(this->m_h2Prime));
 
-            this->m_hashArray = HeapNewArrayZ(Entry, this->m_capacity);
+            this->m_hashArray = TT_HEAP_ALLOC_ARRAY_ZERO(Entry, this->m_capacity);
         }
 
         TTDIdentifierDictionary()
@@ -1157,7 +1158,7 @@ namespace TTD
             this->m_hashArray = src.m_hashArray;
             this->m_count = src.m_count;
 
-            src.m_hashArray = HeapNewArrayZ(Entry, src.m_capacity);
+            src.m_hashArray = TT_HEAP_ALLOC_ARRAY_ZERO(Entry, src.m_capacity);
             src.m_count = 0;
         }
 
@@ -1314,8 +1315,8 @@ namespace TTD
             uint32 dummyNearPrime = 0;
             LoadValuesForHashTables(this->m_capcity, &dummyPowerOf2, &dummyNearPrime, &(this->m_h2Prime));
 
-            this->m_addrArray = HeapNewArrayZ(uint64, this->m_capcity);
-            this->m_markArray = HeapNewArrayZ(MarkTableTag, this->m_capcity);
+            this->m_addrArray = TT_HEAP_ALLOC_ARRAY_ZERO(uint64, this->m_capcity);
+            this->m_markArray = TT_HEAP_ALLOC_ARRAY_ZERO(MarkTableTag, this->m_capcity);
 
             for(uint32 i = 0; i < oldCapacity; ++i)
             {
@@ -1324,8 +1325,8 @@ namespace TTD
                 this->m_markArray[idx] = oldMarkArray[i];
             }
 
-            HeapDeleteArray(oldCapacity, oldAddrArray);
-            HeapDeleteArray(oldCapacity, oldMarkArray);
+            TT_HEAP_FREE_ARRAY(uint64, oldAddrArray, oldCapacity);
+            TT_HEAP_FREE_ARRAY(MarkTableTag, oldMarkArray, oldCapacity);
         }
 
         int32 FindIndexForKeyWGrow(const void* addr)

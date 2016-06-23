@@ -409,7 +409,7 @@ namespace TTD
 
             if(snapEvt->Snap != nullptr)
             {
-                HeapDelete(snapEvt->Snap);
+                TT_HEAP_DELETE(SnapShot, snapEvt->Snap);
                 snapEvt->Snap = nullptr;
             }
         }

@@ -94,7 +94,7 @@ namespace TTD
         reader->ReadDouble(NSTokens::Key::timeMark, true);
         reader->ReadDouble(NSTokens::Key::timeExtract, true);
 
-        SnapShot* snap = HeapNew(SnapShot);
+        SnapShot* snap = TT_HEAP_NEW(SnapShot);
 
         uint32 ctxCount = reader->ReadLengthValue(true);
         reader->ReadSequenceStart_WDefaultKey(true);
@@ -449,7 +449,7 @@ namespace TTD
 
     void SnapShot::EmitSnapshot(LPCWSTR sourceDir, DWORD snapId, ThreadContext* threadContext) const
     {
-        wchar* snapIdString = HeapNewArrayZ(wchar, 64);
+        char16* snapIdString = TT_HEAP_ALLOC_ARRAY_ZERO(char16, 64);
         swprintf_s(snapIdString, 64, _u("%u"), snapId);
 
         HANDLE snapHandle = threadContext->TTDStreamFunctions.pfGetSnapshotStream(sourceDir, snapIdString, false, true);
@@ -459,12 +459,12 @@ namespace TTD
         this->EmitSnapshotToFile(&snapwriter, threadContext);
         snapwriter.FlushAndClose();
 
-        HeapDeleteArray(64, snapIdString);
+        TT_HEAP_FREE_ARRAY(char16, snapIdString, 64);
     }
 
     SnapShot* SnapShot::Parse(LPCWSTR sourceDir, DWORD snapId, ThreadContext* threadContext)
     {
-        wchar* snapIdString = HeapNewArrayZ(wchar, 64);
+        char16* snapIdString = TT_HEAP_ALLOC_ARRAY_ZERO(char16, 64);
         swprintf_s(snapIdString, 64, _u("%u"), snapId);
 
         HANDLE snapHandle = threadContext->TTDStreamFunctions.pfGetSnapshotStream(sourceDir, snapIdString, true, false);
@@ -472,7 +472,7 @@ namespace TTD
         TTD_SNAP_READER snapreader(snapHandle, TTD_COMPRESSED_OUTPUT, threadContext->TTDStreamFunctions.pfReadBytesFromStream, threadContext->TTDStreamFunctions.pfFlushAndCloseStream);
         SnapShot* snap = SnapShot::ParseSnapshotFromFile(&snapreader);
 
-        HeapDeleteArray(64, snapIdString);
+        TT_HEAP_FREE_ARRAY(char16, snapIdString, 64);
 
         return snap;
     }

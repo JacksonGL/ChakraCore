@@ -387,12 +387,12 @@ namespace TTD
     {
         for(auto iter = this->m_coreObjToPathMap.GetIterator(); iter.IsValid(); iter.MoveNext())
         {
-            HeapDelete(iter.CurrentValue());
+            TT_HEAP_DELETE(UtilSupport::TTAutoString, iter.CurrentValue());
         }
 
         for(auto iter = this->m_coreBodyToPathMap.GetIterator(); iter.IsValid(); iter.MoveNext())
         {
-            HeapDelete(iter.CurrentValue());
+            TT_HEAP_DELETE(UtilSupport::TTAutoString, iter.CurrentValue());
         }
     }
 
@@ -529,7 +529,7 @@ namespace TTD
     {
         this->m_worklist.Enqueue(obj);
 
-        UtilSupport::TTAutoString* rootStr = HeapNew(UtilSupport::TTAutoString, rootName);
+        UtilSupport::TTAutoString* rootStr = TT_HEAP_NEW(UtilSupport::TTAutoString, rootName);
 
         AssertMsg(!this->m_coreObjToPathMap.ContainsKey(obj), "Already in map!!!");
         this->m_coreObjToPathMap.AddNew(obj, rootStr);
@@ -559,7 +559,7 @@ namespace TTD
 
             this->m_worklist.Enqueue(obj);
 
-            UtilSupport::TTAutoString* tpath = HeapNew(UtilSupport::TTAutoString, *ppath);
+            UtilSupport::TTAutoString* tpath = TT_HEAP_NEW(UtilSupport::TTAutoString, *ppath);
             tpath->Append(_u("."));
             tpath->Append(propName);
 
@@ -579,7 +579,7 @@ namespace TTD
         {
             const UtilSupport::TTAutoString* ppath = this->m_coreObjToPathMap.LookupWithKey(parent, nullptr);
 
-            UtilSupport::TTAutoString* fpath = HeapNew(UtilSupport::TTAutoString, *ppath);
+            UtilSupport::TTAutoString* fpath = TT_HEAP_NEW(UtilSupport::TTAutoString, *ppath);
 
             fpath->Append(_u("."));
             fpath->Append(name);

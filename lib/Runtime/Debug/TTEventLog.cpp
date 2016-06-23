@@ -420,7 +420,7 @@ namespace TTD
     {
         if(this->m_lastInflateMap != nullptr)
         {
-            HeapDelete(this->m_lastInflateMap);
+            TT_HEAP_DELETE(InflateMap, this->m_lastInflateMap);
             this->m_lastInflateMap = nullptr;
         }
 
@@ -475,7 +475,7 @@ namespace TTD
             SnapShot::InitializeForSnapshotCompare(recordedSnap, snap, compareMap);
             SnapShot::DoSnapshotCompare(recordedSnap, snap, compareMap);
 
-            HeapDelete(snap);
+            TT_HEAP_DELETE(SnapShot, snap);
 
             //this->m_threadContext->TTDLog->PopMode(TTD::TTDMode::ExcludedExecution);
         }
@@ -623,7 +623,7 @@ namespace TTD
         this->m_threadContext->TTDWriteInitializeFunction(this->m_logInfoRootDir.Contents);
 
         //pin all the current properties so they don't move/disappear on us
-        for(Js::PropertyId pid = TotalNumberOfBuiltInProperties + 1; pid < this->m_threadContext->GetMaxPropertyId(); ++pid)
+        for(Js::PropertyId pid = TotalNumberOfBuiltInProperties; pid < this->m_threadContext->GetMaxPropertyId(); ++pid)
         {
             const Js::PropertyRecord* pRecord = this->m_threadContext->GetPropertyName(pid);
             this->AddPropertyRecord(pRecord);
@@ -643,7 +643,7 @@ namespace TTD
             pidMap.AddNew(iter.Current()->PropertyId, iter.Current());
         }
 
-        for(Js::PropertyId cpid = TotalNumberOfBuiltInProperties + 1; cpid <= maxPid; ++cpid)
+        for(Js::PropertyId cpid = TotalNumberOfBuiltInProperties; cpid <= maxPid; ++cpid)
         {
             NSSnapType::SnapPropertyRecord* spRecord = pidMap.LookupWithKey(cpid, nullptr);
             AssertMsg(spRecord != nullptr, "We have a gap in the sequence of propertyIds. Not sure how that happens.");
@@ -1605,7 +1605,7 @@ namespace TTD
 
         if(this->m_lastInflateMap != nullptr)
         {
-            HeapDelete(this->m_lastInflateMap);
+            TT_HEAP_DELETE(InflateMap, this->m_lastInflateMap);
             this->m_lastInflateMap = nullptr;
         }
     }
@@ -1684,7 +1684,7 @@ namespace TTD
         }
         else
         {
-            this->m_lastInflateMap = HeapNew(InflateMap);
+            this->m_lastInflateMap = TT_HEAP_NEW(InflateMap);
             this->m_lastInflateMap->PrepForInitialInflate(this->m_threadContext, snap->ContextCount(), snap->HandlerCount(), snap->TypeCount(), snap->PrimitiveCount() + snap->ObjectCount(), snap->BodyCount(), snap->EnvCount(), snap->SlotArrayCount());
             this->m_lastInflateSnapshotTime = etime;
 

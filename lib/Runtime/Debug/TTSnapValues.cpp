@@ -95,7 +95,7 @@ namespace TTD
             }
             else
             {
-                into.Contents = HeapNewArray(wchar, into.Length + 1);
+                into.Contents = TT_HEAP_ALLOC_ARRAY(wchar, into.Length + 1);
                 js_memcpy_s(into.Contents, into.Length * sizeof(wchar), string, length * sizeof(wchar));
                 into.Contents[into.Length] = '\0';
             }
@@ -105,7 +105,7 @@ namespace TTD
         {
             if(string.Contents != nullptr)
             {
-                HeapDeleteArray(string.Length + 1, string.Contents);
+                TT_HEAP_FREE_ARRAY(wchar, string.Contents, string.Length + 1);
             }
         }
 

@@ -587,7 +587,7 @@ namespace TTD
 
             if(cbAction->RegisterLocation == nullptr)
             {
-                const_cast<JsRTCallbackAction*>(cbAction)->RegisterLocation = HeapNew(TTDebuggerSourceLocation);
+                const_cast<JsRTCallbackAction*>(cbAction)->RegisterLocation = TT_HEAP_NEW(TTDebuggerSourceLocation);
             }
 
             if(!cbAction->RegisterLocation->HasValue())
@@ -605,7 +605,7 @@ namespace TTD
             {
                 cbAction->RegisterLocation->Clear();
 
-                HeapDelete(cbAction->RegisterLocation);
+                TT_HEAP_DELETE(TTDebuggerSourceLocation, cbAction->RegisterLocation);
                 cbAction->RegisterLocation = nullptr;
             }
         }
@@ -1034,7 +1034,7 @@ namespace TTD
 
             if(cfInfo->RtRSnap != nullptr)
             {
-                HeapDelete(cfInfo->RtRSnap);
+                TT_HEAP_DELETE(SnapShot, cfInfo->RtRSnap);
                 cfInfo->RtRSnap = nullptr;
             }
         }

@@ -161,14 +161,13 @@ JsErrorCode CreateRuntimeCore(_In_ JsRuntimeAttributes attributes, _In_opt_ wcha
         {
             AssertMsg(optRecordUri == nullptr || optDebugUri == nullptr, "We should only have 1 but we fail on context create if both are set");
 
-            threadContext->IsTTRequested = true;
             threadContext->IsTTRecordRequested = (optRecordUri != nullptr);
             threadContext->IsTTDebugRequested = (optDebugUri != nullptr);
 
             wchar_t* uriOrig = (optRecordUri != nullptr) ? optRecordUri : optDebugUri;
             size_t uriOrigLength = wcslen(uriOrig) + 1;
             size_t uriOrigLengthBytes = uriOrigLength * sizeof(wchar_t);
-            wchar_t* uriCopy = HeapNewArrayZ(wchar_t, uriOrigLength);
+            wchar_t* uriCopy = TT_HEAP_ALLOC_ARRAY_ZERO(wchar_t, uriOrigLength);
             js_memcpy_s(uriCopy, uriOrigLengthBytes, uriOrig, uriOrigLengthBytes);
 
             threadContext->TTDUri = uriCopy;
@@ -220,7 +219,7 @@ JsErrorCode CreateContextCore(_In_ JsRuntimeHandle runtimeHandle, _In_ bool crea
 #if ENABLE_TTD
         if(createUnderTimeTravel)
         {
-            if(!threadContext->IsTTRequested)
+            if(!(threadContext->IsTTRecordRequested | threadContext->IsTTDebugRequested))
             {
                 AssertMsg(false, "Can't create a context under TT if runtime is not set to support TT!!!");
                 return JsErrorCategoryUsage;
@@ -239,31 +238,6 @@ JsErrorCode CreateContextCore(_In_ JsRuntimeHandle runtimeHandle, _In_ bool crea
 #if ENABLE_TTD
         if (createUnderTimeTravel)
         {
-            if(threadContext->IsTTRequested && !threadContext->IsTTDInitialized())
-            {
-                if(threadContext->TTDInitializeTTDUriFunction == nullptr)
-                {
-                    AssertMsg(false, "Must set this callback function first!!!");
-                    return JsErrorCategoryUsage;
-                }
-
-                wchar_t* ttdlogStr = nullptr;
-                threadContext->TTDInitializeTTDUriFunction(threadContext->TTDUri, &ttdlogStr);
-                if(ttdlogStr == nullptr)
-                {
-                    AssertMsg(false, "OOM on path allocation!!!");
-                    return JsErrorFatal;
-                }
-
-#if ENABLE_TTD_DEBUGGING
-                threadContext->SetThreadContextFlag(ThreadContextFlagNoJIT);
-#endif
-
-                threadContext->InitTimeTravel(ttdlogStr, threadContext->IsTTRecordRequested, threadContext->IsTTDebugRequested, threadContext->TTSnapInterval, threadContext->TTSnapHistoryLength);
-
-                CoTaskMemFree(ttdlogStr);
-            }
-
             HostScriptContextCallbackFunctor callbackFunctor(context, &JsrtContext::OnScriptLoad_TTDCallback);
             threadContext->BeginCtxTimeTravel(context->GetScriptContext(), callbackFunctor);
 
@@ -3280,9 +3254,9 @@ CHAKRA_API JsTTDCallFunction(_In_ INT64 hostCallbackId, _In_ JsValueRef function
 #endif
 }
 
-CHAKRA_API JsTTDSetIOCallbacks(_In_ JsRuntimeHandle runtime, 
-    _In_ JsTTDInitializeUriCallback ttdInitializeUriFunction, _In_ JsTTDInitializeForWriteLogStreamCallback writeInitializeFunction, 
-    _In_ JsTTDGetLogStreamCallback getLogStreamInfo, _In_ JsTTDGetSnapshotStreamCallback getSnapshotStreamInfo, _In_ JsTTDGetSrcCodeStreamCallback getSrcCodeStreamInfo, 
+CHAKRA_API JsTTDSetIOCallbacks(_In_ JsRuntimeHandle runtime,
+    _In_ JsTTDInitializeUriCallback ttdInitializeUriFunction, _In_ JsTTDInitializeForWriteLogStreamCallback writeInitializeFunction,
+    _In_ JsTTDGetLogStreamCallback getLogStreamInfo, _In_ JsTTDGetSnapshotStreamCallback getSnapshotStreamInfo, _In_ JsTTDGetSrcCodeStreamCallback getSrcCodeStreamInfo,
     _In_ JsTTDReadBytesFromStreamCallback readBytesFromStream, _In_ JsTTDWriteBytesToStreamCallback writeBytesToStream, _In_ JsTTDFlushAndCloseStreamCallback flushAndCloseStream)
 {
 #if !ENABLE_TTD
@@ -3290,8 +3264,8 @@ CHAKRA_API JsTTDSetIOCallbacks(_In_ JsRuntimeHandle runtime,
 #else
     ThreadContext* threadContext = JsrtRuntime::FromHandle(runtime)->GetThreadContext();
 
-    if (ttdInitializeUriFunction == nullptr || writeInitializeFunction == nullptr 
-        || getLogStreamInfo == nullptr || getSnapshotStreamInfo == nullptr || getSrcCodeStreamInfo == nullptr 
+    if(ttdInitializeUriFunction == nullptr || writeInitializeFunction == nullptr
+        || getLogStreamInfo == nullptr || getSnapshotStreamInfo == nullptr || getSrcCodeStreamInfo == nullptr
         || readBytesFromStream == nullptr || writeBytesToStream == nullptr || flushAndCloseStream == nullptr)
     {
         return JsErrorNullArgument;
@@ -3306,7 +3280,36 @@ CHAKRA_API JsTTDSetIOCallbacks(_In_ JsRuntimeHandle runtime,
     threadContext->TTDStreamFunctions.pfWriteBytesToStream = writeBytesToStream;
     threadContext->TTDStreamFunctions.pfFlushAndCloseStream = flushAndCloseStream;
 
-    return JsNoError;
+    return GlobalAPIWrapper([&]() -> JsErrorCode {
+        ThreadContextScope scope(threadContext);
+
+        //Make sure the thread context recycler is allocated before we do anything else
+        threadContext->EnsureRecycler();
+
+        if(threadContext->TTDInitializeTTDUriFunction == nullptr)
+        {
+            AssertMsg(false, "Must set this callback function first!!!");
+            return JsErrorCategoryUsage;
+        }
+
+        wchar_t* ttdlogStr = nullptr;
+        threadContext->TTDInitializeTTDUriFunction(threadContext->TTDUri, &ttdlogStr);
+        if(ttdlogStr == nullptr)
+        {
+            AssertMsg(false, "OOM on path allocation!!!");
+            return JsErrorFatal;
+        }
+
+#if ENABLE_TTD_DEBUGGING
+        threadContext->SetThreadContextFlag(ThreadContextFlagNoJIT);
+#endif
+
+        threadContext->InitTimeTravel(ttdlogStr, threadContext->IsTTRecordRequested, threadContext->IsTTDebugRequested, threadContext->TTSnapInterval, threadContext->TTSnapHistoryLength);
+
+        CoTaskMemFree(ttdlogStr);
+
+        return JsNoError;
+    });
 #endif
 }
 
