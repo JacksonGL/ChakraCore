@@ -3613,29 +3613,29 @@ CHAKRA_API JsTTDRawBufferAsyncModifyComplete(_In_ byte* finalModPos)
 #endif
 }
 
+static void CALLBACK TTDDummyPromiseContinuationCallback(JsValueRef task, void *callbackState)
+{
+    AssertMsg(false, "This should never actually be invoked!!!");
+}
+
 CHAKRA_API JsTTDPrepContextsForTopLevelEventMove(_In_ JsRuntimeHandle runtimeHandle, _In_ INT64 targetEventTime, _Out_ INT64* targetStartSnapTime)
 {
 #if !ENABLE_TTD_DEBUGGING
     return JsErrorCategoryUsage;
 #else
-    JsrtContext *currentContext = JsrtContext::GetCurrent();
-    Js::ScriptContext* scriptContext = currentContext->GetScriptContext();
-    if (scriptContext->GetThreadContext()->TTDLog == nullptr)
+    JsrtRuntime * runtime = JsrtRuntime::FromHandle(runtimeHandle);
+    ThreadContext * threadContext = runtime->GetThreadContext();
+
+    if (threadContext->TTDLog == nullptr)
     {
         AssertMsg(false, "Should only happen in TT debugging mode.");
         return JsErrorFatal;
     }
 
-    //Make sure we don't have any pending recorded exceptions
-    if (scriptContext->HasRecordedException())
-    {
-        scriptContext->GetAndClearRecordedException(nullptr);
-    }
-
     //a special indicator to use the time from the argument flag or log diagnostic report
     if (targetEventTime == -2)
     {
-        targetEventTime = scriptContext->GetThreadContext()->TTDLog->GetKthEventTime(Js::Configuration::Global.flags.TTDStartEvent);
+        targetEventTime = threadContext->TTDLog->GetKthEventTime(Js::Configuration::Global.flags.TTDStartEvent);
         if(targetEventTime == -1)
         {
             return JsErrorCategoryUsage;
@@ -3643,44 +3643,52 @@ CHAKRA_API JsTTDPrepContextsForTopLevelEventMove(_In_ JsRuntimeHandle runtimeHan
     }
 
     bool createFreshCtxs = false;
-    *targetStartSnapTime = scriptContext->GetThreadContext()->TTDLog->FindSnapTimeForEventTime(targetEventTime, &createFreshCtxs);
+    Js::ScriptContext* currentDebugCtx = nullptr;
+    *targetStartSnapTime = threadContext->TTDLog->FindSnapTimeForEventTime(targetEventTime, &createFreshCtxs, &currentDebugCtx);
 
-    if (createFreshCtxs)
+    if (!createFreshCtxs)
+    {
+        //We are continuing to step around using the same context so make sure we don't have any pending recorded exceptions
+        JsrtContext* context = JsrtContext::GetCurrent();
+        AssertMsg(context != nullptr, "This should always be set if we get here.");
+
+        if(context->GetScriptContext()->HasRecordedException())
+        {
+            context->GetScriptContext()->GetAndClearRecordedException(nullptr);
+        }
+    }
+    else 
     {
         try
         {
             AUTO_NESTED_HANDLED_EXCEPTION_TYPE((ExceptionType)(ExceptionType_OutOfMemory | ExceptionType_StackOverflow));
-
-            JsrtRuntime * runtime = JsrtRuntime::FromHandle(runtimeHandle);
-            ThreadContext * threadContext = runtime->GetThreadContext();
 
             ThreadContextScope scope(threadContext);
             AssertMsg(scope.IsValid(), "Hmm not cool");
 
             JsrtContext* oldContext = JsrtContext::GetCurrent();
 
-            JsrtContext* context = JsrtContext::New(runtime);
+            //JsrtContext* context = JsrtContext::New(runtime);
+
+            JsrtContext* context = nullptr;
+            JsContextRef jsContextRef = nullptr;
+            JsErrorCode ok = JsTTDCreateContext(runtime, &jsContextRef);
+            if(ok != JsNoError)
+            {
+                AssertMsg(false, "Failed to create new ScriptContext");
+                return JsErrorFatal;
+            }
+
+            context = reinterpret_cast<JsrtContext*>(jsContextRef); //we know this is it so just he-man cast it
             JsrtContext::TrySetCurrent(context);
 
-            oldContext->Dispose(false);
+            if(oldContext != nullptr && oldContext->GetScriptContext() == currentDebugCtx)
+            {
+                oldContext->Dispose(false);
+            }
 
+            JsSetPromiseContinuationCallback(TTDDummyPromiseContinuationCallback, nullptr);
             threadContext->TTDLog->UpdateInflateMapForFreshScriptContexts();
-
-            HostScriptContextCallbackFunctor callbackFunctor(context, &JsrtContext::OnScriptLoad_TTDCallback);
-            threadContext->BeginCtxTimeTravel(context->GetScriptContext(), callbackFunctor);
-            context->GetScriptContext()->GetDebugContext()->SetDebuggerMode(Js::DebuggerMode::Debugging);
-
-            //initialize the core image but we need to disable debugging while this happens
-            threadContext->TTDLog->PushMode(TTD::TTDMode::ExcludedExecution);
-            context->GetScriptContext()->InitializeCoreImage_TTD();
-            threadContext->TTDLog->PopMode(TTD::TTDMode::ExcludedExecution);
-
-            context->GetScriptContext()->InitializeDebuggingActionsAsNeeded_TTD();
-
-            context->GetScriptContext()->InitializeDebugging();
-            context->GetScriptContext()->GetDebugContext()->GetProbeContainer()->InitializeInlineBreakEngine(runtime->GetJsrtDebugManager());
-            context->GetScriptContext()->GetDebugContext()->GetProbeContainer()->InitializeDebuggerScriptOptionCallback(runtime->GetJsrtDebugManager());
-            threadContext->GetDebugManager()->SetLocalsDisplayFlags(Js::DebugManager::LocalsDisplayFlags::LocalsDisplayFlags_NoGroupMethods);
         }
         catch(...)
         {

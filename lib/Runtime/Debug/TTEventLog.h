@@ -551,7 +551,7 @@ namespace TTD
 
         //Find the event time that has the snapshot we want to inflate from in order to replay to the requested target time
         //Return -1 if no such snapshot is available and set newCtxsNeed true if we want to inflate with "fresh" script contexts
-        int64 FindSnapTimeForEventTime(int64 targetTime, bool* newCtxsNeeded);
+        int64 FindSnapTimeForEventTime(int64 targetTime, bool* newCtxsNeeded, Js::ScriptContext** currentDebugCtx);
 
         //If we decide to update with fresh contexts before the inflate then this will update the inflate map info in the log
         void UpdateInflateMapForFreshScriptContexts();

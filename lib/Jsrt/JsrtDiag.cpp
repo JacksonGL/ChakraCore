@@ -421,7 +421,17 @@ CHAKRA_API JsDiagSetStepType(
         }
         else if (stepType == JsDiagStepTypeStepOut)
         {
+#if TTD_VSCODE_WORK_AROUNDS
+            ThreadContext* threadContext = runtime->GetThreadContext();
+
+            TTD::TTDebuggerSourceLocation bpLocation;
+            threadContext->TTDLog->GetPreviousTimeAndPositionForDebugger(bpLocation);
+            threadContext->TTDLog->SetPendingTTDBPInfo(bpLocation);
+
+            jsrtDebugManager->SetResumeType(BREAKRESUMEACTION_CONTINUE);
+#else
             jsrtDebugManager->SetResumeType(BREAKRESUMEACTION_STEP_OUT);
+#endif
         }
         else if (stepType == JsDiagStepTypeStepOver)
         {

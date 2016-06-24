@@ -706,8 +706,6 @@ namespace TTD
     {
         this->m_modeStack.SetItem(0, TTDMode::DebuggingEnabled);
         this->UpdateComputedMode();
-
-        this->m_ttdContext->InitializeDebuggingActionsAsNeeded_TTD();
     }
 
     void EventLog::AddPropertyRecord(const Js::PropertyRecord* record)
@@ -1062,6 +1060,44 @@ namespace TTD
         //Clear any previous last return frame info
         this->ClearReturnFrame();
 #endif
+
+        ////
+        //Debug experiment
+#if TTD_VSCODE_WORK_AROUNDS
+        if(wcscmp(function->GetDisplayName()->GetSz(), L"testFunction") == 0)
+        {
+            Js::FunctionBody* functionBody = function->GetFunctionBody();
+            Js::Utf8SourceInfo* utf8SourceInfo = functionBody->GetUtf8SourceInfo();
+            Js::DebugDocument* debugDocument = utf8SourceInfo->GetDebugDocument();
+            if(debugDocument != nullptr && SUCCEEDED(utf8SourceInfo->EnsureLineOffsetCacheNoThrow()))
+            {
+                ULONG lineNumber = functionBody->GetLineNumber();
+                ULONG columnNumber = functionBody->GetColumnNumber();
+                uint startOffset = functionBody->GetStatementStartOffset(0);
+                ULONG firstStatementLine;
+                LONG firstStatementColumn;
+
+                functionBody->GetLineCharOffsetFromStartChar(startOffset, &firstStatementLine, &firstStatementColumn);
+
+                charcount_t charPosition = 0;
+                charcount_t byteOffset = 0;
+                utf8SourceInfo->GetCharPositionForLineInfo(lineNumber, &charPosition, &byteOffset);
+                long ibos = charPosition + columnNumber + 1;
+
+                Js::StatementLocation statement;
+                debugDocument->GetStatementLocation(ibos, &statement);
+
+                // Don't see a use case for supporting multiple breakpoints at same location.
+                // If a breakpoint already exists, just return that
+                Js::BreakpointProbe* probe = debugDocument->FindBreakpoint(statement);
+                if(probe == nullptr)
+                {
+                    probe = debugDocument->SetBreakPoint(statement, BREAKPOINT_ENABLED);
+                }
+            }
+        }
+#endif
+        ////
 
         this->m_runningFunctionTimeCtr++;
 
@@ -1570,9 +1606,10 @@ namespace TTD
         }
     }
 
-    int64 EventLog::FindSnapTimeForEventTime(int64 targetTime, bool* newCtxsNeeded)
+    int64 EventLog::FindSnapTimeForEventTime(int64 targetTime, bool* newCtxsNeeded, Js::ScriptContext** currentDebugCtx)
     {
         *newCtxsNeeded = false;
+        *currentDebugCtx = this->m_ttdContext;
         int64 snapTime = -1;
 
         for(auto iter = this->m_eventList.GetIteratorAtLast(); iter.IsValid(); iter.MovePrevious())
@@ -1590,10 +1627,13 @@ namespace TTD
             }
         }
 
-        //if this->m_lastInflateMap then this is the first time we have inflated (otherwise we always nullify and recreate as a pair)
-        if(this->m_lastInflateMap != nullptr)
+        //We always need new contexts on the first step back and also if the snaptime we are moving to doesn't match the most recent inflate time
+        *newCtxsNeeded = (this->m_ttdContext == nullptr) || (snapTime != this->m_lastInflateSnapshotTime);
+        AssertMsg(*newCtxsNeeded || this->m_lastInflateMap != nullptr, "If we aren't creating new contents then lastInflateMap needs to be defined");
+
+        if(*newCtxsNeeded)
         {
-            *newCtxsNeeded = (snapTime != this->m_lastInflateSnapshotTime);
+            this->m_ttdContext = nullptr;
         }
 
         return snapTime;
@@ -1601,8 +1641,6 @@ namespace TTD
 
     void EventLog::UpdateInflateMapForFreshScriptContexts()
     {
-        this->m_ttdContext = nullptr;
-
         if(this->m_lastInflateMap != nullptr)
         {
             TT_HEAP_DELETE(InflateMap, this->m_lastInflateMap);

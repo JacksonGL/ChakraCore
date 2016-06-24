@@ -417,7 +417,8 @@ HRESULT ExecuteTest(const char* fileName)
         ChakraRTInterface::JsTTDSetIOCallbacks(runtime, &Helpers::GetTTDDirectory, &Helpers::TTInitializeForWriteLogStreamCallback, &Helpers::TTGetLogStreamCallback, &Helpers::TTGetSnapshotStreamCallback, &Helpers::TTGetSrcCodeStreamCallback, &Helpers::TTReadBytesFromStreamCallback, &Helpers::TTWriteBytesToStreamCallback, &Helpers::TTFlushAndCloseStreamCallback);
 
         JsContextRef context = JS_INVALID_REFERENCE;
-        IfJsErrorFailLog(ChakraRTInterface::JsTTDCreateContext(runtime, &context));
+        IfJsErrorFailLog(ChakraRTInterface::JsCreateContext(runtime, &context));
+        //IfJsErrorFailLog(ChakraRTInterface::JsTTDCreateContext(runtime, &context));
         IfJsErrorFailLog(ChakraRTInterface::JsSetCurrentContext(context));
 
         IfFailGo(RunScript(fileName, fileContents, nullptr, nullptr));
