@@ -117,7 +117,7 @@ namespace TTD
 
         //Check to see if we have an old version of this object around and, if so, clean up its type/handler/standard properties and return it
         Js::DynamicObject* ReuseObjectCheckAndReset(const SnapObject* snpObject, InflateMap* inflator);
-        Js::DynamicObject* ObjectPropertyReset(const SnapObject* snpObject, Js::DynamicObject* dynObj, InflateMap* inflator, BOOL bailOnUnclearable);
+        Js::DynamicObject* ObjectPropertyReset(const SnapObject* snpObject, Js::DynamicObject* dynObj, InflateMap* inflator, BOOL isForWellKnown);
 
         //Set all the general properties for the object 
         void StdPropertyRestore(const SnapObject* snpObject, Js::DynamicObject* obj, InflateMap* inflator);

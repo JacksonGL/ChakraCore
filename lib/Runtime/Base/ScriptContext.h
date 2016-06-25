@@ -1153,10 +1153,24 @@ private:
             return ((modeIsPending | modeIsRecord) & inDebugableCode);
         }
 
+        //A special check for to see if we want to push the supression flag for getter exection
+        bool ShouldDoGetterInvocationSupression() const
+        {
+#if !ENABLE_TTD_DEBUGGING
+            return false;
+#else
+            return (this->TTDMode & TTD::TTDMode::DebuggingEnabled) == TTD::TTDMode::DebuggingEnabled;
+#endif
+        }
+
         //A special check to see if we are debugging and want to suppress the execution of getters when displaying values in the debugger
         bool ShouldSuppressGetterInvocationForDebuggerEvaluation() const
         {
-            return (this->TTDMode & TTD::TTDMode::DebuggerSuppressGetter) == TTD::TTDMode::DebuggerSuppressGetter;
+#if !ENABLE_TTD_DEBUGGING
+            return false;
+#else
+            return (this->TTDMode & TTD::TTDMode::TTDShouldSupressGetterActionMask) == TTD::TTDMode::TTDShouldSupressGetterActionMask;
+#endif
         }
 
         //

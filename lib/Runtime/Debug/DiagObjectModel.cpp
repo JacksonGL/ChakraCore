@@ -1832,9 +1832,17 @@ namespace Js
             Var objValue = nullptr;
 
 #if ENABLE_TTD_DEBUGGING
-            requestContext->GetThreadContext()->TTDLog->PushMode(TTD::TTDMode::DebuggerSuppressGetter);
+            if(requestContext->ShouldDoGetterInvocationSupression())
+            {
+                requestContext->GetThreadContext()->TTDLog->PushMode(TTD::TTDMode::DebuggerSuppressGetter);
+            }
+
             BOOL success = Js::JavascriptOperators::GetProperty(obj, propId, &objValue, requestContext);
-            requestContext->GetThreadContext()->TTDLog->PopMode(TTD::TTDMode::DebuggerSuppressGetter);
+
+            if(requestContext->ShouldDoGetterInvocationSupression())
+            {
+                requestContext->GetThreadContext()->TTDLog->PopMode(TTD::TTDMode::DebuggerSuppressGetter);
+            }
 
             if(success)
             {
@@ -2187,7 +2195,10 @@ namespace Js
         BOOL retValue = FALSE;
 
 #if ENABLE_TTD_DEBUGGING
-        instance->GetScriptContext()->GetThreadContext()->TTDLog->PushMode(TTD::TTDMode::DebuggerSuppressGetter);
+        if(instance->GetScriptContext()->ShouldDoGetterInvocationSupression())
+        {
+            instance->GetScriptContext()->GetThreadContext()->TTDLog->PushMode(TTD::TTDMode::DebuggerSuppressGetter);
+        }
 #endif
 
         if(!scriptContext->GetThreadContext()->IsScriptActive())
@@ -2205,7 +2216,10 @@ namespace Js
         }
 
 #if ENABLE_TTD_DEBUGGING
-        instance->GetScriptContext()->GetThreadContext()->TTDLog->PopMode(TTD::TTDMode::DebuggerSuppressGetter);
+        if(instance->GetScriptContext()->ShouldDoGetterInvocationSupression())
+        {
+            instance->GetScriptContext()->GetThreadContext()->TTDLog->PopMode(TTD::TTDMode::DebuggerSuppressGetter);
+        }
 #endif
 
         return retValue;

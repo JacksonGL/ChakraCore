@@ -182,7 +182,7 @@ namespace TTD
             res = ctx->TTDWellKnownInfo->LookupKnownObjectFromPath(snpObject->OptWellKnownToken);
 
             //Well known objects may always be dirty (e.g. we are re-using a context) so we always want to clean them
-            res = NSSnapObjects::ObjectPropertyReset(snpObject, Js::DynamicObject::FromVar(res), inflator, FALSE);
+            res = NSSnapObjects::ObjectPropertyReset(snpObject, Js::DynamicObject::FromVar(res), inflator, TRUE);
             AssertMsg(res != nullptr, "Should always produce a result!!!");
         }
         else

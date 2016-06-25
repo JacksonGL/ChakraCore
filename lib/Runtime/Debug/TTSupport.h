@@ -154,7 +154,8 @@ namespace TTD
         DebuggerSuppressGetter = 0x40, //Set when the system is doing a property access for the debugger (so we don't want to accidentally trigger a getter execution)
 
         TTDShouldRecordActionMask = (RecordEnabled | ExcludedExecution),
-        TTDShouldDebugActionMask = (DebuggingEnabled | ExcludedExecution)
+        TTDShouldDebugActionMask = (DebuggingEnabled | ExcludedExecution),
+        TTDShouldSupressGetterActionMask = (DebuggingEnabled | DebuggerSuppressGetter)
     };
     DEFINE_ENUM_FLAG_OPERATORS(TTDMode)
 

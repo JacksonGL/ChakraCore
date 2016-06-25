@@ -110,43 +110,39 @@ namespace TTD
             AssertMsg(Js::DynamicType::Is(robj->GetTypeId()), "You should only do this for dynamic objects!!!");
 
             Js::DynamicObject* dynObj = Js::DynamicObject::FromVar(robj);
-            return ObjectPropertyReset(snpObject, dynObj, inflator, TRUE);
+            return ObjectPropertyReset(snpObject, dynObj, inflator, FALSE);
         }
 
-        Js::DynamicObject* ObjectPropertyReset(const SnapObject* snpObject, Js::DynamicObject* dynObj, InflateMap* inflator, BOOL bailOnUnclearable)
+        Js::DynamicObject* ObjectPropertyReset(const SnapObject* snpObject, Js::DynamicObject* dynObj, InflateMap* inflator, BOOL isForWellKnown)
         {
+            //
+            //TODO: right now this reset is pretty kludgy so we avoid doing it unless we absolutely must -- fix this and then allow for other cases too
+            //
+            if(!isForWellKnown)
+            {
+                return nullptr;
+            }
+
             JsUtil::BaseHashSet<Js::PropertyId, HeapAllocator>& propertyReset = inflator->GetPropertyResetSet();
             propertyReset.Clear();
 
             ////
-            BOOL hasInternalProperty = FALSE;
-            BOOL hasNonConfigProperty = FALSE;
             for(int32 i = 0; i < dynObj->GetPropertyCount(); i++)
             {
                 Js::PropertyId pid = dynObj->GetPropertyId((Js::PropertyIndex)i);
                 if(pid != Js::Constants::NoProperty)
                 {
                     propertyReset.AddNew(pid);
-
-                    hasInternalProperty |= Js::IsInternalPropertyId(pid);
-                    hasNonConfigProperty |= !dynObj->IsConfigurable(pid);
                 }
-            }
-
-            //We don't want to deal with internal property ids and their semantics so clean up and create a new object instead of trying to reuse
-            if((hasInternalProperty | hasNonConfigProperty) & bailOnUnclearable)
-            {
-                propertyReset.Clear();
-                return nullptr;
             }
 
             const NSSnapType::SnapHandler* handler = snpObject->SnapType->TypeHandlerInfo;
             for(uint32 i = 0; i < handler->MaxPropertyIndex; ++i)
             {
-                BOOL isClear = (handler->PropertyInfoArray[i].DataKind != NSSnapType::SnapEntryDataKindTag::Clear);
+                BOOL willOverwriteLater = (handler->PropertyInfoArray[i].DataKind != NSSnapType::SnapEntryDataKindTag::Clear);
                 BOOL isInternal = Js::IsInternalPropertyId(handler->PropertyInfoArray[i].PropertyRecordId);
 
-                if(isClear | isInternal)
+                if(willOverwriteLater | isInternal)
                 {
                     Js::PropertyId pid = handler->PropertyInfoArray[i].PropertyRecordId;
                     propertyReset.Remove(pid);
@@ -178,12 +174,6 @@ namespace TTD
                     else
                     {
                         ok = dynObj->DeleteProperty(pid, Js::PropertyOperationFlags::PropertyOperation_Force);
-                    }
-
-                    if(!ok & bailOnUnclearable)
-                    {
-                        propertyReset.Clear();
-                        return nullptr;
                     }
 
                     AssertMsg(ok, "This property is stuck!!!");
@@ -245,27 +235,38 @@ namespace TTD
 
                 if(handler->PropertyInfoArray[i].DataKind == NSSnapType::SnapEntryDataKindTag::Data)
                 {
-                    //
-                    //TODO: I don't like this much would much rather have
-                    //      -A fast case of !hasProperty or writable
-                    //      -A slower case of (the current property value is the same as the new one so no action needed)
-                    //      -A final slow nuke it from orbit case like we have with the ExternalFunction name workaround
-                    //
-
-                    if(!obj->HasOwnProperty(pid) || obj->IsWritable(pid))
+                    BOOL success = FALSE;
+                    if(!obj->HasOwnProperty(pid))
                     {
-                        obj->SetProperty(pid, pVal, Js::PropertyOperationFlags::PropertyOperation_Force, nullptr);
+                        //easy case just set the property
+                        success = obj->SetProperty(pid, pVal, Js::PropertyOperationFlags::PropertyOperation_Force, nullptr);
                     }
-
-                    //
-                    //TODO: workaround because node can force set the name property on external function objects
-                    //
-                    if(pid == Js::BuiltInPropertyRecords::name.propertyRecord.GetPropertyId() && Js::JavascriptFunction::Is(obj))
+                    else
                     {
-                        AssertMsg(obj->HasOwnProperty(pid) && !obj->IsWritable(pid), "Something else is funny");
+                        if(obj->IsWritable(pid))
+                        {
+                            //also easy just write the property
+                            success = obj->SetProperty(pid, pVal, Js::PropertyOperationFlags::PropertyOperation_Force, nullptr);
+                        }
+                        else
+                        {
+                            //get the value to see if it is alreay ok
+                            Js::Var currentValue = nullptr;
+                            Js::JavascriptOperators::GetProperty(obj, pid, obj->GetScriptContext(), nullptr);
 
-                        obj->SetPropertyWithAttributes(pid, pVal, PropertyConfigurable, nullptr);
+                            if(currentValue == pVal)
+                            {
+                                //the right value is already there -- easy
+                                success = TRUE;
+                            }
+                            else
+                            {
+                                //Ok so now we force set the property
+                                success = obj->SetPropertyWithAttributes(pid, pVal, PropertyDynamicTypeDefaults, nullptr);
+                            }
+                        }
                     }
+                    AssertMsg(success, "Failed to set property during restore!!!");
                 }
                 else
                 {
