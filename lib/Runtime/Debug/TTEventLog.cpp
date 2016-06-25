@@ -407,6 +407,7 @@ namespace TTD
                 cm = m;
                 break;
             case TTDMode::ExcludedExecution:
+            case TTDMode::DebuggerSuppressGetter:
                 AssertMsg(i != 0, "A base mode should always be first on the stack.");
                 cm |= m;
                 break;
@@ -695,7 +696,7 @@ namespace TTD
 
     void EventLog::PushMode(TTDMode m)
     {
-        AssertMsg(m == TTDMode::ExcludedExecution, "These are the only valid mode modifiers to push");
+        AssertMsg(m == TTDMode::ExcludedExecution || m ==TTDMode::DebuggerSuppressGetter, "These are the only valid mode modifiers to push");
 
         this->m_modeStack.Add(m);
         this->UpdateComputedMode();
@@ -703,7 +704,7 @@ namespace TTD
 
     void EventLog::PopMode(TTDMode m)
     {
-        AssertMsg(m == TTDMode::ExcludedExecution, "These are the only valid mode modifiers to push");
+        AssertMsg(m == TTDMode::ExcludedExecution || m == TTDMode::DebuggerSuppressGetter, "These are the only valid mode modifiers to push");
         AssertMsg(this->m_modeStack.Last() == m, "Push/Pop is not matched so something went wrong.");
 
         this->m_modeStack.RemoveAtEnd();

@@ -151,6 +151,7 @@ namespace TTD
         TTDActive = (RecordEnabled | DebuggingEnabled),
 
         ExcludedExecution = 0x20,  //Set when the system is executing code on behalf of the TTD/debugger (so we don't want to record/replay things for it)
+        DebuggerSuppressGetter = 0x40, //Set when the system is doing a property access for the debugger (so we don't want to accidentally trigger a getter execution)
 
         TTDShouldRecordActionMask = (RecordEnabled | ExcludedExecution),
         TTDShouldDebugActionMask = (DebuggingEnabled | ExcludedExecution)

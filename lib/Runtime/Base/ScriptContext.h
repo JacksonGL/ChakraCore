@@ -1153,6 +1153,12 @@ private:
             return ((modeIsPending | modeIsRecord) & inDebugableCode);
         }
 
+        //A special check to see if we are debugging and want to suppress the execution of getters when displaying values in the debugger
+        bool ShouldSuppressGetterInvocationForDebuggerEvaluation() const
+        {
+            return (this->TTDMode & TTD::TTDMode::DebuggerSuppressGetter) == TTD::TTDMode::DebuggerSuppressGetter;
+        }
+
         //
         //TODO: this is currently called explicitly -- we need to fix up the core image computation and this will be eliminated then
         //
