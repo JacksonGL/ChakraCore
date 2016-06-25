@@ -240,6 +240,9 @@ namespace TTD
         bool m_isExceptionFrame;
         SingleCallCounter m_lastFrame;
 
+        //A flag indicating if we want to break on the entry to the user code 
+        bool m_breakOnFirstUserCode;
+
         //A pending TTDBP we want to set and move to
         TTDebuggerSourceLocation m_pendingTTDBP;
 
@@ -259,8 +262,8 @@ namespace TTD
         const SingleCallCounter& GetTopCallCounter() const;
         SingleCallCounter& GetTopCallCounter();
 
-        //get the caller for the top call counter from the stack (e.g. stack -2)
-        const SingleCallCounter& GetTopCallCallerCounter() const;
+        //get the caller for the top call counter that is user code from the stack (e.g. stack -2)
+        const SingleCallCounter* GetTopCallCallerCounter_JustMyCode() const;
 
         //Get the current XTTDEventTime and advance the event time counter
         int64 GetCurrentEventTimeAndAdvance();
@@ -468,6 +471,9 @@ namespace TTD
         void ClearReturnFrame();
         void ClearExceptionFrame();
         void SetReturnAndExceptionFramesFromCurrent(bool setReturn, bool setException);
+
+        //Set that we want to break on the execution of the first user code
+        void SetBreakOnFirstUserCode();
 
         bool HasPendingTTDBP() const;
         int64 GetPendingTTDBPTargetEventTime() const;

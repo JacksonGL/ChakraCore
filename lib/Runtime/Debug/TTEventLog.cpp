@@ -359,11 +359,19 @@ namespace TTD
         return this->m_callStack.Item(this->m_callStack.Count() - 1);
     }
 
-    const SingleCallCounter& EventLog::GetTopCallCallerCounter() const
+    const SingleCallCounter* EventLog::GetTopCallCallerCounter_JustMyCode() const
     {
-        AssertMsg(this->m_callStack.Count() >= 2, "Empty stack!");
+        
+        for(int32 pos = this->m_callStack.Count() - 2; pos >= 0; --pos)
+        {
+            const SingleCallCounter* csi = &(this->m_callStack.Item(pos));
+            if(!csi->IsLibraryCode)
+            {
+                return csi;
+            }
+        }
 
-        return this->m_callStack.Item(this->m_callStack.Count() - 2);
+        return nullptr;
     }
 
     int64 EventLog::GetCurrentEventTimeAndAdvance()
@@ -575,7 +583,7 @@ namespace TTD
         m_eventList(&this->m_eventSlabAllocator), m_eventListVTable(nullptr), m_currentReplayEventIterator(),
         m_callStack(&HeapAllocator::Instance, 32), 
 #if ENABLE_TTD_DEBUGGING
-        m_isReturnFrame(false), m_isExceptionFrame(false), m_lastFrame(), m_pendingTTDBP(), m_activeBPId(-1), m_activeTTDBP(),
+        m_isReturnFrame(false), m_isExceptionFrame(false), m_lastFrame(), m_breakOnFirstUserCode(false), m_pendingTTDBP(), m_activeBPId(-1), m_activeTTDBP(),
 #endif
 #if ENABLE_BASIC_TRACE || ENABLE_FULL_BC_TRACE
         m_diagnosticLogger(),
@@ -1064,10 +1072,13 @@ namespace TTD
         ////
         //Debug experiment
 #if TTD_VSCODE_WORK_AROUNDS
-        if(wcscmp(function->GetDisplayName()->GetSz(), L"testFunction") == 0)
+        Js::FunctionBody* functionBody = function->GetFunctionBody();
+        Js::Utf8SourceInfo* utf8SourceInfo = functionBody->GetUtf8SourceInfo();
+
+        if(this->m_breakOnFirstUserCode && !utf8SourceInfo->GetIsLibraryCode())
         {
-            Js::FunctionBody* functionBody = function->GetFunctionBody();
-            Js::Utf8SourceInfo* utf8SourceInfo = functionBody->GetUtf8SourceInfo();
+            this->m_breakOnFirstUserCode = false;
+
             Js::DebugDocument* debugDocument = utf8SourceInfo->GetDebugDocument();
             if(debugDocument != nullptr && SUCCEEDED(utf8SourceInfo->EnsureLineOffsetCacheNoThrow()))
             {
@@ -1103,6 +1114,7 @@ namespace TTD
 
         SingleCallCounter cfinfo;
         cfinfo.Function = function->GetFunctionBody();
+        cfinfo.IsLibraryCode = function->GetFunctionBody()->GetUtf8SourceInfo()->GetIsLibraryCode();
 
 #if ENABLE_TTD_INTERNAL_DIAGNOSTICS
         cfinfo.Name = cfinfo.Function->GetExternalDisplayName();
@@ -1133,7 +1145,7 @@ namespace TTD
     void EventLog::PopCallEvent(Js::JavascriptFunction* function, Js::Var result)
     {
 #if ENABLE_TTD_DEBUGGING
-        if(!this->HasImmediateExceptionFrame())
+        if(!this->HasImmediateExceptionFrame() && !this->GetTopCallCounter().IsLibraryCode)
         {
             this->SetReturnAndExceptionFramesFromCurrent(true, false);
         }
@@ -1150,7 +1162,7 @@ namespace TTD
     void EventLog::PopCallEventException(Js::JavascriptFunction* function, bool isFirstException)
     {
 #if ENABLE_TTD_DEBUGGING
-        if(isFirstException)
+        if(isFirstException && !this->GetTopCallCounter().IsLibraryCode)
         {
             this->SetReturnAndExceptionFramesFromCurrent(false, true);
         }
@@ -1208,6 +1220,11 @@ namespace TTD
         this->m_isExceptionFrame = setException;
 
         this->m_lastFrame = this->m_callStack.Last();
+    }
+
+    void EventLog::SetBreakOnFirstUserCode()
+    {
+        this->m_breakOnFirstUserCode = true;
     }
 
     bool EventLog::HasPendingTTDBP() const
@@ -1320,6 +1337,12 @@ namespace TTD
     void EventLog::UpdateCurrentStatementInfo(uint bytecodeOffset)
     {
         SingleCallCounter& cfinfo = this->GetTopCallCounter();
+
+        if(cfinfo.IsLibraryCode)
+        {
+            return;
+        }
+
         if((cfinfo.CurrentStatementBytecodeMin <= bytecodeOffset) & (bytecodeOffset <= cfinfo.CurrentStatementBytecodeMax))
         {
             return;
@@ -1387,16 +1410,8 @@ namespace TTD
 #if ENABLE_TTD_DEBUGGING
     bool EventLog::GetPreviousTimeAndPositionForDebugger(TTDebuggerSourceLocation& sourceLocation) const
     {
+        bool noPrevious = false;
         const SingleCallCounter& cfinfo = this->GetTopCallCounter();
-
-        //check if we are at the first statement in the callback event
-        if(this->m_callStack.Count() == 1 && cfinfo.LastStatementIndex == -1)
-        {
-            //Set the position info to the current statement and return true
-            this->GetTimeAndPositionForDebugger(sourceLocation);
-
-            return true;
-        }
 
         //if we are at the first statement in the function then we want the parents current
         Js::FunctionBody* fbody = nullptr;
@@ -1405,12 +1420,28 @@ namespace TTD
         uint64 ltime = 0;
         if(cfinfo.LastStatementIndex == -1)
         {
-            const SingleCallCounter& cfinfoCaller = this->GetTopCallCallerCounter();
-            ftime = cfinfoCaller.FunctionTime;
-            ltime = cfinfoCaller.CurrentStatementLoopTime;
+            const SingleCallCounter* cfinfoCaller = this->GetTopCallCallerCounter_JustMyCode();
 
-            fbody = cfinfoCaller.Function;
-            statementIndex = cfinfoCaller.CurrentStatementIndex;
+            //check if we are at the first statement in the callback event
+            if(cfinfoCaller == nullptr)
+            {
+                //Set the position info to the current statement and return true
+                noPrevious = true;
+
+                ftime = cfinfo.FunctionTime;
+                ltime = cfinfo.CurrentStatementLoopTime;
+
+                fbody = cfinfo.Function;
+                statementIndex = cfinfo.CurrentStatementIndex;
+            }
+            else
+            {
+                ftime = cfinfoCaller->FunctionTime;
+                ltime = cfinfoCaller->CurrentStatementLoopTime;
+
+                fbody = cfinfoCaller->Function;
+                statementIndex = cfinfoCaller->CurrentStatementIndex;
+            }
         }
         else
         {
@@ -1428,7 +1459,7 @@ namespace TTD
 
         sourceLocation.SetLocation(this->m_topLevelCallbackEventTime, ftime, ltime, fbody, srcLine, srcColumn);
 
-        return false;
+        return noPrevious;
     }
 
     bool EventLog::GetExceptionTimeAndPositionForDebugger(TTDebuggerSourceLocation& sourceLocation) const

@@ -47,6 +47,7 @@ namespace TTD
     struct SingleCallCounter
     {
         Js::FunctionBody* Function;
+        bool IsLibraryCode;
 
 #if ENABLE_TTD_INTERNAL_DIAGNOSTICS
         LPCWSTR Name; //only added for debugging can get rid of later.

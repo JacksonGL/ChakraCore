@@ -3814,6 +3814,15 @@ CHAKRA_API JsTTDReplayExecution(_Out_ INT64* rootEventTime)
         return JsErrorCategoryUsage;
     }
 
+    ////
+    //TEMP PUT HERE -- SHOULD ADD API LATER
+    if(*rootEventTime == -3)
+    {
+        scriptContext->GetThreadContext()->TTDLog->SetBreakOnFirstUserCode();
+    }
+    //
+    ////
+
     JsErrorCode res = JsNoError;
     try
     {
