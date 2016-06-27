@@ -905,14 +905,10 @@ namespace TTD
 #if ENABLE_TTD_DEBUGGING
             if(cfAction->CallbackDepth == 0)
             {
-                if(threadContext->TTDLog->HasImmediateReturnFrame())
-                {
-                    JsRTCallFunctionAction_SetLastExecutedStatementAndFrameInfo(const_cast<EventLogEntry*>(evt), threadContext->TTDLog->GetImmediateReturnFrame());
-                }
-                else
-                {
-                    JsRTCallFunctionAction_SetLastExecutedStatementAndFrameInfo(const_cast<EventLogEntry*>(evt), threadContext->TTDLog->GetImmediateExceptionFrame());
-                }
+                TTDebuggerSourceLocation lastLocation;
+                threadContext->TTDLog->GetLastExecutedTimeAndPositionForDebugger(lastLocation);
+
+                JsRTCallFunctionAction_SetLastExecutedStatementAndFrameInfo(const_cast<EventLogEntry*>(evt), lastLocation);
 
                 if(cfInfo->HasScriptException || cfInfo->HasTerminiatingException)
                 {
@@ -1039,7 +1035,7 @@ namespace TTD
             }
         }
 
-        void JsRTCallFunctionAction_SetLastExecutedStatementAndFrameInfo(EventLogEntry* evt, const SingleCallCounter& lastSourceLocation)
+        void JsRTCallFunctionAction_SetLastExecutedStatementAndFrameInfo(EventLogEntry* evt, const TTDebuggerSourceLocation& lastSourceLocation)
         {
 #if ENABLE_TTD_DEBUGGING
             JsRTCallFunctionAction* cfAction = GetInlineEventDataAs<JsRTCallFunctionAction, EventKind::CallExistingFunctionActionTag>(evt);

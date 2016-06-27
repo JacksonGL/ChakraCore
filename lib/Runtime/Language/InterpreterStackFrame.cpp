@@ -6482,7 +6482,7 @@ const byte * InterpreterStackFrame::OP_ProfiledLoopBodyStart(const byte * ip)
         //Clear any previous Exception Info
         if(this->scriptContext->ShouldPerformDebugAction())
         {
-            this->scriptContext->GetThreadContext()->TTDLog->ClearExceptionFrame();
+            this->scriptContext->GetThreadContext()->TTDLog->ClearExceptionFrames();
         }
 #endif
 

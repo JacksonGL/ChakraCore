@@ -21,7 +21,7 @@ namespace TTD
         if(this->m_log != nullptr)
         {
             //if it doesn't have an exception frame then this is the frame where the exception was thrown so record our info
-            this->m_log->PopCallEventException(this->m_function, !this->m_log->HasImmediateExceptionFrame());
+            this->m_log->PopCallEventException(this->m_function);
         }
 #endif
     }
@@ -120,6 +120,74 @@ namespace TTD
 
         this->m_callAction = nullptr;
     }
+
+#if ENABLE_TTD_DEBUGGING
+    TTLastReturnLocationInfo::TTLastReturnLocationInfo()
+        : m_isExceptionFrame(false)
+    {
+        this->m_lastFrame = { 0 };
+    }
+
+    void TTLastReturnLocationInfo::SetReturnLocation(const SingleCallCounter& cframe)
+    {
+        this->m_isExceptionFrame = false;
+        this->m_lastFrame = cframe;
+    }
+
+    void TTLastReturnLocationInfo::SetExceptionLocation(const SingleCallCounter& cframe)
+    {
+        this->m_isExceptionFrame = true;
+        this->m_lastFrame = cframe;
+    }
+
+    bool TTLastReturnLocationInfo::IsDefined() const
+    {
+        return this->m_lastFrame.Function != nullptr;
+    }
+
+    bool TTLastReturnLocationInfo::IsReturnLocation() const
+    {
+        return this->IsDefined() && !this->m_isExceptionFrame;
+    }
+
+    bool TTLastReturnLocationInfo::IsExceptionLocation() const
+    {
+        return this->IsDefined() && this->m_isExceptionFrame;
+    }
+
+    const SingleCallCounter& TTLastReturnLocationInfo::GetLocation() const
+    {
+        AssertMsg(this->IsDefined(), "Should check this!");
+
+        return this->m_lastFrame;
+    }
+
+    void TTLastReturnLocationInfo::Clear()
+    {
+        if(this->IsDefined())
+        {
+            this->m_isExceptionFrame = false;
+            this->m_lastFrame = { 0 };
+        }
+    }
+
+    void TTLastReturnLocationInfo::ClearReturnOnly()
+    {
+        if(this->IsDefined() && !this->m_isExceptionFrame)
+        {
+            this->Clear();
+        }
+    }
+
+    void TTLastReturnLocationInfo::ClearExceptionOnly()
+    {
+        if(this->IsDefined() && this->m_isExceptionFrame)
+        {
+            this->Clear();
+        }
+    }
+
+#endif
 
     /////////////
 
@@ -359,13 +427,41 @@ namespace TTD
         return this->m_callStack.Item(this->m_callStack.Count() - 1);
     }
 
-    const SingleCallCounter* EventLog::GetTopCallCallerCounter_JustMyCode() const
+#if ENABLE_TTD_DEBUGGING
+    bool EventLog::IsFunctionJustMyCode(const Js::FunctionBody* fbody)
+    {
+        //If not in JMC mode then implicitly everything is my code
+        if(!EventLog::IsDebuggerRunningJustMyCode(fbody->GetScriptContext()))
+        {
+            return true;
+        }
+
+        Js::Utf8SourceInfo* srcInfo = fbody->GetUtf8SourceInfo();
+        if(srcInfo == nullptr)
+        {
+            return false;
+        }
+
+        return (srcInfo->HasDebugDocument() && srcInfo->GetDebugDocument()->IsJustMyCode());
+    }
+
+    bool EventLog::IsFunctionJustMyCode(const Js::JavascriptFunction* function)
+    {
+        return EventLog::IsFunctionJustMyCode(function->GetFunctionBody());
+    }
+
+    bool EventLog::IsDebuggerRunningJustMyCode(Js::ScriptContext* ctx)
+    {
+        return (ctx->GetDebugContext() != nullptr && ctx->GetDebugContext()->IsJustMyCode());
+    }
+
+    const SingleCallCounter* EventLog::GetTopCallCallerCounter(bool justMyCode) const
     {
         
         for(int32 pos = this->m_callStack.Count() - 2; pos >= 0; --pos)
         {
             const SingleCallCounter* csi = &(this->m_callStack.Item(pos));
-            if(!csi->IsLibraryCode)
+            if(!justMyCode || EventLog::IsFunctionJustMyCode(csi->Function))
             {
                 return csi;
             }
@@ -373,6 +469,7 @@ namespace TTD
 
         return nullptr;
     }
+#endif
 
     int64 EventLog::GetCurrentEventTimeAndAdvance()
     {
@@ -584,7 +681,7 @@ namespace TTD
         m_eventList(&this->m_eventSlabAllocator), m_eventListVTable(nullptr), m_currentReplayEventIterator(),
         m_callStack(&HeapAllocator::Instance, 32), 
 #if ENABLE_TTD_DEBUGGING
-        m_isReturnFrame(false), m_isExceptionFrame(false), m_lastFrame(), m_breakOnFirstUserCode(false), m_pendingTTDBP(), m_activeBPId(-1), m_activeTTDBP(),
+        m_lastReturnLocation(), m_lastReturnLocationJMC(), m_breakOnFirstUserCode(false), m_pendingTTDBP(), m_activeBPId(-1), m_activeTTDBP(),
 #endif
 #if ENABLE_BASIC_TRACE || ENABLE_FULL_BC_TRACE
         m_diagnosticLogger(),
@@ -1067,7 +1164,11 @@ namespace TTD
     {
 #if ENABLE_TTD_DEBUGGING
         //Clear any previous last return frame info
-        this->ClearReturnFrame();
+        this->m_lastReturnLocation.ClearReturnOnly();
+        if(EventLog::IsFunctionJustMyCode(function))
+        {
+            this->m_lastReturnLocationJMC.ClearReturnOnly();
+        }
 #endif
 
         ////
@@ -1076,7 +1177,7 @@ namespace TTD
         Js::FunctionBody* functionBody = function->GetFunctionBody();
         Js::Utf8SourceInfo* utf8SourceInfo = functionBody->GetUtf8SourceInfo();
 
-        if(this->m_breakOnFirstUserCode && !utf8SourceInfo->GetIsLibraryCode())
+        if(this->m_breakOnFirstUserCode && EventLog::IsFunctionJustMyCode(function))
         {
             this->m_breakOnFirstUserCode = false;
 
@@ -1115,7 +1216,6 @@ namespace TTD
 
         SingleCallCounter cfinfo;
         cfinfo.Function = function->GetFunctionBody();
-        cfinfo.IsLibraryCode = function->GetFunctionBody()->GetUtf8SourceInfo()->GetIsLibraryCode();
 
 #if ENABLE_TTD_INTERNAL_DIAGNOSTICS
         cfinfo.Name = cfinfo.Function->GetExternalDisplayName();
@@ -1146,9 +1246,10 @@ namespace TTD
     void EventLog::PopCallEvent(Js::JavascriptFunction* function, Js::Var result)
     {
 #if ENABLE_TTD_DEBUGGING
-        if(!this->HasImmediateExceptionFrame() && !this->GetTopCallCounter().IsLibraryCode)
+        this->m_lastReturnLocation.SetReturnLocation(this->m_callStack.Last());
+        if(EventLog::IsFunctionJustMyCode(function))
         {
-            this->SetReturnAndExceptionFramesFromCurrent(true, false);
+            this->m_lastReturnLocationJMC.SetReturnLocation(this->m_callStack.Last());
         }
 #endif
 
@@ -1160,12 +1261,20 @@ namespace TTD
 #endif
     }
 
-    void EventLog::PopCallEventException(Js::JavascriptFunction* function, bool isFirstException)
+    void EventLog::PopCallEventException(Js::JavascriptFunction* function)
     {
 #if ENABLE_TTD_DEBUGGING
-        if(isFirstException && !this->GetTopCallCounter().IsLibraryCode)
+        //If we already have the last return as an exception then just leave it.
+        //That is where the exception was first rasied, this return is just propagating it in this return.
+
+        if(this->m_lastReturnLocation.IsExceptionLocation())
         {
-            this->SetReturnAndExceptionFramesFromCurrent(false, true);
+            this->m_lastReturnLocation.SetExceptionLocation(this->m_callStack.Last());
+        }
+
+        if(EventLog::IsFunctionJustMyCode(function) && this->m_lastReturnLocationJMC.IsExceptionLocation())
+        {
+            this->m_lastReturnLocationJMC.SetExceptionLocation(this->m_callStack.Last());
         }
 #endif
 
@@ -1178,49 +1287,10 @@ namespace TTD
     }
 
 #if ENABLE_TTD_DEBUGGING
-    bool EventLog::HasImmediateReturnFrame() const
+    void EventLog::ClearExceptionFrames()
     {
-        return this->m_isReturnFrame;
-    }
-
-    bool EventLog::HasImmediateExceptionFrame() const
-    {
-        return this->m_isExceptionFrame;
-    }
-
-    const SingleCallCounter& EventLog::GetImmediateReturnFrame() const
-    {
-        AssertMsg(this->m_isReturnFrame, "This data is invalid if we haven't recorded a return!!!");
-
-        return this->m_lastFrame;
-    }
-
-    const SingleCallCounter& EventLog::GetImmediateExceptionFrame() const
-    {
-        AssertMsg(this->m_isExceptionFrame, "This data is invalid if we haven't recorded an exception!!!");
-
-        return this->m_lastFrame;
-    }
-
-    void EventLog::ClearReturnFrame()
-    {
-        this->m_isReturnFrame = false;
-    }
-
-    void EventLog::ClearExceptionFrame()
-    {
-        this->m_isExceptionFrame = false;
-    }
-
-    void EventLog::SetReturnAndExceptionFramesFromCurrent(bool setReturn, bool setException)
-    {
-        AssertMsg(this->m_callStack.Count() != 0, "We must have pushed something in order to have an exception or return!!!");
-        AssertMsg((setReturn | setException) & (!setReturn | !setException), "We can only have a return or exception -- exactly one not both!!!");
-
-        this->m_isReturnFrame = setReturn;
-        this->m_isExceptionFrame = setException;
-
-        this->m_lastFrame = this->m_callStack.Last();
+        this->m_lastReturnLocation.Clear();
+        this->m_lastReturnLocationJMC.Clear();
     }
 
     void EventLog::SetBreakOnFirstUserCode()
@@ -1339,11 +1409,6 @@ namespace TTD
     {
         SingleCallCounter& cfinfo = this->GetTopCallCounter();
 
-        if(cfinfo.IsLibraryCode)
-        {
-            return;
-        }
-
         if((cfinfo.CurrentStatementBytecodeMin <= bytecodeOffset) & (bytecodeOffset <= cfinfo.CurrentStatementBytecodeMax))
         {
             return;
@@ -1414,6 +1479,8 @@ namespace TTD
         bool noPrevious = false;
         const SingleCallCounter& cfinfo = this->GetTopCallCounter();
 
+        bool justMyCode = EventLog::IsDebuggerRunningJustMyCode(this->m_ttdContext);
+
         //if we are at the first statement in the function then we want the parents current
         Js::FunctionBody* fbody = nullptr;
         int32 statementIndex = -1;
@@ -1421,7 +1488,7 @@ namespace TTD
         uint64 ltime = 0;
         if(cfinfo.LastStatementIndex == -1)
         {
-            const SingleCallCounter* cfinfoCaller = this->GetTopCallCallerCounter_JustMyCode();
+            const SingleCallCounter* cfinfoCaller = this->GetTopCallCallerCounter(justMyCode);
 
             //check if we are at the first statement in the callback event
             if(cfinfoCaller == nullptr)
@@ -1463,41 +1530,23 @@ namespace TTD
         return noPrevious;
     }
 
-    bool EventLog::GetExceptionTimeAndPositionForDebugger(TTDebuggerSourceLocation& sourceLocation) const
+    void EventLog::GetLastExecutedTimeAndPositionForDebugger(TTDebuggerSourceLocation& sourceLocation) const
     {
-        if(!this->m_isExceptionFrame)
+        const TTLastReturnLocationInfo& cframe = EventLog::IsDebuggerRunningJustMyCode(this->m_ttdContext) ? this->m_lastReturnLocationJMC : this->m_lastReturnLocation;
+
+        if(!cframe.IsDefined())
         {
             sourceLocation.Clear();
-            return false;
+            return;
         }
         else
         {
             ULONG srcLine = 0;
             LONG srcColumn = -1;
-            uint32 startOffset = this->m_lastFrame.Function->GetStatementStartOffset(this->m_lastFrame.CurrentStatementIndex);
-            this->m_lastFrame.Function->GetSourceLineFromStartOffset_TTD(startOffset, &srcLine, &srcColumn);
+            uint32 startOffset = cframe.GetLocation().Function->GetStatementStartOffset(cframe.GetLocation().CurrentStatementIndex);
+            cframe.GetLocation().Function->GetSourceLineFromStartOffset_TTD(startOffset, &srcLine, &srcColumn);
 
-            sourceLocation.SetLocation(this->m_topLevelCallbackEventTime, this->m_lastFrame.FunctionTime, this->m_lastFrame.CurrentStatementLoopTime, this->m_lastFrame.Function, srcLine, srcColumn);
-            return true;
-        }
-    }
-
-    bool EventLog::GetImmediateReturnTimeAndPositionForDebugger(TTDebuggerSourceLocation& sourceLocation) const
-    {
-        if(!this->m_isReturnFrame)
-        {
-            sourceLocation.Clear();
-            return false;
-        }
-        else
-        {
-            ULONG srcLine = 0;
-            LONG srcColumn = -1;
-            uint32 startOffset = this->m_lastFrame.Function->GetStatementStartOffset(this->m_lastFrame.CurrentStatementIndex);
-            this->m_lastFrame.Function->GetSourceLineFromStartOffset_TTD(startOffset, &srcLine, &srcColumn);
-
-            sourceLocation.SetLocation(this->m_topLevelCallbackEventTime, this->m_lastFrame.FunctionTime, this->m_lastFrame.CurrentStatementLoopTime, this->m_lastFrame.Function, srcLine, srcColumn);
-            return true;
+            sourceLocation.SetLocation(this->m_topLevelCallbackEventTime, cframe.GetLocation().FunctionTime, cframe.GetLocation().CurrentStatementLoopTime, cframe.GetLocation().Function, srcLine, srcColumn);
         }
     }
 
@@ -1562,8 +1611,8 @@ namespace TTD
         this->m_hostCallbackId = hostCallbackId;
 
 #if ENABLE_TTD_DEBUGGING
-        this->ClearReturnFrame();
-        this->ClearExceptionFrame();
+        this->m_lastReturnLocation.Clear();
+        this->m_lastReturnLocationJMC.Clear();
 #endif
     }
 

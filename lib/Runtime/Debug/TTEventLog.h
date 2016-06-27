@@ -89,6 +89,32 @@ namespace TTD
         void NormalReturn(Js::Var returnValue);
     };
 
+#if ENABLE_TTD_DEBUGGING
+    //A by value class representing the state of the last returned from location in execution (return x or exception)
+    class TTLastReturnLocationInfo
+    {
+    private:
+        bool m_isExceptionFrame;
+        SingleCallCounter m_lastFrame;
+
+
+    public:
+        TTLastReturnLocationInfo();
+
+        void SetReturnLocation(const SingleCallCounter& cframe);
+        void SetExceptionLocation(const SingleCallCounter& cframe);
+
+        bool IsDefined() const;
+        bool IsReturnLocation() const;
+        bool IsExceptionLocation() const;
+        const SingleCallCounter& GetLocation() const;
+
+        void Clear();
+        void ClearReturnOnly();
+        void ClearExceptionOnly();
+    };
+#endif
+
     //A list class for the events that we accumulate in the event log
     class TTEventList
     {
@@ -235,10 +261,10 @@ namespace TTD
         //We clear this after executing any following statements so this can be used for:
         // - Step back to uncaught exception
         // - Step to last statement in previous event
-        // - Step back *into* if either of the flags are true
-        bool m_isReturnFrame;
-        bool m_isExceptionFrame;
-        SingleCallCounter m_lastFrame;
+        // - Step back *into* possible if either case is true
+
+        TTLastReturnLocationInfo m_lastReturnLocation;
+        TTLastReturnLocationInfo m_lastReturnLocationJMC;
 
         //A flag indicating if we want to break on the entry to the user code 
         bool m_breakOnFirstUserCode;
@@ -262,8 +288,17 @@ namespace TTD
         const SingleCallCounter& GetTopCallCounter() const;
         SingleCallCounter& GetTopCallCounter();
 
+#if ENABLE_TTD_DEBUGGING
+        //Check if a function is in the JustMyCode set as determined by the host debugger
+        static bool IsFunctionJustMyCode(const Js::FunctionBody* fbody);
+        static bool IsFunctionJustMyCode(const Js::JavascriptFunction* function);
+
+        //Return true if the debugger is running in Just My Code Mode
+        static bool IsDebuggerRunningJustMyCode(Js::ScriptContext* ctx);
+
         //get the caller for the top call counter that is user code from the stack (e.g. stack -2)
-        const SingleCallCounter* GetTopCallCallerCounter_JustMyCode() const;
+        const SingleCallCounter* GetTopCallCallerCounter(bool justMyCode) const;
+#endif
 
         //Get the current XTTDEventTime and advance the event time counter
         int64 GetCurrentEventTimeAndAdvance();
@@ -460,17 +495,10 @@ namespace TTD
 
         //Log a function return in normal case and exception
         void PopCallEvent(Js::JavascriptFunction* function, Js::Var result);
-        void PopCallEventException(Js::JavascriptFunction* function, bool isFirstException);
+        void PopCallEventException(Js::JavascriptFunction* function);
 
 #if ENABLE_TTD_DEBUGGING
-        //To update the exception frame & last return frame info and access it in JSRT
-        bool HasImmediateReturnFrame() const;
-        bool HasImmediateExceptionFrame() const;
-        const SingleCallCounter& GetImmediateReturnFrame() const;
-        const SingleCallCounter& GetImmediateExceptionFrame() const;
-        void ClearReturnFrame();
-        void ClearExceptionFrame();
-        void SetReturnAndExceptionFramesFromCurrent(bool setReturn, bool setException);
+        void ClearExceptionFrames();
 
         //Set that we want to break on the execution of the first user code
         void SetBreakOnFirstUserCode();
@@ -515,11 +543,9 @@ namespace TTD
         //Get the previous statement time/position for the debugger -- return false if this is the first statement of the event handler
         bool GetPreviousTimeAndPositionForDebugger(TTDebuggerSourceLocation& sourceLocation) const;
 
-        //Get the last (uncaught or just caught) exception time/position for the debugger -- return true if the last return action was an exception and we have not made any additional calls
-        bool GetExceptionTimeAndPositionForDebugger(TTDebuggerSourceLocation& sourceLocation) const;
-
-        //Get the last statement in the just executed call time/position for the debugger -- return true if callerPreviousStmtIndex is the same as the stmt index for this (e.g. this is the immediately proceeding call)
-        bool GetImmediateReturnTimeAndPositionForDebugger(TTDebuggerSourceLocation& sourceLocation) const;
+        //Get the last (uncaught or just caught) exception time/position for the debugger -- if the last return action was an exception and we have not made any additional calls
+        //Otherwise get the last statement executed call time/position for the debugger
+        void GetLastExecutedTimeAndPositionForDebugger(TTDebuggerSourceLocation& sourceLocation) const;
 
         //Get the current host callback id
         int64 GetCurrentHostCallbackId() const;

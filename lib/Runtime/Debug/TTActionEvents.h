@@ -551,7 +551,7 @@ namespace TTD
         void JsRTCallFunctionAction_UnloadSnapshot(EventLogEntry* evt);
 
         //Set the last executed statement and frame (in debugging mode -- nops for replay mode)
-        void JsRTCallFunctionAction_SetLastExecutedStatementAndFrameInfo(EventLogEntry* evt, const SingleCallCounter& lastSourceLocation);
+        void JsRTCallFunctionAction_SetLastExecutedStatementAndFrameInfo(EventLogEntry* evt, const TTDebuggerSourceLocation& lastSourceLocation);
         bool JsRTCallFunctionAction_GetLastExecutedStatementAndFrameInfoForDebugger(const EventLogEntry* evt, TTDebuggerSourceLocation& lastSourceInfo);
     }
 }

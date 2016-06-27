@@ -337,4 +337,25 @@ namespace Js
 
         return TRUE;
     }
+
+#if ENABLE_TTD_DEBUGGING
+    bool DebugDocument::IsJustMyCode() const
+    {
+        //
+        //TODO: This is experimental for running TTD with just tracking for user-code
+        //
+
+        const char16* url = this->utf8SourceInfo->GetSourceContextInfo()->url;
+        if(url == nullptr || wcslen(url) < 2)
+        {
+            return false;
+        }
+
+#ifdef WIN32
+        return ((url[1] == _u(':')) && (wcsstr(url, _u("\\node_modules\\")) == nullptr));
+#else
+        return ((url[0] == _u('/')) && (wcsstr(url, L"/node_modules/") == nullptr));
+#endif
+    }
+#endif
 }

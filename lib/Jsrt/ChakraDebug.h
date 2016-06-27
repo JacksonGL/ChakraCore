@@ -586,6 +586,38 @@
     /////////////////////
 
     /// <summary>
+    ///     TimeTravel startup options as bit flag enum.
+    /// </summary>
+    typedef enum _JsTTDSpecialMoveModes : uint64
+    {
+        /// <summary>
+        ///     Indicates no special actions needed for move.
+        /// </summary>
+        JsTTDSpecialMoveNone = 0x0,
+
+        /// <summary>
+        ///     Indicates that we want to move to the first/last event.
+        /// </summary>
+        JsTTDSpecialMoveFirstEvent = 0x1,
+        JsTTDSpecialMoveLastEvent = 0x2,
+
+        /// <summary>
+        ///     Indicates that we want to move to the kth event -- top 32 bits are event count.
+        /// </summary>
+        JsTTDSpecialMoveKthEvent = 0x4,
+
+        /// <summary>
+        ///     Indicates if we want to scan the snapshot interval containing the event to populate debug info before moving to execute event.
+        /// </summary>
+        JsTTDSpecialMoveScanIntervalBeforeDebugExecute = 0x10,
+
+        /// <summary>
+        ///     Indicates if we want to set break on entry or just run and let something else trigger breakpoints.
+        /// </summary>
+        JsTTDSpecialMoveBreakOnEntry = 0x100,
+    } JsTTDSpecialMoveModes;
+
+    /// <summary>
     ///     TTD API -- may change in future versions:
     ///     Given the uri location specified for the TTD output data, which may be relative or contain other implcit information, 
     ///     convert it into a fully normalized location descriptor. This fully resolved location will be passed to the later callbacks 
