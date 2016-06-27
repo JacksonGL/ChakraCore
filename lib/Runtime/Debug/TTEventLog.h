@@ -545,7 +545,7 @@ namespace TTD
 
         //Get the last (uncaught or just caught) exception time/position for the debugger -- if the last return action was an exception and we have not made any additional calls
         //Otherwise get the last statement executed call time/position for the debugger
-        void GetLastExecutedTimeAndPositionForDebugger(TTDebuggerSourceLocation& sourceLocation) const;
+        void GetLastExecutedTimeAndPositionForDebugger(bool* markedAsJustMyCode, TTDebuggerSourceLocation& sourceLocation) const;
 
         //Get the current host callback id
         int64 GetCurrentHostCallbackId() const;
@@ -556,7 +556,9 @@ namespace TTD
         //Get the time info around a host id creation/cancelation event -- return null if we can't find the event of interest (not in log or we were called directly by host -- host id == -1)
         const NSLogEvents::JsRTCallbackAction* GetEventForHostCallbackId(bool wantRegisterOp, int64 hostIdOfInterest) const;
 
-        //Get the event time corresponding to the k-th top-level event in the log
+        //Get the event time corresponding to the first/last/k-th top-level event in the log
+        int64 GetFirstEventTime(bool justMyCode) const;
+        int64 GetLastEventTime(bool justMyCode) const;
         int64 GetKthEventTime(uint32 k) const;
 #endif
 
@@ -583,10 +585,11 @@ namespace TTD
 
         //Find the event time that has the snapshot we want to inflate from in order to replay to the requested target time
         //Return -1 if no such snapshot is available and set newCtxsNeed true if we want to inflate with "fresh" script contexts
-        int64 FindSnapTimeForEventTime(int64 targetTime, bool* newCtxsNeeded, Js::ScriptContext** currentDebugCtx);
+        int64 FindSnapTimeForEventTime(int64 targetTime, bool allowRTR, bool* newCtxsNeeded, int64* optEndSnapTime);
 
         //If we decide to update with fresh contexts before the inflate then this will update the inflate map info in the log
-        void UpdateInflateMapForFreshScriptContexts();
+        //Return true if we can delete the old script contexts as well
+        bool UpdateInflateMapForFreshScriptContexts();
 
         //Do the inflation of the snapshot that is at the given event time
         void DoSnapshotInflate(int64 etime);

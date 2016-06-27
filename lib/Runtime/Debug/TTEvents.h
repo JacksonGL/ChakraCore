@@ -22,16 +22,19 @@ namespace TTD
         //An optional target event time -- intent is interpreted based on the abort code
         const int64 m_optEventTime;
 
+        //An optional move mode value -- should be built by host we just propagate it
+        const int64 m_optMoveMode;
+
         //An optional -- and static string message to include
         const LPCWSTR m_staticAbortMessage;
 
-        TTDebuggerAbortException(uint32 abortCode, int64 optEventTime, LPCWSTR staticAbortMessage);
+        TTDebuggerAbortException(uint32 abortCode, int64 optEventTime, int64 optMoveMode, LPCWSTR staticAbortMessage);
 
     public:
         ~TTDebuggerAbortException();
 
         static TTDebuggerAbortException CreateAbortEndOfLog(LPCWSTR staticMessage);
-        static TTDebuggerAbortException CreateTopLevelAbortRequest(int64 targetEventTime, LPCWSTR staticMessage);
+        static TTDebuggerAbortException CreateTopLevelAbortRequest(int64 targetEventTime, int64 moveMode, LPCWSTR staticMessage);
         static TTDebuggerAbortException CreateUncaughtExceptionAbortRequest(int64 targetEventTime, LPCWSTR staticMessage);
 
         bool IsEndOfLog() const;
@@ -39,6 +42,7 @@ namespace TTD
         bool IsTopLevelException() const;
 
         int64 GetTargetEventTime() const;
+        int64 GetMoveMode() const;
 
         LPCWSTR GetStaticAbortMessage() const;
     };

@@ -59,16 +59,23 @@ namespace TTD
             }
         }
 
-        int64 GetTimeFromRootCallOrSnapshot(const EventLogEntry* evt)
+        bool TryGetTimeFromRootCallOrSnapshot(const EventLogEntry* evt, int64& res)
         {
             bool isSnap = false;
             bool isRoot = false;
             bool hasRtrSnap = false;
 
-            int64 time = AccessTimeInRootCallOrSnapshot(evt, isSnap, isRoot, hasRtrSnap);
-            AssertMsg(isSnap || isRoot, "Not snap or root?");
+            res = AccessTimeInRootCallOrSnapshot(evt, isSnap, isRoot, hasRtrSnap);
+            return (isSnap | isRoot);
+        }
 
-            return time;
+        int64 GetTimeFromRootCallOrSnapshot(const EventLogEntry* evt)
+        {
+            int64 res = -1;
+            bool success = TryGetTimeFromRootCallOrSnapshot(evt, res);
+
+            AssertMsg(success, "Not a root or snapshot!!!");
+            return res;
         }
 
 #if !INT32VAR
@@ -834,6 +841,8 @@ namespace TTD
 
             cfAction->AdditionalInfo->RtRSnap = nullptr;
             cfAction->AdditionalInfo->ExecArgs = nullptr;
+
+            cfAction->AdditionalInfo->MarkedAsJustMyCode = false;
             cfAction->AdditionalInfo->LastExecutedLocation.Initialize();
         }
 
@@ -905,10 +914,11 @@ namespace TTD
 #if ENABLE_TTD_DEBUGGING
             if(cfAction->CallbackDepth == 0)
             {
+                bool markedAsJustMyCode = false;
                 TTDebuggerSourceLocation lastLocation;
-                threadContext->TTDLog->GetLastExecutedTimeAndPositionForDebugger(lastLocation);
+                threadContext->TTDLog->GetLastExecutedTimeAndPositionForDebugger(&markedAsJustMyCode, lastLocation);
 
-                JsRTCallFunctionAction_SetLastExecutedStatementAndFrameInfo(const_cast<EventLogEntry*>(evt), lastLocation);
+                JsRTCallFunctionAction_SetLastExecutedStatementAndFrameInfo(const_cast<EventLogEntry*>(evt), markedAsJustMyCode, lastLocation);
 
                 if(cfInfo->HasScriptException || cfInfo->HasTerminiatingException)
                 {
@@ -934,6 +944,7 @@ namespace TTD
 
             if(cfInfo->LastExecutedLocation.HasValue())
             {
+                cfInfo->MarkedAsJustMyCode = false;
                 cfInfo->LastExecutedLocation.Clear();
             }
 
@@ -1015,6 +1026,8 @@ namespace TTD
 
             cfInfo->RtRSnap = nullptr;
             cfInfo->ExecArgs = (cfAction->ArgCount > 1) ? alloc.SlabAllocateArray<Js::Var>(cfAction->ArgCount - 1) : nullptr; //ArgCount includes slot for function which we don't use in exec
+
+            cfInfo->MarkedAsJustMyCode = false;
             cfInfo->LastExecutedLocation.Initialize();
 
 #if ENABLE_TTD_INTERNAL_DIAGNOSTICS
@@ -1035,19 +1048,21 @@ namespace TTD
             }
         }
 
-        void JsRTCallFunctionAction_SetLastExecutedStatementAndFrameInfo(EventLogEntry* evt, const TTDebuggerSourceLocation& lastSourceLocation)
+        void JsRTCallFunctionAction_SetLastExecutedStatementAndFrameInfo(EventLogEntry* evt, bool markedAsJustMyCode, const TTDebuggerSourceLocation& lastSourceLocation)
         {
 #if ENABLE_TTD_DEBUGGING
             JsRTCallFunctionAction* cfAction = GetInlineEventDataAs<JsRTCallFunctionAction, EventKind::CallExistingFunctionActionTag>(evt);
             JsRTCallFunctionAction_AdditionalInfo* cfInfo = cfAction->AdditionalInfo;
 
+            cfInfo->MarkedAsJustMyCode = markedAsJustMyCode;
             cfInfo->LastExecutedLocation.SetLocation(lastSourceLocation);
 #endif
         }
 
-        bool JsRTCallFunctionAction_GetLastExecutedStatementAndFrameInfoForDebugger(const EventLogEntry* evt, TTDebuggerSourceLocation& lastSourceInfo)
+        bool JsRTCallFunctionAction_GetLastExecutedStatementAndFrameInfoForDebugger(const EventLogEntry* evt, bool* markedAsJustMyCode, TTDebuggerSourceLocation& lastSourceInfo)
         {
 #if !ENABLE_TTD_DEBUGGING
+            *markedAsJustMyCode = false;
             lastSourceInfo.Clear();
             return false;
 #else
@@ -1055,11 +1070,13 @@ namespace TTD
             JsRTCallFunctionAction_AdditionalInfo* cfInfo = cfAction->AdditionalInfo;
             if(cfInfo->LastExecutedLocation.HasValue())
             {
+                *markedAsJustMyCode = cfInfo->MarkedAsJustMyCode;
                 lastSourceInfo.SetLocation(cfInfo->LastExecutedLocation);
                 return true;
             }
             else
             {
+                *markedAsJustMyCode = false;
                 lastSourceInfo.Clear();
                 return false;
             }

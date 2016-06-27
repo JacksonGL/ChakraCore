@@ -21,6 +21,7 @@ BOOL doTTDebug = false;
 char16* ttUri = nullptr;
 UINT32 snapInterval = MAXUINT32;
 UINT32 snapHistoryLength = MAXUINT32;
+UINT32 startEventCount = 1;
 
 const char16* dbgIPAddr = nullptr;
 unsigned short dbgPort = 0;
@@ -240,12 +241,15 @@ HRESULT RunScript(const char* fileName, LPCWSTR fileContents, BYTE *bcBuffer, ch
 
         try
         {
+            JsTTDMoveMode moveMode = (JsTTDMoveMode)(JsTTDMoveMode::JsTTDMoveKthEvent | ((uint64) startEventCount) << 32);
             INT64 snapEventTime = -1;
             INT64 nextEventTime = -2;
 
             while(true)
             {
-                JsErrorCode error = ChakraRTInterface::JsTTDPrepContextsForTopLevelEventMove(chRuntime, nextEventTime, &snapEventTime);
+                bool needFreshCtxs = false;
+                JsErrorCode error = ChakraRTInterface::JsTTDGetSnapTimeTopLevelEventMove(chRuntime, moveMode, &nextEventTime, &needFreshCtxs, &snapEventTime, nullptr);
+
                 if(error != JsNoError)
                 {
                     if(error == JsErrorCategoryUsage)
@@ -260,9 +264,10 @@ HRESULT RunScript(const char* fileName, LPCWSTR fileContents, BYTE *bcBuffer, ch
                     }
                 }
 
-                ChakraRTInterface::JsTTDMoveToTopLevelEvent(snapEventTime, nextEventTime);
+                ChakraRTInterface::JsTTDPrepContextsForTopLevelEventMove(chRuntime, needFreshCtxs);
+                ChakraRTInterface::JsTTDMoveToTopLevelEvent(moveMode, snapEventTime, nextEventTime);
 
-                JsErrorCode res = ChakraRTInterface::JsTTDReplayExecution(&nextEventTime);
+                JsErrorCode res = ChakraRTInterface::JsTTDReplayExecution(&moveMode, &nextEventTime);
 
                 //handle any uncaught exception by immediately time-traveling to the throwing line
                 if(res == JsErrorCategoryScript)
@@ -646,6 +651,11 @@ int _cdecl wmain(int argc, __in_ecount(argc) LPWSTR argv[])
         {
             LPCWSTR historyStr = argv[i] + wcslen(_u("-TTHistoryLength:"));
             snapHistoryLength = (UINT32)_wtoi(historyStr);
+        }
+        else if(wcsstr(argv[i], _u("-TTDStartEvent:")) == argv[i])
+        {
+            LPCWSTR startEventStr = argv[i] + wcslen(_u("-TTDStartEvent:"));
+            startEventCount = (UINT32)_wtoi(startEventStr);
         }
         else if(wcsstr(argv[i], _u("--debug-brk=")) == argv[i])
         {

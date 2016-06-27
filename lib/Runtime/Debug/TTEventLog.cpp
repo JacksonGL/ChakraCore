@@ -1393,7 +1393,10 @@ namespace TTD
 
         if(this->HasPendingTTDBP())
         {
-            throw TTD::TTDebuggerAbortException::CreateTopLevelAbortRequest(this->GetPendingTTDBPTargetEventTime(), _u("Reverse operation requested."));
+            //
+            //TODO: right now we have a very simple reverse step mode of 0 we will want to add GetPendingTTDBPMoveMode logic
+            //
+            throw TTD::TTDebuggerAbortException::CreateTopLevelAbortRequest(this->GetPendingTTDBPTargetEventTime(), 0, _u("Reverse operation requested."));
         }
     }
 #endif
@@ -1530,8 +1533,9 @@ namespace TTD
         return noPrevious;
     }
 
-    void EventLog::GetLastExecutedTimeAndPositionForDebugger(TTDebuggerSourceLocation& sourceLocation) const
+    void EventLog::GetLastExecutedTimeAndPositionForDebugger(bool* markedAsJustMyCode, TTDebuggerSourceLocation& sourceLocation) const
     {
+        *markedAsJustMyCode = false;
         const TTLastReturnLocationInfo& cframe = EventLog::IsDebuggerRunningJustMyCode(this->m_ttdContext) ? this->m_lastReturnLocationJMC : this->m_lastReturnLocation;
 
         if(!cframe.IsDefined())
@@ -1546,6 +1550,7 @@ namespace TTD
             uint32 startOffset = cframe.GetLocation().Function->GetStatementStartOffset(cframe.GetLocation().CurrentStatementIndex);
             cframe.GetLocation().Function->GetSourceLineFromStartOffset_TTD(startOffset, &srcLine, &srcColumn);
 
+            *markedAsJustMyCode = EventLog::IsFunctionJustMyCode(cframe.GetLocation().Function);
             sourceLocation.SetLocation(this->m_topLevelCallbackEventTime, cframe.GetLocation().FunctionTime, cframe.GetLocation().CurrentStatementLoopTime, cframe.GetLocation().Function, srcLine, srcColumn);
         }
     }
@@ -1580,6 +1585,54 @@ namespace TTD
         }
 
         return nullptr;
+    }
+
+    int64 EventLog::GetFirstEventTime(bool justMyCode) const
+    {
+        for(auto iter = this->m_eventList.GetIteratorAtFirst(); iter.IsValid(); iter.MoveNext())
+        {
+            if(NSLogEvents::IsJsRTActionRootCall(iter.Current()))
+            {
+                if(!justMyCode)
+                {
+                    return NSLogEvents::GetTimeFromRootCallOrSnapshot(iter.Current());
+                }
+                else
+                {
+                    const NSLogEvents::JsRTCallFunctionAction* cfAction = NSLogEvents::GetInlineEventDataAs<NSLogEvents::JsRTCallFunctionAction, NSLogEvents::EventKind::CallExistingFunctionActionTag>(iter.Current());
+                    if(cfAction->AdditionalInfo->MarkedAsJustMyCode)
+                    {
+                        return NSLogEvents::GetTimeFromRootCallOrSnapshot(iter.Current());
+                    }
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    int64 EventLog::GetLastEventTime(bool justMyCode) const
+    {
+        for(auto iter = this->m_eventList.GetIteratorAtLast(); iter.IsValid(); iter.MovePrevious())
+        {
+            if(NSLogEvents::IsJsRTActionRootCall(iter.Current()))
+            {
+                if(!justMyCode)
+                {
+                    return NSLogEvents::GetTimeFromRootCallOrSnapshot(iter.Current());
+                }
+                else
+                {
+                    const NSLogEvents::JsRTCallFunctionAction* cfAction = NSLogEvents::GetInlineEventDataAs<NSLogEvents::JsRTCallFunctionAction, NSLogEvents::EventKind::CallExistingFunctionActionTag>(iter.Current());
+                    if(cfAction->AdditionalInfo->MarkedAsJustMyCode)
+                    {
+                        return NSLogEvents::GetTimeFromRootCallOrSnapshot(iter.Current());
+                    }
+                }
+            }
+        }
+
+        return -1;
     }
 
     int64 EventLog::GetKthEventTime(uint32 k) const
@@ -1687,11 +1740,14 @@ namespace TTD
         }
     }
 
-    int64 EventLog::FindSnapTimeForEventTime(int64 targetTime, bool* newCtxsNeeded, Js::ScriptContext** currentDebugCtx)
+    int64 EventLog::FindSnapTimeForEventTime(int64 targetTime, bool allowRTR, bool* newCtxsNeeded, int64* optEndSnapTime)
     {
         *newCtxsNeeded = false;
-        *currentDebugCtx = this->m_ttdContext;
         int64 snapTime = -1;
+        if(optEndSnapTime != nullptr)
+        {
+            *optEndSnapTime = -1;
+        }
 
         for(auto iter = this->m_eventList.GetIteratorAtLast(); iter.IsValid(); iter.MovePrevious())
         {
@@ -1700,7 +1756,16 @@ namespace TTD
             bool hasRtrSnap = false;
             int64 time = NSLogEvents::AccessTimeInRootCallOrSnapshot(iter.Current(), isSnap, isRoot, hasRtrSnap);
 
-            bool validSnap = isSnap | (isRoot & hasRtrSnap);
+            bool validSnap = false;
+            if(allowRTR)
+            {
+                validSnap = isSnap | (isRoot & hasRtrSnap);
+            }
+            else
+            {
+                validSnap = isSnap;
+            }
+            
             if(validSnap && time <= targetTime)
             {
                 snapTime = time;
@@ -1712,21 +1777,37 @@ namespace TTD
         *newCtxsNeeded = (this->m_ttdContext == nullptr) || (snapTime != this->m_lastInflateSnapshotTime);
         AssertMsg(*newCtxsNeeded || this->m_lastInflateMap != nullptr, "If we aren't creating new contents then lastInflateMap needs to be defined");
 
-        if(*newCtxsNeeded)
+        if(optEndSnapTime != nullptr)
         {
-            this->m_ttdContext = nullptr;
+            for(auto iter = this->m_eventList.GetIteratorAtFirst(); iter.IsValid(); iter.MovePrevious())
+            {
+                if(iter.Current()->EventKind == NSLogEvents::EventKind::SnapshotTag)
+                {
+                    NSLogEvents::SnapshotEventLogEntry* snapEvent = NSLogEvents::GetInlineEventDataAs<NSLogEvents::SnapshotEventLogEntry, NSLogEvents::EventKind::SnapshotTag>(iter.Current());
+                    if(snapEvent->RestoreTimestamp > snapTime)
+                    {
+                        *optEndSnapTime = snapEvent->RestoreTimestamp;
+                        break;
+                    }
+                }
+            }
         }
 
         return snapTime;
     }
 
-    void EventLog::UpdateInflateMapForFreshScriptContexts()
+    bool EventLog::UpdateInflateMapForFreshScriptContexts()
     {
+        bool canDeleteOldCtx = (this->m_ttdContext != nullptr);
+        this->m_ttdContext = nullptr;
+
         if(this->m_lastInflateMap != nullptr)
         {
             TT_HEAP_DELETE(InflateMap, this->m_lastInflateMap);
             this->m_lastInflateMap = nullptr;
         }
+
+        return canDeleteOldCtx;
     }
 
     void EventLog::DoSnapshotInflate(int64 etime)
@@ -1908,7 +1989,8 @@ namespace TTD
         AssertMsg(this->m_currentReplayEventIterator.IsValid() && this->m_currentReplayEventIterator.Current()->EventTimeStamp <= eventTime, "This isn't going to work.");
 #endif
 
-        while(!NSLogEvents::IsJsRTActionRootCall(this->m_currentReplayEventIterator.Current()) || NSLogEvents::GetTimeFromRootCallOrSnapshot(this->m_currentReplayEventIterator.Current()) != eventTime)
+        int64 eTime = -1;
+        while(!NSLogEvents::TryGetTimeFromRootCallOrSnapshot(this->m_currentReplayEventIterator.Current(), eTime) || eTime < eventTime)
         {
             this->ReplaySingleEntry();
 
@@ -2350,9 +2432,9 @@ namespace TTD
 #elif defined(_M_X64)
         this->m_miscSlabAllocator.CopyNullTermStringInto(_u("x64"), archString);
 #elif defined(_M_ARM)
-        this->m_miscSlabAllocator.CopyNullTermStringInto(_u("arm64"), archString);
+        this->m_miscSlabAllocator.CopyNullTermStringInto(_u("arm"), archString);
 #else
-        this->m_miscSlabAllocator.CopyNullTermStringInto(_u(L"unknown"), archString);
+        this->m_miscSlabAllocator.CopyNullTermStringInto(_u("unknown"), archString);
 #endif
 
         writer.WriteString(NSTokens::Key::arch, archString);

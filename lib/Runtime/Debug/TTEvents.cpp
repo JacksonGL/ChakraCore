@@ -8,8 +8,8 @@
 
 namespace TTD
 {
-    TTDebuggerAbortException::TTDebuggerAbortException(uint32 abortCode, int64 optEventTime, LPCWSTR staticAbortMessage)
-        : m_abortCode(abortCode), m_optEventTime(optEventTime), m_staticAbortMessage(staticAbortMessage)
+    TTDebuggerAbortException::TTDebuggerAbortException(uint32 abortCode, int64 optEventTime, int64 optMoveMode, LPCWSTR staticAbortMessage)
+        : m_abortCode(abortCode), m_optEventTime(optEventTime), m_optMoveMode(optMoveMode), m_staticAbortMessage(staticAbortMessage)
     {
         ;
     }
@@ -21,17 +21,17 @@ namespace TTD
 
     TTDebuggerAbortException TTDebuggerAbortException::CreateAbortEndOfLog(LPCWSTR staticMessage)
     {
-        return TTDebuggerAbortException(1, -1, staticMessage);
+        return TTDebuggerAbortException(1, -1, 0, staticMessage);
     }
 
-    TTDebuggerAbortException TTDebuggerAbortException::CreateTopLevelAbortRequest(int64 targetEventTime, LPCWSTR staticMessage)
+    TTDebuggerAbortException TTDebuggerAbortException::CreateTopLevelAbortRequest(int64 targetEventTime, int64 moveMode, LPCWSTR staticMessage)
     {
-        return TTDebuggerAbortException(2, targetEventTime, staticMessage);
+        return TTDebuggerAbortException(2, targetEventTime, moveMode, staticMessage);
     }
 
     TTDebuggerAbortException TTDebuggerAbortException::CreateUncaughtExceptionAbortRequest(int64 targetEventTime, LPCWSTR staticMessage)
     {
-        return TTDebuggerAbortException(3, targetEventTime, staticMessage);;
+        return TTDebuggerAbortException(3, targetEventTime, 0, staticMessage);;
     }
 
     bool TTDebuggerAbortException::IsEndOfLog() const
@@ -52,6 +52,11 @@ namespace TTD
     int64 TTDebuggerAbortException::GetTargetEventTime() const
     {
         return this->m_optEventTime;
+    }
+
+    int64 TTDebuggerAbortException::GetMoveMode() const
+    {
+        return this->m_optMoveMode;
     }
 
     LPCWSTR TTDebuggerAbortException::GetStaticAbortMessage() const

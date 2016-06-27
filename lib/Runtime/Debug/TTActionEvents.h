@@ -18,6 +18,7 @@ namespace TTD
 
         //We have a number of loops where we look for a snapshot or root with a given time value -- this encapsulates the access logic
         int64 AccessTimeInRootCallOrSnapshot(const EventLogEntry* evt, bool& isSnap, bool& isRoot, bool& hasRtrSnap);
+        bool TryGetTimeFromRootCallOrSnapshot(const EventLogEntry* evt, int64& res);
         int64 GetTimeFromRootCallOrSnapshot(const EventLogEntry* evt);
 
         //Handle the replay of the result of an action for the the given action type and tag
@@ -505,6 +506,7 @@ namespace TTD
             Js::Var* ExecArgs;
 
             //Info on the last executed statement in this call
+            bool MarkedAsJustMyCode;
             TTDebuggerSourceLocation LastExecutedLocation;
 
 #if ENABLE_TTD_INTERNAL_DIAGNOSTICS
@@ -551,8 +553,8 @@ namespace TTD
         void JsRTCallFunctionAction_UnloadSnapshot(EventLogEntry* evt);
 
         //Set the last executed statement and frame (in debugging mode -- nops for replay mode)
-        void JsRTCallFunctionAction_SetLastExecutedStatementAndFrameInfo(EventLogEntry* evt, const TTDebuggerSourceLocation& lastSourceLocation);
-        bool JsRTCallFunctionAction_GetLastExecutedStatementAndFrameInfoForDebugger(const EventLogEntry* evt, TTDebuggerSourceLocation& lastSourceInfo);
+        void JsRTCallFunctionAction_SetLastExecutedStatementAndFrameInfo(EventLogEntry* evt, bool markedAsJustMyCode, const TTDebuggerSourceLocation& lastSourceLocation);
+        bool JsRTCallFunctionAction_GetLastExecutedStatementAndFrameInfoForDebugger(const EventLogEntry* evt, bool* markedAsJustMyCode, TTDebuggerSourceLocation& lastSourceInfo);
     }
 }
 
