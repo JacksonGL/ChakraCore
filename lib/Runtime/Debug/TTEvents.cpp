@@ -299,7 +299,7 @@ namespace TTD
                 if(origVar != replayVar)
                 {
                     printf("Should be same bit pattern -- possible error or need to special case replay of process.exit");
-                    exit(0);
+                    throw TTDebuggerAbortException::CreateAbortEndOfLog(_u("End of log reached (with odd tail) -- returning to top-level."));
                 }
             }
 #endif

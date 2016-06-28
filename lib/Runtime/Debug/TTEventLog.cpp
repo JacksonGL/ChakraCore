@@ -1171,6 +1171,33 @@ namespace TTD
         }
 #endif
 
+        this->m_runningFunctionTimeCtr++;
+
+        SingleCallCounter cfinfo;
+        cfinfo.Function = function->GetFunctionBody();
+
+#if ENABLE_TTD_INTERNAL_DIAGNOSTICS
+        cfinfo.Name = cfinfo.Function->GetExternalDisplayName();
+#endif
+
+        cfinfo.EventTime = this->m_eventTimeCtr; //don't need to advance just note what the event time was when this is called
+        cfinfo.FunctionTime = this->m_runningFunctionTimeCtr;
+        cfinfo.LoopTime = 0;
+
+#if ENABLE_TTD_STACK_STMTS
+        cfinfo.CurrentStatementIndex = -1;
+        cfinfo.CurrentStatementLoopTime = 0;
+
+        cfinfo.LastStatementIndex = -1;
+        cfinfo.LastStatementLoopTime = 0;
+
+        cfinfo.CurrentStatementBytecodeMin = UINT32_MAX;
+        cfinfo.CurrentStatementBytecodeMax = UINT32_MAX;
+#endif
+
+        this->m_callStack.Add(cfinfo);
+
+
         ////
         //Debug experiment
 #if TTD_VSCODE_WORK_AROUNDS
@@ -1207,36 +1234,15 @@ namespace TTD
                 {
                     probe = debugDocument->SetBreakPoint(statement, BREAKPOINT_ENABLED);
                 }
+
+                TTDebuggerSourceLocation bpLocation;
+                bpLocation.SetLocation(-1, -1, -1, cfinfo.Function, firstStatementLine, firstStatementColumn);
+
+                function->GetScriptContext()->GetThreadContext()->TTDLog->SetActiveBP(probe->GetId(), bpLocation);
             }
         }
 #endif
         ////
-
-        this->m_runningFunctionTimeCtr++;
-
-        SingleCallCounter cfinfo;
-        cfinfo.Function = function->GetFunctionBody();
-
-#if ENABLE_TTD_INTERNAL_DIAGNOSTICS
-        cfinfo.Name = cfinfo.Function->GetExternalDisplayName();
-#endif
-
-        cfinfo.EventTime = this->m_eventTimeCtr; //don't need to advance just note what the event time was when this is called
-        cfinfo.FunctionTime = this->m_runningFunctionTimeCtr;
-        cfinfo.LoopTime = 0;
-
-#if ENABLE_TTD_STACK_STMTS
-        cfinfo.CurrentStatementIndex = -1;
-        cfinfo.CurrentStatementLoopTime = 0;
-
-        cfinfo.LastStatementIndex = -1;
-        cfinfo.LastStatementLoopTime = 0;
-
-        cfinfo.CurrentStatementBytecodeMin = UINT32_MAX;
-        cfinfo.CurrentStatementBytecodeMax = UINT32_MAX;
-#endif
-
-        this->m_callStack.Add(cfinfo);
 
 #if ENABLE_BASIC_TRACE || ENABLE_FULL_BC_TRACE
         this->m_diagnosticLogger.WriteCall(function, false, argc, argv, this->m_eventTimeCtr);
@@ -1779,7 +1785,7 @@ namespace TTD
 
         if(optEndSnapTime != nullptr)
         {
-            for(auto iter = this->m_eventList.GetIteratorAtFirst(); iter.IsValid(); iter.MovePrevious())
+            for(auto iter = this->m_eventList.GetIteratorAtFirst(); iter.IsValid(); iter.MoveNext())
             {
                 if(iter.Current()->EventKind == NSLogEvents::EventKind::SnapshotTag)
                 {

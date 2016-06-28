@@ -1566,12 +1566,19 @@ namespace TTD
             intoCtx->GetLibrary()->SetRandSeed1(snpCtx->m_randomSeed1);
             inflator->AddScriptContext(snpCtx->m_scriptContextLogId, intoCtx);
 
+            intoCtx->TTDContextInfo->ClearLoadedSourcesForSnapshotRestore();
+
             for(uint32 i = 0; i < snpCtx->m_loadedTopLevelScriptCount; ++i)
             {
                 const TopLevelFunctionInContextRelation& cri = snpCtx->m_loadedTopLevelScriptArray[i];
 
                 Js::FunctionBody* fb = inflator->FindReusableFunctionBodyIfExists(cri.ContextSpecificBodyPtrId);
-                if(fb == nullptr)
+                if(fb != nullptr)
+                {
+                    intoCtx->TTDContextInfo->ProcessFunctionBodyOnLoad(fb, nullptr);
+                    intoCtx->TTDContextInfo->RegisterLoadedScript(fb, cri.TopLevelBodyCtr);
+                }
+                else
                 {
                     const TopLevelScriptLoadFunctionBodyResolveInfo* fbInfo = topLevelLoadScriptMap.LookupKnownItem(cri.TopLevelBodyCtr);
                     fb = NSSnapValues::InflateTopLevelLoadedFunctionBodyInfo(fbInfo, intoCtx);
@@ -1584,7 +1591,12 @@ namespace TTD
                 const TopLevelFunctionInContextRelation& cri = snpCtx->m_newFunctionTopLevelScriptArray[i];
 
                 Js::FunctionBody* fb = inflator->FindReusableFunctionBodyIfExists(cri.ContextSpecificBodyPtrId);
-                if(fb == nullptr)
+                if(fb != nullptr)
+                {
+                    intoCtx->TTDContextInfo->ProcessFunctionBodyOnLoad(fb, nullptr);
+                    intoCtx->TTDContextInfo->RegisterNewScript(fb, cri.TopLevelBodyCtr);
+                }
+                else
                 {
                     const TopLevelNewFunctionBodyResolveInfo* fbInfo = topLevelNewScriptMap.LookupKnownItem(cri.TopLevelBodyCtr);
                     fb = NSSnapValues::InflateTopLevelNewFunctionBodyInfo(fbInfo, intoCtx);
@@ -1597,7 +1609,12 @@ namespace TTD
                 const TopLevelFunctionInContextRelation& cri = snpCtx->m_evalTopLevelScriptArray[i];
 
                 Js::FunctionBody* fb = inflator->FindReusableFunctionBodyIfExists(cri.ContextSpecificBodyPtrId);
-                if(fb == nullptr)
+                if(fb != nullptr)
+                {
+                    intoCtx->TTDContextInfo->ProcessFunctionBodyOnLoad(fb, nullptr);
+                    intoCtx->TTDContextInfo->RegisterEvalScript(fb, cri.TopLevelBodyCtr);
+                }
+                else
                 {
                     const TopLevelEvalFunctionBodyResolveInfo* fbInfo = topLevelEvalScriptMap.LookupKnownItem(cri.TopLevelBodyCtr);
                     fb = NSSnapValues::InflateTopLevelEvalFunctionBodyInfo(fbInfo, intoCtx);

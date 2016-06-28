@@ -588,7 +588,7 @@
     /// <summary>
     ///     TimeTravel startup options as bit flag enum.
     /// </summary>
-    typedef enum _JsTTDMoveModes : uint64
+    typedef enum _JsTTDMoveModes : UINT64
     {
         /// <summary>
         ///     Indicates no special actions needed for move.

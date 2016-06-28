@@ -3642,9 +3642,11 @@ CHAKRA_API JsTTDGetSnapTimeTopLevelEventMove(_In_ JsRuntimeHandle runtimeHandle,
     }
 
     //If we requested a move to a specific event then extract the event count and try to find it
+    bool scanJMC = (moveMode & JsTTDMoveMode::JsTTDMoveScanIntervalBeforeDebugExecute) == JsTTDMoveMode::JsTTDMoveNone;
+
     if((moveMode & JsTTDMoveMode::JsTTDMoveFirstEvent) == JsTTDMoveMode::JsTTDMoveFirstEvent)
     {
-        *targetEventTime = threadContext->TTDLog->GetFirstEventTime(false);
+        *targetEventTime = threadContext->TTDLog->GetFirstEventTime(scanJMC);
         if(*targetEventTime == -1)
         {
             return JsErrorCategoryUsage;
@@ -3652,7 +3654,7 @@ CHAKRA_API JsTTDGetSnapTimeTopLevelEventMove(_In_ JsRuntimeHandle runtimeHandle,
     }
     else if((moveMode & JsTTDMoveMode::JsTTDMoveLastEvent) == JsTTDMoveMode::JsTTDMoveLastEvent)
     {
-        *targetEventTime = threadContext->TTDLog->GetLastEventTime(false);
+        *targetEventTime = threadContext->TTDLog->GetLastEventTime(scanJMC);
         if(*targetEventTime == -1)
         {
             return JsErrorCategoryUsage;
@@ -3772,10 +3774,20 @@ CHAKRA_API JsTTDPreExecuteSnapShotInterval(_In_ INT64 startSnapTime, _In_ INT64 
 
         if(endSnapTime == -1)
         {
-            endSnapTime = INT64_MAX;
+            elog->ReplayFullTrace();
         }
-
-        elog->ReplayToTime(endSnapTime);
+        else
+        {
+            elog->ReplayToTime(endSnapTime);
+        }
+    }
+    catch(TTD::TTDebuggerAbortException abortException)
+    {
+        //If we hit the end of the log or we hit a terminal exception that is fine -- anything else is a problem
+        if(!abortException.IsEndOfLog() && !abortException.IsTopLevelException())
+        {
+            res = JsErrorFatal;
+        }
     }
     catch(...) //we are replaying something that should be known to execute successfully so encountering any error is very bad
     {
@@ -3829,14 +3841,6 @@ CHAKRA_API JsTTDMoveToTopLevelEvent(_In_ JsTTDMoveMode moveMode, _In_ INT64 snap
         }
         END_JS_RUNTIME_CALL(scriptContext);
         elog->PopMode(TTD::TTDMode::ExcludedExecution);
-    }
-    catch(TTD::TTDebuggerAbortException abortException)
-    {
-        //If we hit the end of the log or we hit a terminal exception that is fine -- anything else is a problem
-        if(!abortException.IsEndOfLog() && !abortException.IsTopLevelException())
-        {
-            res = JsErrorFatal;
-        }
     }
     catch(...) //we are replaying something that should be known to execute successfully so encountering any error is very bad
     {

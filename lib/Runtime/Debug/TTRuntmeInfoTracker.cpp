@@ -303,6 +303,17 @@ namespace TTD
         return nullptr;
     }
 
+    void ScriptContextTTD::ClearLoadedSourcesForSnapshotRestore()
+    {
+        this->m_ttdTopLevelScriptLoad.Clear();
+        this->m_ttdTopLevelNewFunction.Clear();
+        this->m_ttdTopLevelEval.Clear();
+
+        this->m_ttdPinnedRootFunctionSet->Clear();
+
+        this->m_ttdFunctionBodyParentMap.Clear();
+    }
+
     //////////////////
 
     void RuntimeContextInfo::BuildPathString(UtilSupport::TTAutoString rootpath, LPCWSTR name, LPCWSTR optaccessortag, UtilSupport::TTAutoString& into)

@@ -97,6 +97,8 @@ namespace TTD
         //
         //Find the body with the filename from our top-level function bodies
         Js::FunctionBody* FindFunctionBodyByFileName(LPCWSTR filename) const;
+
+        void ClearLoadedSourcesForSnapshotRestore();
     };
 
     //////////////////
