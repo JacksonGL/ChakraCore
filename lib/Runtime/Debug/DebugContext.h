@@ -67,7 +67,7 @@ namespace Js
             //TODO: This is experimental for running TTD with just tracking for user-code
             //
 
-            return true;
+            return false;
         }
 #endif
 
