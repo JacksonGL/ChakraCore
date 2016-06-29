@@ -2439,6 +2439,8 @@ namespace TTD
         this->m_miscSlabAllocator.CopyNullTermStringInto(_u("x64"), archString);
 #elif defined(_M_ARM)
         this->m_miscSlabAllocator.CopyNullTermStringInto(_u("arm"), archString);
+#elif defined(_M_ARM64)
+        this->m_miscSlabAllocator.CopyNullTermStringInto(_u("arm64"), archString);
 #else
         this->m_miscSlabAllocator.CopyNullTermStringInto(_u("unknown"), archString);
 #endif

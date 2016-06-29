@@ -1186,7 +1186,7 @@ private:
     SparseArray<Value>       *  byteCodeConstantValueArray;
     // Global bitvectors
     BVSparse<JitArenaAllocator> * byteCodeConstantValueNumbersBv;
-
+   
     // Global bitvectors
     IntConstantToStackSymMap *  intConstantToStackSymMap;
     IntConstantToValueMap*      intConstantToValueMap;
@@ -1316,6 +1316,7 @@ private:
     void                    FinishOptHoistedPropOps(Loop * loop);
     IR::Instr *             SetTypeCheckBailOut(IR::Opnd *opnd, IR::Instr *instr, BailOutInfo *bailOutInfo);
     void                    OptArguments(IR::Instr *Instr);
+    void                    TrackInstrsForScopeObjectRemoval(IR::Instr * instr);
     BOOLEAN                 IsArgumentsOpnd(IR::Opnd* opnd);
     bool                    AreFromSameBytecodeFunc(IR::RegOpnd* src1, IR::RegOpnd* dst);
     void                    TrackArgumentsSym(IR::RegOpnd* opnd);
@@ -1653,7 +1654,7 @@ private:
     bool                    IsImplicitCallBailOutCurrentlyNeeded(IR::Instr * instr, Value *src1Val, Value *src2Val, BasicBlock * block, bool hasLiveFields, bool mayNeedImplicitCallBailOut, bool isForwardPass);
     static bool             IsTypeCheckProtected(const IR::Instr * instr);
     static bool             MayNeedBailOnImplicitCall(const IR::Instr * instr, Value *src1Val, Value *src2Val);
-    static bool             MayNeedBailOnImplicitCall(IR::Opnd * opnd, Value *val, bool callsToPrimitive);
+    static bool             MaySrcNeedBailOnImplicitCall(IR::Opnd * opnd, Value *val);
 
     void                    GenerateBailAfterOperation(IR::Instr * *const pInstr, IR::BailOutKind kind);
 public:

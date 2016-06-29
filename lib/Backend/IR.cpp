@@ -69,7 +69,7 @@ Instr::IsPlainInstr() const
 bool
 Instr::DoStackArgsOpt(Func *topFunc) const
 {
-    return this->usesStackArgumentsObject && this->m_func->GetHasStackArgs() && topFunc->GetHasStackArgs();
+    return this->usesStackArgumentsObject && m_func->IsStackArgsEnabled();
 }
 
 bool
@@ -3086,6 +3086,19 @@ Instr::ClearBailOutInfo()
     }
 }
 
+bool Instr::HasAnyLoadHeapArgsOpCode()
+{
+    switch (m_opcode)
+    {
+        case Js::OpCode::LdHeapArguments:
+        case Js::OpCode::LdHeapArgsCached:
+        case Js::OpCode::LdLetHeapArguments:
+        case Js::OpCode::LdLetHeapArgsCached:
+            return true;
+    }
+    return false;
+}
+
 bool Instr::CanHaveArgOutChain() const
 {
     return
@@ -3225,8 +3238,13 @@ bool Instr::HasAnyImplicitCalls() const
     {
         return true;
     }
-    if (OpCodeAttr::CallsValueOf(this->m_opcode))
+    if (OpCodeAttr::OpndHasImplicitCall(this->m_opcode))
     {
+        if (this->m_dst && (this->m_dst->IsSymOpnd() || this->m_dst->IsIndirOpnd()))
+        {
+            return true;
+        }
+
         IR::Opnd *src1 = this->GetSrc1();
 
         if (src1)
