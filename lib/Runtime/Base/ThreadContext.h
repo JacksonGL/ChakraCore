@@ -323,6 +323,10 @@ public:
         {
             EnableExperimentalFeatures();
             ResetExperimentalFeaturesFromConfig();
+
+#if TTD_VSCODE_WORK_AROUNDS
+            m_Simdjs = false;
+#endif
         }
     }
 

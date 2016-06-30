@@ -330,7 +330,7 @@
 //Enable debugging specific aspects of TTD
 #define ENABLE_TTD_DEBUGGING 1
 
-//A workaround for VSCode getting angry with timing (adds a Sleep before sending msgs)
+//A VSCode & node getting angry about native code generation --------- DO NOT CHECK IN TO MAJOR REPO IN CURRENT STATE!!!!!!
 //Also makes step out behave the same as step back
 #define TTD_VSCODE_WORK_AROUNDS 1
 
