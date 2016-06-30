@@ -331,8 +331,8 @@
 #define ENABLE_TTD_DEBUGGING 1
 
 //A VSCode & node getting angry about native code generation --------- DO NOT CHECK IN TO MAJOR REPO IN CURRENT STATE!!!!!!
-//Also makes step out behave the same as step back
 #define TTD_VSCODE_WORK_AROUNDS 1
+#define TTD_VSCODE_HIJACK_OUT_FOR_REVERSE_CONTINUE 0
 
 //A workaround for some unimplemented code parse features (force debug mode)
 //Enable to turn these features off for good performance measurements.

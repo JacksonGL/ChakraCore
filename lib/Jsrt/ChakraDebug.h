@@ -92,7 +92,11 @@
         /// <summary>
         ///     Perform a single step over after a debug break if the next statement is a function call, else behaves as a stepin.
         /// </summary>
-        JsDiagStepTypeStepOver = 2
+        JsDiagStepTypeStepOver = 2,
+        /// <summary>
+        ///     Perform a single step back to the previous statement.
+        /// </summary>
+        JsDiagStepTypeStepBack = 3
     } JsDiagStepType;
 
     /// <summary>
