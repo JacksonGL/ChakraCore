@@ -5177,7 +5177,7 @@ namespace Js
 #if ENABLE_COPYONACCESS_ARRAY
             JavascriptLibrary *lib = scriptContext->GetLibrary();
 
-#if TTD_DISABLE_COPYONACCESS_ARRAY_WORD_AROUNDS
+#if TTD_DISABLE_COPYONACCESS_ARRAY_WORK_AROUNDS
             if(JavascriptLibrary::IsCopyOnAccessArrayCallSite(lib, arrayInfo, ints->count) && Js::Configuration::Global.flags.TestTrace.IsEnabled(Js::CopyOnAccessArrayPhase))
 #else
             if (JavascriptLibrary::IsCopyOnAccessArrayCallSite(lib, arrayInfo, ints->count))

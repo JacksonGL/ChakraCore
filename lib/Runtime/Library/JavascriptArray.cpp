@@ -801,7 +801,7 @@ namespace Js
             JavascriptLibrary *lib = scriptContext->GetLibrary();
             FunctionBody *functionBody = weakFuncRef->Get();
 
-#if TTD_DISABLE_COPYONACCESS_ARRAY_WORD_AROUNDS
+#if TTD_DISABLE_COPYONACCESS_ARRAY_WORK_AROUNDS
             if (JavascriptLibrary::IsCopyOnAccessArrayCallSite(lib, arrayInfo, count) && Js::Configuration::Global.flags.TestTrace.IsEnabled(Js::CopyOnAccessArrayPhase))
 #else
             if (JavascriptLibrary::IsCopyOnAccessArrayCallSite(lib, arrayInfo, count))
