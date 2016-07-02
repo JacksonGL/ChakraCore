@@ -505,6 +505,8 @@ namespace TTD
                 break;
             case TTDMode::ExcludedExecution:
             case TTDMode::DebuggerSuppressGetter:
+            case TTDMode::DebuggerSuppressBreakpoints:
+            case TTDMode::DebuggerLogBreakpoints:
                 AssertMsg(i != 0, "A base mode should always be first on the stack.");
                 cm |= m;
                 break;
@@ -681,7 +683,7 @@ namespace TTD
         m_eventList(&this->m_eventSlabAllocator), m_eventListVTable(nullptr), m_currentReplayEventIterator(),
         m_callStack(&HeapAllocator::Instance, 32), 
 #if ENABLE_TTD_DEBUGGING
-        m_lastReturnLocation(), m_lastReturnLocationJMC(), m_breakOnFirstUserCode(false), m_pendingTTDBP(), m_activeBPId(-1), m_activeTTDBP(),
+        m_lastReturnLocation(), m_lastReturnLocationJMC(), m_breakOnFirstUserCode(false), m_pendingTTDBP(), m_activeBPId(-1), m_shouldRemoveWhenDone(false), m_activeTTDBP(), m_breakpointInfoList(&HeapAllocator::Instance), m_bpPreserveList(&HeapAllocator::Instance),
 #endif
 #if ENABLE_BASIC_TRACE || ENABLE_FULL_BC_TRACE
         m_diagnosticLogger(),
@@ -793,7 +795,8 @@ namespace TTD
 
     void EventLog::PushMode(TTDMode m)
     {
-        AssertMsg(m == TTDMode::ExcludedExecution || m ==TTDMode::DebuggerSuppressGetter, "These are the only valid mode modifiers to push");
+        AssertMsg(m == TTDMode::ExcludedExecution || m == TTDMode::DebuggerSuppressGetter ||
+            m == TTDMode::DebuggerSuppressBreakpoints || m == TTDMode::DebuggerLogBreakpoints, "These are the only valid mode modifiers to push");
 
         this->m_modeStack.Add(m);
         this->UpdateComputedMode();
@@ -801,7 +804,8 @@ namespace TTD
 
     void EventLog::PopMode(TTDMode m)
     {
-        AssertMsg(m == TTDMode::ExcludedExecution || m == TTDMode::DebuggerSuppressGetter, "These are the only valid mode modifiers to push");
+        AssertMsg(m == TTDMode::ExcludedExecution || m == TTDMode::DebuggerSuppressGetter ||
+            m == TTDMode::DebuggerSuppressBreakpoints || m == TTDMode::DebuggerLogBreakpoints, "These are the only valid mode modifiers to push");
         AssertMsg(this->m_modeStack.Last() == m, "Push/Pop is not matched so something went wrong.");
 
         this->m_modeStack.RemoveAtEnd();
@@ -885,8 +889,8 @@ namespace TTD
 
         if(tEvent->InfoString.Length != infoStrLength)
         {
-            wprintf(L"New Telemetry Msg: %ls\n", infoStr);
-            wprintf(L"Original Telemetry Msg: %ls\n", tEvent->InfoString.Contents);
+            wprintf(_u("New Telemetry Msg: %ls\n"), infoStr);
+            wprintf(_u("Original Telemetry Msg: %ls\n"), tEvent->InfoString.Contents);
             AssertMsg(false, "Telemetry messages differ??");
         }
         else
@@ -895,8 +899,8 @@ namespace TTD
             {
                 if(tEvent->InfoString.Contents[i] != infoStr[i])
                 {
-                    wprintf(L"New Telemetry Msg: %ls\n", infoStr);
-                    wprintf(L"Original Telemetry Msg: %ls\n", tEvent->InfoString.Contents);
+                    wprintf(_u("New Telemetry Msg: %ls\n"), infoStr);
+                    wprintf(_u("Original Telemetry Msg: %ls\n"), tEvent->InfoString.Contents);
                     AssertMsg(false, "Telemetry messages differ??");
 
                     break;
@@ -1230,6 +1234,8 @@ namespace TTD
                 // Don't see a use case for supporting multiple breakpoints at same location.
                 // If a breakpoint already exists, just return that
                 Js::BreakpointProbe* probe = debugDocument->FindBreakpoint(statement);
+                bool isNewBP = (probe == nullptr);
+
                 if(probe == nullptr)
                 {
                     probe = debugDocument->SetBreakPoint(statement, BREAKPOINT_ENABLED);
@@ -1238,7 +1244,7 @@ namespace TTD
                 TTDebuggerSourceLocation bpLocation;
                 bpLocation.SetLocation(-1, -1, -1, cfinfo.Function, firstStatementLine, firstStatementColumn);
 
-                function->GetScriptContext()->GetThreadContext()->TTDLog->SetActiveBP(probe->GetId(), bpLocation);
+                function->GetScriptContext()->GetThreadContext()->TTDLog->SetActiveBP(probe->GetId(), isNewBP, bpLocation);
             }
         }
 #endif
@@ -1344,27 +1350,44 @@ namespace TTD
     void EventLog::ClearActiveBP()
     {
         this->m_activeBPId = -1;
+        this->m_shouldRemoveWhenDone = false;
         this->m_activeTTDBP.Clear();
     }
 
-    void EventLog::SetActiveBP(UINT bpId, const TTDebuggerSourceLocation& bpLocation)
+    void EventLog::SetActiveBP(UINT bpId, bool isNewBP, const TTDebuggerSourceLocation& bpLocation)
     {
         this->m_activeBPId = bpId;
+        this->m_shouldRemoveWhenDone = isNewBP;
         this->m_activeTTDBP.SetLocation(bpLocation);
     }
 
     bool EventLog::ProcessBPInfoPreBreak(Js::FunctionBody* fb)
     {
+        //if we aren't in debug mode then we always trigger BP's
         if(!fb->GetScriptContext()->ShouldPerformDebugAction())
         {
             return true;
         }
 
+        //If we are in debugger mode but are suppressing BP's for movement then suppress them
+        if(fb->GetScriptContext()->ShouldSuppressBreakpointsForTimeTravelMove())
+        {
+            //Check if we need to record the visit to this bp
+            if(fb->GetScriptContext()->ShouldRecordBreakpointsDuringTimeTravelScan())
+            {
+                this->AddCurrentLocationDuringScan();
+            }
+
+            return false;
+        }
+
+        //If we are in debug mode and don't have an active BP target then we treat BP's as usual
         if(!this->HasActiveBP())
         {
             return true;
         }
 
+        //Finally we are in debug mode and we have an active BP target so only break if the BP is satisfied
         const SingleCallCounter& cfinfo = this->GetTopCallCounter();
         ULONG srcLine = 0;
         LONG srcColumn = -1;
@@ -1389,7 +1412,7 @@ namespace TTD
         {
             Js::DebugDocument* debugDocument = fb->GetUtf8SourceInfo()->GetDebugDocument();
             Js::StatementLocation statement;
-            if(debugDocument->FindBPStatementLocation(this->GetActiveBPId(), &statement))
+            if(this->m_shouldRemoveWhenDone && debugDocument->FindBPStatementLocation(this->GetActiveBPId(), &statement))
             {
                 debugDocument->SetBreakPoint(statement, BREAKPOINT_DELETED);
             }
@@ -1404,6 +1427,80 @@ namespace TTD
             //
             throw TTD::TTDebuggerAbortException::CreateTopLevelAbortRequest(this->GetPendingTTDBPTargetEventTime(), 0, _u("Reverse operation requested."));
         }
+    }
+
+    void EventLog::ClearBPScanList()
+    {
+        this->m_breakpointInfoList.Clear();
+    }
+
+    void EventLog::AddCurrentLocationDuringScan()
+    {
+        TTDebuggerSourceLocation current(this->m_callStack.Last());
+        this->m_breakpointInfoList.Add(current);
+    }
+
+    bool EventLog::TryFindAndSetPreviousBP()
+    {
+        AssertMsg(this->m_pendingTTDBP.HasValue(), "This needs to have a value!!!");
+
+        const TTDebuggerSourceLocation& target(this->m_pendingTTDBP);
+
+        int32 i = 0;
+        for(; i < this->m_breakpointInfoList.Count(); ++i)
+        {
+            bool isBefore = target.IsBefore(this->m_breakpointInfoList.Item(i));
+            if(!isBefore)
+            {
+                break;
+            }
+        }
+        int32 lastBefore = i - 1;
+
+        if(lastBefore == -1)
+        {
+            return false;
+        }
+        else
+        {
+            this->m_pendingTTDBP.SetLocation(this->m_breakpointInfoList.Item(lastBefore));
+
+            return true;
+        }
+    }
+
+    void EventLog::LoadBPListForContextRecreate()
+    {
+        AssertMsg(this->m_bpPreserveList.Count() == 0, "How do we still have breakpoints in here???");
+
+        Js::ProbeContainer* probeContainer = this->m_ttdContext->GetDebugContext()->GetProbeContainer();
+
+        probeContainer->MapProbes([&](int i, Js::Probe* pProbe)
+        {
+            Js::BreakpointProbe* bp = (Js::BreakpointProbe*)pProbe;
+            Js::FunctionBody* body = bp->GetFunctionBody();
+            int32 bpIndex = body->GetEnclosingStatementIndexFromByteCode(bp->GetBytecodeOffset());
+
+            ULONG srcLine = 0;
+            LONG srcColumn = -1;
+            uint32 startOffset = body->GetStatementStartOffset(bpIndex);
+            body->GetSourceLineFromStartOffset_TTD(startOffset, &srcLine, &srcColumn);
+
+            TTDebuggerSourceLocation ploc;
+            ploc.SetLocation(-1, -1, -1, body, srcLine, srcColumn);
+
+            this->m_bpPreserveList.Add(ploc);
+        });
+    }
+
+    void EventLog::UnLoadBPListAfterMoveForContextRecreate()
+    {
+        this->m_bpPreserveList.Clear();
+    }
+
+    const JsUtil::List<TTDebuggerSourceLocation, HeapAllocator>& EventLog::GetRestoreBPListAfterContextRecreate()
+    {
+        return this->m_bpPreserveList;
     }
 #endif
 

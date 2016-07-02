@@ -67,7 +67,7 @@ namespace TTD
         int32 CurrentStatementIndex; //The currently executing statement
         uint64 CurrentStatementLoopTime; //The currently executing statement
 
-                                         //bytecode range of the current stmt
+        //bytecode range of the current stmt
         uint32 CurrentStatementBytecodeMin;
         uint32 CurrentStatementBytecodeMax;
 #endif
@@ -96,6 +96,7 @@ namespace TTD
 
     public:
         TTDebuggerSourceLocation();
+        TTDebuggerSourceLocation(const SingleCallCounter& callFrame);
         TTDebuggerSourceLocation(const TTDebuggerSourceLocation& other);
         ~TTDebuggerSourceLocation();
 
@@ -111,9 +112,12 @@ namespace TTD
         int64 GetFunctionTime() const;
         int64 GetLoopTime() const;
 
-        Js::FunctionBody* ResolveAssociatedSourceInfo(Js::ScriptContext* ctx);
+        Js::FunctionBody* ResolveAssociatedSourceInfo(Js::ScriptContext* ctx) const;
         uint32 GetLine() const;
         uint32 GetColumn() const;
+
+        //return true if this comes strictly before other in execution order
+        bool IsBefore(const TTDebuggerSourceLocation& other) const;
     };
 
     //////////////////

@@ -1173,6 +1173,26 @@ private:
 #endif
         }
 
+        //A special check to see if we are in the process of a time-travel move and do not want to stop at any breakpoints
+        bool ShouldSuppressBreakpointsForTimeTravelMove() const
+        {
+#if !ENABLE_TTD_DEBUGGING
+            return false;
+#else
+            return (this->TTDMode & TTD::TTDMode::DebuggerSuppressBreakpoints) == TTD::TTDMode::DebuggerSuppressBreakpoints;
+#endif
+        }
+
+        //A special check to see if we are in the process of a time-travel move and do not want to stop at any breakpoints
+        bool ShouldRecordBreakpointsDuringTimeTravelScan() const
+        {
+#if !ENABLE_TTD_DEBUGGING
+            return false;
+#else
+            return (this->TTDMode & TTD::TTDMode::DebuggerLogBreakpoints) == TTD::TTDMode::DebuggerLogBreakpoints;
+#endif
+        }
+
         //
         //TODO: this is currently called explicitly -- we need to fix up the core image computation and this will be eliminated then
         //

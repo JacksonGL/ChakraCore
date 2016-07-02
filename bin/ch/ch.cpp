@@ -254,12 +254,12 @@ HRESULT RunScript(const char* fileName, LPCWSTR fileContents, BYTE *bcBuffer, ch
                 {
                     if(error == JsErrorCategoryUsage)
                     {
-                        wprintf(_u("Start time not in log range."));
+                        wprintf(_u("Start time not in log range.\n"));
                         break;
                     }
                     else
                     {
-                        wprintf(_u("Fatal Error in Move!!!"));
+                        wprintf(_u("Fatal Error in Move!!!\n"));
                         break;
                     }
                 }
@@ -286,7 +286,7 @@ HRESULT RunScript(const char* fileName, LPCWSTR fileContents, BYTE *bcBuffer, ch
         }
         catch(...)
         {
-            wprintf(_u("Terminal exception in Replay -- exiting."));
+            wprintf(_u("Terminal exception in Replay -- exiting.\n"));
             ExitProcess(0);
         }
 #endif
@@ -423,7 +423,6 @@ HRESULT ExecuteTest(const char* fileName)
 
         JsContextRef context = JS_INVALID_REFERENCE;
         IfJsErrorFailLog(ChakraRTInterface::JsCreateContext(runtime, &context));
-        //IfJsErrorFailLog(ChakraRTInterface::JsTTDCreateContext(runtime, &context));
         IfJsErrorFailLog(ChakraRTInterface::JsSetCurrentContext(context));
 
         IfFailGo(RunScript(fileName, fileContents, nullptr, nullptr));

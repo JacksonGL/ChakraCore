@@ -354,7 +354,7 @@ namespace Js
 #ifdef WIN32
         return ((url[1] == _u(':')) && (wcsstr(url, _u("\\node_modules\\")) == nullptr));
 #else
-        return ((url[0] == _u('/')) && (wcsstr(url, L"/node_modules/") == nullptr));
+        return ((url[0] == _u('/')) && (wcsstr(url, _u("/node_modules/")) == nullptr));
 #endif
     }
 #endif

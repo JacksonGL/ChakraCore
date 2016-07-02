@@ -590,7 +590,7 @@
     /////////////////////
 
     /// <summary>
-    ///     TimeTravel startup options as bit flag enum.
+    ///     TimeTravel move options as bit flag enum.
     /// </summary>
     typedef enum _JsTTDMoveModes : UINT64
     {
@@ -614,6 +614,11 @@
         ///     Indicates if we want to scan the snapshot interval containing the event to populate debug info before moving to execute event.
         /// </summary>
         JsTTDMoveScanIntervalBeforeDebugExecute = 0x10,
+
+        /// <summary>
+        ///     Indicates if we are doing the scan for a continue operation
+        /// </summary>
+        JsTTDMoveScanIntervalForContinue = 0x20,
 
         /// <summary>
         ///     Indicates if we want to set break on entry or just run and let something else trigger breakpoints.
@@ -1018,10 +1023,12 @@
     /// </summary>
     ///<param name = "startSnapTime">The snapshot time that we will start executing from.< / param>
     ///<param name = "startEndTime">The snapshot time that we will stop at (or -1 if we want to run to the end).< / param>
+    /// <param name="moveMode">Additional flags for controling how the move is done.</param>
     /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
     CHAKRA_API JsTTDPreExecuteSnapShotInterval(
         _In_ INT64 startSnapTime,
-        _In_ INT64 endSnapTime);
+        _In_ INT64 endSnapTime,
+        _In_ JsTTDMoveMode moveMode);
 
     /// <summary>
     ///     TTD API -- may change in future versions:

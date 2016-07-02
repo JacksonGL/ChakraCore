@@ -97,7 +97,6 @@ namespace TTD
         bool m_isExceptionFrame;
         SingleCallCounter m_lastFrame;
 
-
     public:
         TTLastReturnLocationInfo();
 
@@ -274,7 +273,14 @@ namespace TTD
 
         //The bp we are actively moving to in TT mode
         int64 m_activeBPId;
+        bool m_shouldRemoveWhenDone;
         TTDebuggerSourceLocation m_activeTTDBP;
+
+        //A list of breakpoints seen in the most recent scan
+        JsUtil::List<TTDebuggerSourceLocation, HeapAllocator> m_breakpointInfoList;
+
+        //A list of breakpoints we want to preserve when performing TTD moves (even if we create a new script context)
+        JsUtil::List<TTDebuggerSourceLocation, HeapAllocator> m_bpPreserveList;
 #endif
 
 #if ENABLE_BASIC_TRACE || ENABLE_FULL_BC_TRACE
@@ -512,13 +518,28 @@ namespace TTD
         bool HasActiveBP() const;
         UINT GetActiveBPId() const;
         void ClearActiveBP();
-        void SetActiveBP(UINT bpId, const TTDebuggerSourceLocation& bpLocation);
+        void SetActiveBP(UINT bpId, bool isNewBP, const TTDebuggerSourceLocation& bpLocation);
 
         //Process the breakpoint info as we enter a break statement and return true if we actually want to break
         bool ProcessBPInfoPreBreak(Js::FunctionBody* fb);
 
         //Process the breakpoint info as we resume from a break statement
         void ProcessBPInfoPostBreak(Js::FunctionBody* fb);
+
+        //Clear the BP scan list
+        void ClearBPScanList();
+
+        //When scanning add the current location as a BP location
+        void AddCurrentLocationDuringScan();
+
+        //After a scan set the pending BP to the earliest breakpoint before the given current pending BP location and return true
+        //If no such BP location then return false
+        bool TryFindAndSetPreviousBP();
+
+        //Load and restore all the breakpoints in the manager before and after we create new script contexts
+        void LoadBPListForContextRecreate();
+        void EventLog::UnLoadBPListAfterMoveForContextRecreate();
+        const JsUtil::List<TTDebuggerSourceLocation, HeapAllocator>& EventLog::GetRestoreBPListAfterContextRecreate();
 #endif
 
         //Update the loop count information

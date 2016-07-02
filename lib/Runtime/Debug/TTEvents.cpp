@@ -70,6 +70,12 @@ namespace TTD
         ;
     }
 
+    TTDebuggerSourceLocation::TTDebuggerSourceLocation(const SingleCallCounter& callFrame)
+        : m_etime(-1), m_ftime(0), m_ltime(0), m_sourceFile(nullptr), m_docid(0), m_functionLine(0), m_functionColumn(0), m_line(0), m_column(0)
+    {
+        this->SetLocation(callFrame);
+    }
+
     TTDebuggerSourceLocation::TTDebuggerSourceLocation(const TTDebuggerSourceLocation& other)
         : m_etime(other.m_etime), m_ftime(other.m_ftime), m_ltime(other.m_ltime), m_sourceFile(nullptr), m_docid(other.m_docid), m_functionLine(other.m_functionLine), m_functionColumn(other.m_functionColumn), m_line(other.m_line), m_column(other.m_column)
     {
@@ -230,7 +236,7 @@ namespace TTD
         return this->m_ltime;
     }
 
-    Js::FunctionBody* TTDebuggerSourceLocation::ResolveAssociatedSourceInfo(Js::ScriptContext* ctx)
+    Js::FunctionBody* TTDebuggerSourceLocation::ResolveAssociatedSourceInfo(Js::ScriptContext* ctx) const
     {
         Js::FunctionBody* resBody = ctx->TTDContextInfo->FindFunctionBodyByFileName(this->m_sourceFile);
 
@@ -280,6 +286,42 @@ namespace TTD
     uint32 TTDebuggerSourceLocation::GetColumn() const
     {
         return this->m_column;
+    }
+
+    bool TTDebuggerSourceLocation::IsBefore(const TTDebuggerSourceLocation& other) const
+    {
+        AssertMsg(this->m_ftime != -1 && other.m_ftime != -1, "These aren't orderable!!!");
+        AssertMsg(this->m_ltime != -1 && other.m_ltime != -1, "These aren't orderable!!!");
+
+        //first check the order of the time parts
+        if(this->m_etime != other.m_etime)
+        {
+            return this->m_etime < other.m_etime;
+        }
+
+        if(this->m_ftime != other.m_ftime)
+        {
+            return this->m_ftime < other.m_ftime;
+        }
+
+        if(this->m_ltime != other.m_ltime)
+        {
+            return this->m_ltime < other.m_ltime;
+        }
+
+        //so all times are the same => min column/min row decide
+        if(this->m_functionLine != other.m_functionLine)
+        {
+            return this->m_functionLine < other.m_functionLine;
+        }
+
+        if(this->m_functionColumn != other.m_functionColumn)
+        {
+            return this->m_functionColumn < other.m_functionColumn;
+        }
+
+        //they are refering to the same location so this is *not* stricly before
+        return false;
     }
 
     //////////////////

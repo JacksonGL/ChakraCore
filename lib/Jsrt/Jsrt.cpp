@@ -3745,7 +3745,7 @@ CHAKRA_API JsTTDPrepContextsForTopLevelEventMove(_In_ JsRuntimeHandle runtimeHan
 #endif
 }
 
-CHAKRA_API JsTTDPreExecuteSnapShotInterval(_In_ INT64 startSnapTime, _In_ INT64 endSnapTime)
+CHAKRA_API JsTTDPreExecuteSnapShotInterval(_In_ INT64 startSnapTime, _In_ INT64 endSnapTime, _In_ JsTTDMoveMode moveMode)
 {
 #if !ENABLE_TTD_DEBUGGING
     return JsErrorCategoryUsage;
@@ -3764,6 +3764,9 @@ CHAKRA_API JsTTDPreExecuteSnapShotInterval(_In_ INT64 startSnapTime, _In_ INT64 
     TTD::EventLog* elog = threadContext->TTDLog;
     JsErrorCode res = JsNoError;
 
+    elog->ClearBPScanList();
+    elog->PushMode(TTD::TTDMode::DebuggerSuppressBreakpoints);
+    elog->PushMode(TTD::TTDMode::DebuggerLogBreakpoints);
     try
     {
         elog->PushMode(TTD::TTDMode::ExcludedExecution);
@@ -3773,10 +3776,6 @@ CHAKRA_API JsTTDPreExecuteSnapShotInterval(_In_ INT64 startSnapTime, _In_ INT64 
         }
         END_JS_RUNTIME_CALL(scriptContext);
         elog->PopMode(TTD::TTDMode::ExcludedExecution);
-
-        //
-        //TODO: we probably want a way to put the TTD system in a mode to track breakpoints that are hit but not actually halt
-        //
 
         if(endSnapTime == -1)
         {
@@ -3800,6 +3799,17 @@ CHAKRA_API JsTTDPreExecuteSnapShotInterval(_In_ INT64 startSnapTime, _In_ INT64 
         res = JsErrorFatal;
         AssertMsg(false, "Unexpected fatal Error");
     }
+    elog->PopMode(TTD::TTDMode::DebuggerLogBreakpoints);
+    elog->PopMode(TTD::TTDMode::DebuggerSuppressBreakpoints);
+
+    //
+    //TODO: check move mode here to update the bp if needed and then clean the bp tracking list
+    //
+    if((moveMode & JsTTDMoveMode::JsTTDMoveScanIntervalForContinue) == JsTTDMoveMode::JsTTDMoveScanIntervalForContinue)
+    {
+        elog->TryFindAndSetPreviousBP();
+    }
+    elog->ClearBPScanList();
 
     return res;
 #endif
@@ -3824,6 +3834,7 @@ CHAKRA_API JsTTDMoveToTopLevelEvent(_In_ JsTTDMoveMode moveMode, _In_ INT64 snap
     TTD::EventLog* elog = threadContext->TTDLog;
     JsErrorCode res = JsNoError;
 
+    elog->PushMode(TTD::TTDMode::DebuggerSuppressBreakpoints);
     try
     {
         elog->PushMode(TTD::TTDMode::ExcludedExecution);
@@ -3833,10 +3844,6 @@ CHAKRA_API JsTTDMoveToTopLevelEvent(_In_ JsTTDMoveMode moveMode, _In_ INT64 snap
         }
         END_JS_RUNTIME_CALL(scriptContext);
         elog->PopMode(TTD::TTDMode::ExcludedExecution);
-
-        //
-        //TODO: we probably want a way to put the TTD system in a mode to track breakpoints that are hit but not actually halt
-        //
 
         elog->ReplayToTime(eventTime);
 
@@ -3853,6 +3860,7 @@ CHAKRA_API JsTTDMoveToTopLevelEvent(_In_ JsTTDMoveMode moveMode, _In_ INT64 snap
         res = JsErrorFatal;
         AssertMsg(false, "Unexpected fatal Error");
     }
+    elog->PopMode(TTD::TTDMode::DebuggerSuppressBreakpoints);
 
     return res;
 #endif
@@ -3865,7 +3873,9 @@ CHAKRA_API JsTTDReplayExecution(_Inout_ JsTTDMoveMode* moveMode, _Inout_ INT64* 
 #else
     JsrtContext *currentContext = JsrtContext::GetCurrent();
     Js::ScriptContext* scriptContext = currentContext->GetScriptContext();
-    if (scriptContext->GetThreadContext()->TTDLog == nullptr)
+    ThreadContext* threadContext = scriptContext->GetThreadContext();
+
+    if (threadContext->TTDLog == nullptr)
     {
         AssertMsg(false, "Should only happen in TT debugging mode.");
         return JsErrorCategoryUsage;
@@ -3873,9 +3883,53 @@ CHAKRA_API JsTTDReplayExecution(_Inout_ JsTTDMoveMode* moveMode, _Inout_ INT64* 
 
     if((*moveMode & JsTTDMoveMode::JsTTDMoveBreakOnEntry) == JsTTDMoveMode::JsTTDMoveBreakOnEntry)
     {
-        AssertMsg(!scriptContext->GetThreadContext()->TTDLog->HasPendingTTDBP(), "Should not happen at same time!!!");
+        AssertMsg(!threadContext->TTDLog->HasPendingTTDBP(), "Should not happen at same time!!!");
 
-        scriptContext->GetThreadContext()->TTDLog->SetBreakOnFirstUserCode();
+        threadContext->TTDLog->SetBreakOnFirstUserCode();
+    }
+
+    //reset any breakpoints that we preserved accross a TTD move
+    if(threadContext->TTDLog->HasPendingTTDBP() || threadContext->TTDLog->GetRestoreBPListAfterContextRecreate().Count() != 0)
+    {
+        GlobalAPIWrapper([&]() -> JsErrorCode {
+            JsrtDebugManager* jsrtDebugManager = currentContext->GetRuntime()->GetJsrtDebugManager();
+
+            const JsUtil::List<TTD::TTDebuggerSourceLocation, HeapAllocator>& bplist = threadContext->TTDLog->GetRestoreBPListAfterContextRecreate();
+            for(int32 i = 0; i < bplist.Count(); ++i)
+            {
+                const TTD::TTDebuggerSourceLocation& bpLocation = bplist.Item(i);
+
+                Js::FunctionBody* body = bpLocation.ResolveAssociatedSourceInfo(scriptContext);
+                Js::Utf8SourceInfo* utf8SourceInfo = body->GetUtf8SourceInfo();
+
+                bool isNewBP = false;
+                jsrtDebugManager->SetBreakpointHelper_TTD(scriptContext, utf8SourceInfo, bpLocation.GetLine(), bpLocation.GetColumn(), &isNewBP);
+            }
+            threadContext->TTDLog->UnLoadBPListAfterMoveForContextRecreate();
+
+            //Handle the pending BP as/if needed
+            if(threadContext->TTDLog->HasPendingTTDBP())
+            {
+                TTD::TTDebuggerSourceLocation bpLocation;
+                scriptContext->GetThreadContext()->TTDLog->GetPendingTTDBPInfo(bpLocation);
+
+                Js::FunctionBody* body = bpLocation.ResolveAssociatedSourceInfo(scriptContext);
+                Js::Utf8SourceInfo* utf8SourceInfo = body->GetUtf8SourceInfo();
+
+                bool isNewBP = false;
+                Js::BreakpointProbe* probe = jsrtDebugManager->SetBreakpointHelper_TTD(scriptContext, utf8SourceInfo, bpLocation.GetLine(), bpLocation.GetColumn(),  &isNewBP);
+
+                if(probe != nullptr)
+                {
+                    scriptContext->GetThreadContext()->TTDLog->SetActiveBP(probe->GetId(), isNewBP, bpLocation);
+                }
+
+                //Finally clear the pending BP info so we don't get confused later
+                scriptContext->GetThreadContext()->TTDLog->ClearPendingTTDBPInfo();
+            }
+
+            return JsNoError;
+        });
     }
 
     //If the log has a BP requested then we should set the actual bp here
@@ -3901,6 +3955,8 @@ CHAKRA_API JsTTDReplayExecution(_Inout_ JsTTDMoveMode* moveMode, _Inout_ INT64* 
         // Don't see a use case for supporting multiple breakpoints at same location.
         // If a breakpoint already exists, just return that
         Js::BreakpointProbe* probe = debugDocument->FindBreakpoint(statement);
+        bool isNewBP = (probe == nullptr);
+
         if(probe == nullptr)
         {
             BEGIN_JS_RUNTIME_CALLROOT_EX(scriptContext, false)
@@ -3911,7 +3967,7 @@ CHAKRA_API JsTTDReplayExecution(_Inout_ JsTTDMoveMode* moveMode, _Inout_ INT64* 
             END_JS_RUNTIME_CALL(scriptContext);
         }
 
-        scriptContext->GetThreadContext()->TTDLog->SetActiveBP(probe->GetId(), bpLocation);
+        scriptContext->GetThreadContext()->TTDLog->SetActiveBP(probe->GetId(), isNewBP, bpLocation);
 
         //Finally clear the pending BP info so we don't get confused later
         scriptContext->GetThreadContext()->TTDLog->ClearPendingTTDBPInfo();
