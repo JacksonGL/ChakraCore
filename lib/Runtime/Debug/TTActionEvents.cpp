@@ -922,7 +922,7 @@ namespace TTD
 
                 if(cfInfo->HasScriptException || cfInfo->HasTerminiatingException)
                 {
-                    throw TTDebuggerAbortException::CreateUncaughtExceptionAbortRequest(threadContext->TTDLog->GetCurrentTopLevelEventTime(), _u("Uncaught exception -- Propagate to top-level."));
+                    throw TTDebuggerAbortException::CreateUncaughtExceptionAbortRequest(lastLocation.GetRootEventTime(), _u("Uncaught exception -- Propagate to top-level."));
                 }
             }
 #endif

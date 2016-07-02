@@ -94,6 +94,16 @@ namespace TTD
         this->Clear();
     }
 
+    TTDebuggerSourceLocation& TTDebuggerSourceLocation::operator= (const TTDebuggerSourceLocation& other)
+    {
+        if(this != &other)
+        {
+            this->SetLocation(other);
+        }
+
+        return *this;
+    }
+
     void TTDebuggerSourceLocation::Initialize()
     {
         this->m_etime = -1;

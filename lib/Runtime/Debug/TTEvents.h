@@ -100,6 +100,8 @@ namespace TTD
         TTDebuggerSourceLocation(const TTDebuggerSourceLocation& other);
         ~TTDebuggerSourceLocation();
 
+        TTDebuggerSourceLocation& operator= (const TTDebuggerSourceLocation& other);
+
         void Initialize();
 
         bool HasValue() const;

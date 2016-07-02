@@ -330,7 +330,7 @@
 //Enable debugging specific aspects of TTD
 #define ENABLE_TTD_DEBUGGING 1
 
-//A VSCode & node getting angry about native code generation --------- DO NOT CHECK IN TO MAJOR REPO IN CURRENT STATE!!!!!!
+//A VSCode & node getting angry about SIMD objects
 #define TTD_VSCODE_WORK_AROUNDS 1
 #define TTD_VSCODE_HIJACK_OUT_FOR_REVERSE_CONTINUE 0
 

@@ -1201,7 +1201,6 @@ namespace TTD
 
         this->m_callStack.Add(cfinfo);
 
-
         ////
         //Debug experiment
 #if TTD_VSCODE_WORK_AROUNDS
@@ -1279,12 +1278,12 @@ namespace TTD
         //If we already have the last return as an exception then just leave it.
         //That is where the exception was first rasied, this return is just propagating it in this return.
 
-        if(this->m_lastReturnLocation.IsExceptionLocation())
+        if(!this->m_lastReturnLocation.IsExceptionLocation())
         {
             this->m_lastReturnLocation.SetExceptionLocation(this->m_callStack.Last());
         }
 
-        if(EventLog::IsFunctionJustMyCode(function) && this->m_lastReturnLocationJMC.IsExceptionLocation())
+        if(EventLog::IsFunctionJustMyCode(function) && !this->m_lastReturnLocationJMC.IsExceptionLocation())
         {
             this->m_lastReturnLocationJMC.SetExceptionLocation(this->m_callStack.Last());
         }
@@ -1478,18 +1477,21 @@ namespace TTD
         probeContainer->MapProbes([&](int i, Js::Probe* pProbe)
         {
             Js::BreakpointProbe* bp = (Js::BreakpointProbe*)pProbe;
-            Js::FunctionBody* body = bp->GetFunctionBody();
-            int32 bpIndex = body->GetEnclosingStatementIndexFromByteCode(bp->GetBytecodeOffset());
+            if((int64)bp->GetId() != this->m_activeBPId)
+            {
+                Js::FunctionBody* body = bp->GetFunctionBody();
+                int32 bpIndex = body->GetEnclosingStatementIndexFromByteCode(bp->GetBytecodeOffset());
 
-            ULONG srcLine = 0;
-            LONG srcColumn = -1;
-            uint32 startOffset = body->GetStatementStartOffset(bpIndex);
-            body->GetSourceLineFromStartOffset_TTD(startOffset, &srcLine, &srcColumn);
+                ULONG srcLine = 0;
+                LONG srcColumn = -1;
+                uint32 startOffset = body->GetStatementStartOffset(bpIndex);
+                body->GetSourceLineFromStartOffset_TTD(startOffset, &srcLine, &srcColumn);
 
-            TTDebuggerSourceLocation ploc;
-            ploc.SetLocation(-1, -1, -1, body, srcLine, srcColumn);
+                TTDebuggerSourceLocation ploc;
+                ploc.SetLocation(-1, -1, -1, body, srcLine, srcColumn);
 
-            this->m_bpPreserveList.Add(ploc);
+                this->m_bpPreserveList.Add(ploc);
+            }
         });
     }
 

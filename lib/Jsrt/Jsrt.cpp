@@ -256,6 +256,12 @@ JsErrorCode CreateContextCore(_In_ JsRuntimeHandle runtimeHandle, _In_ bool crea
             context->GetScriptContext()->InitializeCoreImage_TTD();
             threadContext->TTDLog->PopMode(TTD::TTDMode::ExcludedExecution);
         }
+
+#if TTD_VSCODE_WORK_AROUNDS
+        //There seems to be some locking missing when Node runs the debugger (asserts on FunctionBody.cpp line 97)
+        context->GetScriptContext()->ForceNoNative();
+#endif
+
 #endif
 
         JsrtDebugManager* jsrtDebugManager = runtime->GetJsrtDebugManager();
@@ -3881,20 +3887,20 @@ CHAKRA_API JsTTDReplayExecution(_Inout_ JsTTDMoveMode* moveMode, _Inout_ INT64* 
         return JsErrorCategoryUsage;
     }
 
+    TTD::EventLog* elog = threadContext->TTDLog;
+
     if((*moveMode & JsTTDMoveMode::JsTTDMoveBreakOnEntry) == JsTTDMoveMode::JsTTDMoveBreakOnEntry)
     {
-        AssertMsg(!threadContext->TTDLog->HasPendingTTDBP(), "Should not happen at same time!!!");
-
-        threadContext->TTDLog->SetBreakOnFirstUserCode();
+        elog->SetBreakOnFirstUserCode();
     }
 
     //reset any breakpoints that we preserved accross a TTD move
-    if(threadContext->TTDLog->HasPendingTTDBP() || threadContext->TTDLog->GetRestoreBPListAfterContextRecreate().Count() != 0)
+    if(elog->HasPendingTTDBP() || elog->GetRestoreBPListAfterContextRecreate().Count() != 0)
     {
         GlobalAPIWrapper([&]() -> JsErrorCode {
             JsrtDebugManager* jsrtDebugManager = currentContext->GetRuntime()->GetJsrtDebugManager();
 
-            const JsUtil::List<TTD::TTDebuggerSourceLocation, HeapAllocator>& bplist = threadContext->TTDLog->GetRestoreBPListAfterContextRecreate();
+            const JsUtil::List<TTD::TTDebuggerSourceLocation, HeapAllocator>& bplist = elog->GetRestoreBPListAfterContextRecreate();
             for(int32 i = 0; i < bplist.Count(); ++i)
             {
                 const TTD::TTDebuggerSourceLocation& bpLocation = bplist.Item(i);
@@ -3905,13 +3911,13 @@ CHAKRA_API JsTTDReplayExecution(_Inout_ JsTTDMoveMode* moveMode, _Inout_ INT64* 
                 bool isNewBP = false;
                 jsrtDebugManager->SetBreakpointHelper_TTD(scriptContext, utf8SourceInfo, bpLocation.GetLine(), bpLocation.GetColumn(), &isNewBP);
             }
-            threadContext->TTDLog->UnLoadBPListAfterMoveForContextRecreate();
+            elog->UnLoadBPListAfterMoveForContextRecreate();
 
             //Handle the pending BP as/if needed
-            if(threadContext->TTDLog->HasPendingTTDBP())
+            if(elog->HasPendingTTDBP())
             {
                 TTD::TTDebuggerSourceLocation bpLocation;
-                scriptContext->GetThreadContext()->TTDLog->GetPendingTTDBPInfo(bpLocation);
+                elog->GetPendingTTDBPInfo(bpLocation);
 
                 Js::FunctionBody* body = bpLocation.ResolveAssociatedSourceInfo(scriptContext);
                 Js::Utf8SourceInfo* utf8SourceInfo = body->GetUtf8SourceInfo();
@@ -3921,11 +3927,11 @@ CHAKRA_API JsTTDReplayExecution(_Inout_ JsTTDMoveMode* moveMode, _Inout_ INT64* 
 
                 if(probe != nullptr)
                 {
-                    scriptContext->GetThreadContext()->TTDLog->SetActiveBP(probe->GetId(), isNewBP, bpLocation);
+                    elog->SetActiveBP(probe->GetId(), isNewBP, bpLocation);
                 }
 
                 //Finally clear the pending BP info so we don't get confused later
-                scriptContext->GetThreadContext()->TTDLog->ClearPendingTTDBPInfo();
+                elog->ClearPendingTTDBPInfo();
             }
 
             return JsNoError;
@@ -3933,10 +3939,10 @@ CHAKRA_API JsTTDReplayExecution(_Inout_ JsTTDMoveMode* moveMode, _Inout_ INT64* 
     }
 
     //If the log has a BP requested then we should set the actual bp here
-    if(scriptContext->GetThreadContext()->TTDLog->HasPendingTTDBP())
+    if(elog->HasPendingTTDBP())
     {
         TTD::TTDebuggerSourceLocation bpLocation;
-        scriptContext->GetThreadContext()->TTDLog->GetPendingTTDBPInfo(bpLocation);
+        elog->GetPendingTTDBPInfo(bpLocation);
 
         Js::FunctionBody* body = bpLocation.ResolveAssociatedSourceInfo(scriptContext);
         Js::Utf8SourceInfo* utf8SourceInfo = body->GetUtf8SourceInfo();
@@ -3967,16 +3973,16 @@ CHAKRA_API JsTTDReplayExecution(_Inout_ JsTTDMoveMode* moveMode, _Inout_ INT64* 
             END_JS_RUNTIME_CALL(scriptContext);
         }
 
-        scriptContext->GetThreadContext()->TTDLog->SetActiveBP(probe->GetId(), isNewBP, bpLocation);
+        elog->SetActiveBP(probe->GetId(), isNewBP, bpLocation);
 
         //Finally clear the pending BP info so we don't get confused later
-        scriptContext->GetThreadContext()->TTDLog->ClearPendingTTDBPInfo();
+        elog->ClearPendingTTDBPInfo();
     }
 
     JsErrorCode res = JsNoError;
     try
     {
-        scriptContext->GetThreadContext()->TTDLog->ReplayFullTrace();
+        elog->ReplayFullTrace();
     }
     catch(TTD::TTDebuggerAbortException abortException)
     {
@@ -3986,6 +3992,15 @@ CHAKRA_API JsTTDReplayExecution(_Inout_ JsTTDMoveMode* moveMode, _Inout_ INT64* 
         {
             *moveMode = (JsTTDMoveMode)abortException.GetMoveMode();
             *rootEventTime = abortException.GetTargetEventTime();
+
+            if(abortException.IsTopLevelException())
+            {
+                bool markedAsJustMyCode = false;
+                TTD::TTDebuggerSourceLocation throwLocation;
+                elog->GetLastExecutedTimeAndPositionForDebugger(&markedAsJustMyCode, throwLocation);
+
+                elog->SetPendingTTDBPInfo(throwLocation);
+            }
         }
         else
         {

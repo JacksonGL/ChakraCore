@@ -623,7 +623,7 @@
         /// <summary>
         ///     Indicates if we want to set break on entry or just run and let something else trigger breakpoints.
         /// </summary>
-        JsTTDMoveBreakOnEntry = 0x100,
+        JsTTDMoveBreakOnEntry = 0x100
     } JsTTDMoveMode;
 
     /// <summary>

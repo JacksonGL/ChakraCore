@@ -299,10 +299,6 @@ namespace Js
         PERF_COUNTER_INC(Basic, ScriptContext);
         PERF_COUNTER_INC(Basic, ScriptContextActive);
 
-#if TTD_VSCODE_WORK_AROUNDS
-        this->ForceNoNative();
-#endif
-
         END_NO_EXCEPTION;
     }
 
