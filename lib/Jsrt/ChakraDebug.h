@@ -94,7 +94,7 @@
         /// </summary>
         JsDiagStepTypeStepOver = 2,
         /// <summary>
-        ///     Perform a single step back to the previous statement.
+        ///     Perform a single step back to the previous statement (only applicable in TTD mode).
         /// </summary>
         JsDiagStepTypeStepBack = 3
     } JsDiagStepType;
