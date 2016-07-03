@@ -104,6 +104,25 @@ namespace TTD
         return *this;
     }
 
+#if ENABLE_TTD_INTERNAL_DIAGNOSTICS
+    void TTDebuggerSourceLocation::PrintToConsole(bool newline) const
+    {
+        if(!this->HasValue())
+        {
+            wprintf(_u("undef"));
+        }
+        else
+        {
+            wprintf(_u("%ls l:%I32u c:%I32u (%I64i, %I64i, %I64i)"), this->m_sourceFile, this->m_line, this->m_column, this->m_etime, this->m_ftime, this->m_ltime);
+        }
+
+        if(newline)
+        {
+            wprintf(_u("\n"));
+        }
+    }
+#endif
+
     void TTDebuggerSourceLocation::Initialize()
     {
         this->m_etime = -1;

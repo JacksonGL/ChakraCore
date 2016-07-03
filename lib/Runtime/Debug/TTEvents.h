@@ -102,6 +102,10 @@ namespace TTD
 
         TTDebuggerSourceLocation& operator= (const TTDebuggerSourceLocation& other);
 
+#if ENABLE_TTD_INTERNAL_DIAGNOSTICS
+        void PrintToConsole(bool newline) const;
+#endif
+
         void Initialize();
 
         bool HasValue() const;
