@@ -3525,6 +3525,7 @@ CHAKRA_API JsTTDNotifyYield()
     return JsErrorCategoryUsage;
 #else
     return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+
         if (PERFORM_JSRT_TTD_RECORD_ACTION_CHECK(scriptContext))
         {
             scriptContext->GetThreadContext()->TTDLog->RecordJsRTEventLoopYieldPoint(scriptContext);
@@ -3572,24 +3573,21 @@ CHAKRA_API JsTTDRawBufferAsyncModificationRegister(_In_ JsValueRef instance, _In
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-
-    JsValueRef addRefObj = nullptr;
-    JsErrorCode res = ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+        JsValueRef addRefObj = nullptr;
         if (scriptContext->ShouldPerformAsyncBufferModAction())
         {
             addRefObj = scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferAsyncModificationRegister(scriptContext, instance, initialModPos);
         }
 
+        //We need to root add ref so we can find this during replay!!!
+        if(addRefObj != nullptr)
+        {
+            JsAddRef(addRefObj, nullptr);
+        }
+
         return JsNoError;
     });
-
-    //We need to root add ref so we can find this during replay!!!
-    if(addRefObj != nullptr)
-    {
-        JsAddRef(addRefObj, nullptr);
-    }
-
-    return res;
 #endif
 }
 
@@ -3598,24 +3596,21 @@ CHAKRA_API JsTTDRawBufferAsyncModifyComplete(_In_ byte* finalModPos)
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-
-    JsValueRef releaseObj = nullptr;
-    JsErrorCode res = ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+        JsValueRef releaseObj = nullptr;
         if(scriptContext->ShouldPerformAsyncBufferModAction())
         {
             releaseObj = scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferAsyncModifyComplete(scriptContext, finalModPos);
         }
 
+        //We need to root release ref so we can free this in replay if needed!!!
+        if(releaseObj != nullptr)
+        {
+            JsRelease(releaseObj, nullptr);
+        }
+
         return JsNoError;
     });
-
-    //We need to root release ref so we can free this in replay if needed!!!
-    if(releaseObj != nullptr)
-    {
-        JsRelease(releaseObj, nullptr);
-    }
-
-    return res;
 #endif
 }
 
@@ -3628,7 +3623,7 @@ static void CALLBACK TTDDummyPromiseContinuationCallback(JsValueRef task, void *
 
 CHAKRA_API JsTTDGetSnapTimeTopLevelEventMove(_In_ JsRuntimeHandle runtimeHandle, 
     _In_ JsTTDMoveMode moveMode, _Inout_ INT64* targetEventTime, 
-    _Out_ bool* createFreshContexts, _Out_ INT64* targetStartSnapTime, _Out_opt_ INT64* targetEndSnapTime)
+    _Out_ bool* createFreshCxts, _Out_ INT64* targetStartSnapTime, _Out_opt_ INT64* targetEndSnapTime)
 {
 #if !ENABLE_TTD_DEBUGGING
     return JsErrorCategoryUsage;
@@ -3636,7 +3631,7 @@ CHAKRA_API JsTTDGetSnapTimeTopLevelEventMove(_In_ JsRuntimeHandle runtimeHandle,
     JsrtRuntime * runtime = JsrtRuntime::FromHandle(runtimeHandle);
     ThreadContext * threadContext = runtime->GetThreadContext();
 
-    *createFreshContexts = false;
+    *createFreshCxts = false;
     *targetStartSnapTime = -1;
     if(targetEndSnapTime != nullptr)
     {
@@ -3683,7 +3678,7 @@ CHAKRA_API JsTTDGetSnapTimeTopLevelEventMove(_In_ JsRuntimeHandle runtimeHandle,
     }
 
     bool rtrok = (moveMode & JsTTDMoveMode::JsTTDMoveScanIntervalBeforeDebugExecute) == JsTTDMoveMode::JsTTDMoveScanIntervalBeforeDebugExecute;
-    *targetStartSnapTime = threadContext->TTDLog->FindSnapTimeForEventTime(*targetEventTime, rtrok, createFreshContexts, targetEndSnapTime);
+    *targetStartSnapTime = threadContext->TTDLog->FindSnapTimeForEventTime(*targetEventTime, rtrok, createFreshCxts, targetEndSnapTime);
 
     return JsNoError;
 #endif

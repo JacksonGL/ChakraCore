@@ -439,7 +439,7 @@ CHAKRA_API JsDiagSetStepType(
         {
             jsrtDebugManager->SetResumeType(BREAKRESUMEACTION_STEP_OVER);
         }
-        else if(stepType == JsDiagStepTypeStepBack)
+        else if (stepType == JsDiagStepTypeStepBack)
         {
 #if ENABLE_TTD
             ThreadContext* threadContext = runtime->GetThreadContext();

@@ -967,7 +967,7 @@
     ///     Get info for notifying the TTD system that a raw buffer it shares with the host has been modified.
     /// </summary>
     /// <param name="instance">The array buffer we want to monitor for contents modification.</param>
-    /// <param name="initialPos">The first position in the buffer that may be modified.</param>
+    /// <param name="initialModPos">The first position in the buffer that may be modified.</param>
     /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
     CHAKRA_API
         JsTTDRawBufferAsyncModificationRegister(
@@ -991,7 +991,7 @@
     /// <param name="runtimeHandle">The runtime handle that the script is executing in.</param>
     /// <param name="moveMode">Flags controlling the way the move it performed and how other parameters are interpreted.</param>
     /// <param name="targetEventTime">The event time we want to move to or -1 if not relevant.</param>
-    /// <param name="createFreshContexts">Out parameter that indicates if new script contexts need to be created for this move.</param>
+    /// <param name="createFreshCxts">Out parameter that indicates if new script contexts need to be created for this move.</param>
     /// <param name="targetStartSnapTime">Out parameter with the event time of the snapshot that we should inflate from.</param>
     /// <param name="targetEndSnapTime">Optional Out parameter with the snapshot time following the event.</param>
     /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
@@ -999,7 +999,7 @@
         _In_ JsRuntimeHandle runtimeHandle,
         _In_ JsTTDMoveMode moveMode,
         _Inout_ INT64* targetEventTime,
-        _Out_ bool* createFreshContexts,
+        _Out_ bool* createFreshCxts,
         _Out_ INT64* targetStartSnapTime,
         _Out_opt_ INT64* targetEndSnapTime);
 
@@ -1009,7 +1009,7 @@
     ///     We reset the script context if the move will require inflating from a different snapshot that the last one.
     /// </summary>
     /// <param name="runtimeHandle">The runtime handle that the script is executing in.</param>
-    /// <param name="createFreshContexts">Indicates if new script contexts need to be created for this move.</param>
+    /// <param name="createFreshCtxs">Indicates if new script contexts need to be created for this move.</param>
     /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
     CHAKRA_API
         JsTTDPrepContextsForTopLevelEventMove(
@@ -1022,7 +1022,7 @@
     ///     snapshots to poulate this information which may be needed by the debugger to determine time-travel jump targets.
     /// </summary>
     ///<param name = "startSnapTime">The snapshot time that we will start executing from.< / param>
-    ///<param name = "startEndTime">The snapshot time that we will stop at (or -1 if we want to run to the end).< / param>
+    ///<param name = "endSnapTime">The snapshot time that we will stop at (or -1 if we want to run to the end).< / param>
     /// <param name="moveMode">Additional flags for controling how the move is done.</param>
     /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
     CHAKRA_API JsTTDPreExecuteSnapShotInterval(
@@ -1036,8 +1036,8 @@
     ///     This also computes the ready-to-run snapshot if needed.
     /// </summary>
     /// <param name="moveMode">Additional flags for controling how the move is done.</param>
-    /// <param name="targetEventTime">The event that we want to move to.</param>
-    /// <param name="targetStartSnapTime">The event time that we will start executing from to move to the given target time.</param>
+    /// <param name="snapshotTime">The event time that we will start executing from to move to the given target time.</param>
+    /// <param name="eventTime">The event that we want to move to.</param>
     /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
     CHAKRA_API
         JsTTDMoveToTopLevelEvent(
