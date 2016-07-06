@@ -245,17 +245,17 @@ namespace TTD
 
     namespace UtilSupport
     {
-        //A basic auto-managed string with value semantics
+        //A basic auto-managed null terminated string with value semantics
         class TTAutoString
         {
         private:
             int64 m_allocSize;
-            wchar* m_contents;
-            wchar* m_optFormatBuff;
+            char16* m_contents;
+            char16* m_optFormatBuff;
 
         public:
             TTAutoString();
-            TTAutoString(LPCWSTR str);
+            TTAutoString(const char16* str);
             TTAutoString(const TTAutoString& str);
 
             TTAutoString& operator=(const TTAutoString& str);
@@ -269,7 +269,7 @@ namespace TTD
 
             bool IsNullString() const;
 
-            void Append(LPCWSTR str, int32 start = 0, int32 end = INT32_MAX);
+            void Append(const char16* str, int32 start = 0, int32 end = INT32_MAX);
             void Append(const TTAutoString& str, int32 start = 0, int32 end = INT32_MAX);
 
             void Append(uint64 val);
@@ -277,8 +277,8 @@ namespace TTD
             void Append(LPCUTF8 strBegin, LPCUTF8 strEnd);
 
             int32 GetLength() const;
-            wchar GetCharAt(int32 pos) const;
-            LPCWSTR GetStrValue() const;
+            char16 GetCharAt(int32 pos) const;
+            const char16* GetStrValue() const;
         };
     }
 
