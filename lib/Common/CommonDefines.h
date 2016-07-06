@@ -324,14 +324,20 @@
 
 ////////
 //Time Travel flags
+
+//If this is being included from in CH see if TTD is enabled there and do the same here -- otherwise check DBG and ENABLE_DEBUG_CONFIG_OPTIONS values
+#ifdef HOST_ENABLE_TTD
+#define ENABLE_TTD HOST_ENABLE_TTD
+#else
 #define ENABLE_TTD 1
+#endif 
 
 #if ENABLE_TTD
 //Enable debugging specific aspects of TTD
 #define ENABLE_TTD_DEBUGGING 1
 
 //A VSCode & node getting angry about SIMD objects
-#define TTD_VSCODE_WORK_AROUNDS 1
+#define TTD_VSCODE_WORK_AROUNDS 0
 #define TTD_VSCODE_HIJACK_OUT_FOR_REVERSE_CONTINUE 0
 
 //A workaround for some unimplemented code parse features (force debug mode)

@@ -2302,7 +2302,7 @@ namespace Js
         this->DEBUG_currentByteOffset = (void *) m_reader.GetCurrentOffset();
 #endif
 
-#if ENABLE_TTD_STACK_STMTS
+#if ENABLE_TTD_STACK_STMTS && TTD_VSCODE_WORK_AROUNDS
         if(this->scriptContext->ShouldPerformDebugAction() | this->scriptContext->ShouldPerformRecordAction())
         {
             this->scriptContext->GetThreadContext()->TTDLog->UpdateCurrentStatementInfo(m_reader.GetCurrentOffset());
@@ -2339,7 +2339,7 @@ namespace Js
         this->DEBUG_currentByteOffset = (void *) m_reader.GetCurrentOffset();
 #endif
 
-#if ENABLE_TTD_STACK_STMTS
+#if ENABLE_TTD_STACK_STMTS && TTD_VSCODE_WORK_AROUNDS
         if(this->scriptContext->ShouldPerformDebugAction() | this->scriptContext->ShouldPerformRecordAction())
         {
             this->scriptContext->GetThreadContext()->TTDLog->UpdateCurrentStatementInfo(m_reader.GetCurrentOffset());
