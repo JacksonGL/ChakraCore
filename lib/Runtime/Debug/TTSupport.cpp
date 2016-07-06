@@ -239,6 +239,43 @@ namespace TTD
     }
 #endif
 
+    void InitializeAsNullPtrTTStringUtf8(TTStringUtf8& utf8str)
+    {
+        utf8str.ByteLength = 0;
+        utf8str.Contents = nullptr;
+    }
+
+    bool IsNullPtrTTStringUtf8(const TTStringUtf8& utf8str)
+    {
+        return utf8str.Contents == nullptr;
+    }
+
+#if ENABLE_TTD_INTERNAL_DIAGNOSTICS
+    //This is for diagnostic purposes only
+    bool TTStringEQForDiagnosticsUtf8(const TTStringUtf8& utf8str1, const TTStringUtf8& utf8str2)
+    {
+        if(IsNullPtrTTStringUtf8(utf8str1) || IsNullPtrTTStringUtf8(utf8str2))
+        {
+            return IsNullPtrTTStringUtf8(utf8str1) && IsNullPtrTTStringUtf8(utf8str2);
+        }
+
+        if(utf8str1.ByteLength != utf8str2.ByteLength)
+        {
+            return false;
+        }
+
+        for(uint32 i = 0; i < utf8str1.ByteLength; ++i)
+        {
+            if(utf8str1.Contents[i] != utf8str2.Contents[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+#endif
+
     //////////////////
 
     MarkTable::MarkTable()

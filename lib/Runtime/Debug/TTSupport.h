@@ -94,7 +94,7 @@ typedef uint64 TTD_LOG_PTR_ID;
 #define TTD_CONVERT_OBJ_TO_LOG_PTR_ID(X) reinterpret_cast<TTD_LOG_PTR_ID>(X)
 
 //The representation of an identifier (currently access path) for a well known object/primitive/function body/etc. in the JS engine or HOST
-typedef LPCWSTR TTD_WELLKNOWN_TOKEN;
+typedef const char16* TTD_WELLKNOWN_TOKEN;
 #define TTD_INVALID_WELLKNOWN_TOKEN nullptr
 #define TTD_DIAGNOSTIC_COMPARE_WELLKNOWN_TOKENS(T1, T2) ((T1 == T2) || ((T1 != TTD_INVALID_WELLKNOWN_TOKEN) && (T2 != TTD_INVALID_WELLKNOWN_TOKEN) && wcscmp(T1, T2) == 0))
 
@@ -290,20 +290,39 @@ namespace TTD
     //String representation to use when copying things into/between slab allocators
     struct TTString
     {
-        //Length of the string in terms of wchar -- excluding any '\0' termination
+        //Length of the string in terms of char16s -- excluding any '\0' termination
         uint32 Length;
 
         //The char contents of the string (null terminated -- may be null if empty)
-        wchar* Contents;
+        char16* Contents;
     };
 
-    //initialize and return true if the given string should map to a nullptr wchar* representaiton
+    //initialize and return true if the given string should map to a nullptr char* representaiton
     void InitializeAsNullPtrTTString(TTString& str);
     bool IsNullPtrTTString(const TTString& str);
 
 #if ENABLE_TTD_INTERNAL_DIAGNOSTICS
     //This is for diagnostic purposes only
     bool TTStringEQForDiagnostics(const TTString& str1, const TTString& str2);
+#endif
+
+    //String representation to use when copying things into/between slab allocators
+    struct TTStringUtf8
+    {
+        //Length of the string in terms of byte length -- excluding any '\0' termination
+        uint32 ByteLength;
+
+        //The char contents of the string (null terminated -- may be null if empty)
+        char* Contents;
+    };
+
+    //initialize and return true if the given string should map to a nullptr char* representaiton
+    void InitializeAsNullPtrTTStringUtf8(TTStringUtf8& utf8str);
+    bool IsNullPtrTTStringUtf8(const TTStringUtf8& utf8str);
+
+#if ENABLE_TTD_INTERNAL_DIAGNOSTICS
+    //This is for diagnostic purposes only
+    bool TTStringEQForDiagnosticsUtf8(const TTStringUtf8& utf8str1, const TTStringUtf8& utf8str2);
 #endif
 
     //A class that implements a simple slab memory allocator
@@ -594,8 +613,8 @@ namespace TTD
         SlabAllocatorBase(const SlabAllocatorBase&) = delete;
         SlabAllocatorBase& operator=(SlabAllocatorBase const&) = delete;
 
-        //clone a null terminated LPCWSTR string (or nullptr) into the allocator -- currently only used for wellknown tokens 
-        LPCWSTR CopyRawNullTerminatedStringInto(LPCWSTR str)
+        //clone a null terminated char16* string (or nullptr) into the allocator -- currently only used for wellknown tokens 
+        const char16* CopyRawNullTerminatedStringInto(const char16* str)
         {
             if(str == nullptr)
             {
@@ -604,9 +623,9 @@ namespace TTD
             else
             {
                 size_t length = wcslen(str) + 1;
-                size_t byteLength = length * sizeof(wchar);
+                size_t byteLength = length * sizeof(char16);
 
-                wchar* res = this->SlabAllocateArray<wchar>(length);
+                char16* res = this->SlabAllocateArray<char16>(length);
                 js_memcpy_s(res, byteLength, str, byteLength);
 
                 return res;
@@ -614,13 +633,13 @@ namespace TTD
         }
 
         //clone a string into the allocator of a known length
-        void CopyStringIntoWLength(LPCWSTR str, uint32 length, TTString& into)
+        void CopyStringIntoWLength(const char16* str, uint32 length, TTString& into)
         {
             AssertMsg(str != nullptr, "Not allowed for string + length");
 
             into.Length = length;
-            into.Contents = this->SlabAllocateArray<wchar>(into.Length + 1);
-            js_memcpy_s(into.Contents, into.Length * sizeof(wchar), str, length * sizeof(wchar));
+            into.Contents = this->SlabAllocateArray<char16>(into.Length + 1);
+            js_memcpy_s(into.Contents, into.Length * sizeof(char16), str, length * sizeof(char16));
             into.Contents[into.Length] = '\0';
         }
 
@@ -628,12 +647,12 @@ namespace TTD
         void InitializeAndAllocateWLength(uint32 length, TTString& into)
         {
             into.Length = length;
-            into.Contents = this->SlabAllocateArray<wchar>(into.Length + 1);
+            into.Contents = this->SlabAllocateArray<char16>(into.Length + 1);
             into.Contents[0] = '\0';
         }
 
         //clone a string into the allocator
-        void CopyNullTermStringInto(LPCWSTR str, TTString& into)
+        void CopyNullTermStringInto(const char16* str, TTString& into)
         {
             if(str == nullptr)
             {
@@ -644,6 +663,17 @@ namespace TTD
             {
                 this->CopyStringIntoWLength(str, (uint32)wcslen(str), into);
             }
+        }
+
+        //clone a utf8 string into the allocator of a known length
+        void CopyStringIntoWLengthUtf8(const char* utf8str, uint32 length, TTStringUtf8& into)
+        {
+            AssertMsg(str != nullptr, "Not allowed for string + length");
+
+            into.Length = length;
+            into.Contents = this->SlabAllocateArray<char>(into.Length + 1);
+            js_memcpy_s(into.Contents, into.Length * sizeof(char), str, length * sizeof(char));
+            into.Contents[into.Length] = '\0';
         }
 
         //Return the memory that contains useful data in this slab & the same as the reserved space
