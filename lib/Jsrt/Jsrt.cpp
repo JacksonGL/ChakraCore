@@ -2921,17 +2921,27 @@ JsErrorCode RunScriptCore(INT64 hostCallbackId, const byte *script, size_t cb, L
             Js::FunctionBody* globalBody = TTD::JsSupport::ForceAndGetFunctionBody(scriptFunction->GetParseableFunctionInfo());
 
             // TODO: TTT should use the utf8 source code natively, instead of having to convert to utf16
-            NarrowToWideChakraHeap wideSource((LPCSTR)script);
-            size_t length = wideSource.Length();
-
-            if (length == (size_t) -1)
+            size_t length = (cb / chsize);
+            LPCWSTR scriptSrc = nullptr;
+            if((loadScriptFlag & LoadScriptFlag_Utf8Source) != LoadScriptFlag_Utf8Source)
             {
-                return JsErrorOutOfMemory;
+                scriptSrc = (LPCWSTR)script;
+            }
+            else
+            {
+                NarrowToWideChakraHeap wideSource((LPCSTR)script, length);
+
+                if(length == (size_t)-1)
+                {
+                    return JsErrorOutOfMemory;
+                }
+
+                Assert(length + 1 < INT_MAX);
+                ttdWideSourceString.Set(wideSource.Detach(), (int)(length + 1) /* include null terminator */);
+                scriptSrc = ttdWideSourceString;
             }
 
-            Assert(length + 1 < INT_MAX);
-            ttdWideSourceString.Set(wideSource.Detach(), (int) (length + 1) /* include null terminator */);
-            const TTD::NSSnapValues::TopLevelScriptLoadFunctionBodyResolveInfo* tbfi = scriptContext->GetThreadContext()->TTDLog->AddScriptLoad(globalBody, kmodGlobal, globalBody->GetUtf8SourceInfo()->GetSourceInfoId(), ttdWideSourceString, (uint32) length, loadScriptFlag);
+            const TTD::NSSnapValues::TopLevelScriptLoadFunctionBodyResolveInfo* tbfi = scriptContext->GetThreadContext()->TTDLog->AddScriptLoad(globalBody, kmodGlobal, globalBody->GetUtf8SourceInfo()->GetSourceInfoId(), scriptSrc, (uint32) length, loadScriptFlag);
             bodyCtrId = tbfi->TopLevelBase.TopLevelBodyCtr;
 
             //walk global body to (1) add functions to pin set (2) build parent map
@@ -3789,21 +3799,30 @@ CHAKRA_API JsTTDRawBufferAsyncModificationRegister(_In_ JsValueRef instance, _In
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
-        JsValueRef addRefObj = nullptr;
+    JsValueRef addRefObj = nullptr;
+    JsErrorCode addRefResult = ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
         if (scriptContext->ShouldPerformAsyncBufferModAction())
         {
             addRefObj = scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferAsyncModificationRegister(scriptContext, instance, initialModPos);
         }
 
-        //We need to root add ref so we can find this during replay!!!
-        if(addRefObj != nullptr)
-        {
-            JsAddRef(addRefObj, nullptr);
-        }
-
         return JsNoError;
     });
+
+    if(addRefResult != JsNoError)
+    {
+        return addRefResult;
+    }
+
+    //We need to root add ref so we can find this during replay!!!
+    if(addRefObj == nullptr)
+    {
+        return JsNoError;
+    }
+    else
+    {
+        return JsAddRef(addRefObj, nullptr);
+    }
 #endif
 }
 
@@ -3812,21 +3831,31 @@ CHAKRA_API JsTTDRawBufferAsyncModifyComplete(_In_ byte* finalModPos)
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
-        JsValueRef releaseObj = nullptr;
+    JsValueRef releaseObj = nullptr;
+    JsErrorCode releaseStatus = ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
         if(scriptContext->ShouldPerformAsyncBufferModAction())
         {
             releaseObj = scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferAsyncModifyComplete(scriptContext, finalModPos);
         }
 
-        //We need to root release ref so we can free this in replay if needed!!!
-        if(releaseObj != nullptr)
-        {
-            JsRelease(releaseObj, nullptr);
-        }
-
         return JsNoError;
     });
+
+    if(releaseStatus != JsNoError)
+    {
+        return releaseStatus;
+    }
+
+    //We need to root release ref so we can free this in replay if needed!!!
+    if(releaseObj == nullptr)
+    {
+        return JsNoError;
+    }
+    else
+    {
+        return JsRelease(releaseObj, nullptr);
+    }
+
 #endif
 }
 
