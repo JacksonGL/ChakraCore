@@ -70,8 +70,8 @@ namespace TTD
             Count
         };
 
-        void InitKeyNamesArray(LPCWSTR** names, size_t** lengths);
-        void CleanupKeyNamesArray(LPCWSTR** names, size_t** lengths);
+        void InitKeyNamesArray(const char16*** names, size_t** lengths);
+        void CleanupKeyNamesArray(const char16*** names, size_t** lengths);
     }
 
     ////
@@ -256,7 +256,7 @@ namespace TTD
     {
     private:
         //Array of key names and their lengths
-        LPCWSTR* m_keyNameArray;
+        const char16** m_keyNameArray;
         size_t* m_keyNameLengthArray;
 
         //indent size for formatting
@@ -579,31 +579,31 @@ namespace TTD
     class TextFormatReader : public FileReader
     {
     private:
-        JsUtil::List<wchar, HeapAllocator> m_charListPrimary;
-        JsUtil::List<wchar, HeapAllocator> m_charListOpt;
-        JsUtil::List<wchar, HeapAllocator> m_charListDiscard;
+        JsUtil::List<char16, HeapAllocator> m_charListPrimary;
+        JsUtil::List<char16, HeapAllocator> m_charListOpt;
+        JsUtil::List<char16, HeapAllocator> m_charListDiscard;
 
         //Array of key names and their lengths
-        LPCWSTR* m_keyNameArray;
+        const char16** m_keyNameArray;
         size_t* m_keyNameLengthArray;
 
-        NSTokens::ParseTokenKind Scan(JsUtil::List<wchar, HeapAllocator>& charList);
+        NSTokens::ParseTokenKind Scan(JsUtil::List<char16, HeapAllocator>& charList);
 
-        NSTokens::ParseTokenKind ScanKey(JsUtil::List<wchar, HeapAllocator>& charList);
+        NSTokens::ParseTokenKind ScanKey(JsUtil::List<char16, HeapAllocator>& charList);
 
         NSTokens::ParseTokenKind ScanSpecialNumber();
-        NSTokens::ParseTokenKind ScanNumber(JsUtil::List<wchar, HeapAllocator>& charList);
-        NSTokens::ParseTokenKind ScanAddress(JsUtil::List<wchar, HeapAllocator>& charList);
-        NSTokens::ParseTokenKind ScanLogTag(JsUtil::List<wchar, HeapAllocator>& charList);
-        NSTokens::ParseTokenKind ScanEnumTag(JsUtil::List<wchar, HeapAllocator>& charList);
-        NSTokens::ParseTokenKind ScanWellKnownToken(JsUtil::List<wchar, HeapAllocator>& charList);
+        NSTokens::ParseTokenKind ScanNumber(JsUtil::List<char16, HeapAllocator>& charList);
+        NSTokens::ParseTokenKind ScanAddress(JsUtil::List<char16, HeapAllocator>& charList);
+        NSTokens::ParseTokenKind ScanLogTag(JsUtil::List<char16, HeapAllocator>& charList);
+        NSTokens::ParseTokenKind ScanEnumTag(JsUtil::List<char16, HeapAllocator>& charList);
+        NSTokens::ParseTokenKind ScanWellKnownToken(JsUtil::List<char16, HeapAllocator>& charList);
 
-        NSTokens::ParseTokenKind ScanString(JsUtil::List<wchar, HeapAllocator>& charList);
-        NSTokens::ParseTokenKind ScanNakedString(wchar leadChar);
+        NSTokens::ParseTokenKind ScanString(JsUtil::List<char16, HeapAllocator>& charList);
+        NSTokens::ParseTokenKind ScanNakedString(char16 leadChar);
 
-        int64 ReadIntFromCharArray(const wchar* buff);
-        uint64 ReadUIntFromCharArray(const wchar* buff);
-        double ReadDoubleFromCharArray(const wchar* buff);
+        int64 ReadIntFromCharArray(const char16* buff);
+        uint64 ReadUIntFromCharArray(const char16* buff);
+        double ReadDoubleFromCharArray(const char16* buff);
 
     public:
         TextFormatReader(HANDLE handle, bool doDecompress, TTDReadBytesFromStreamCallback pfRead, TTDFlushAndCloseStreamCallback pfClose);

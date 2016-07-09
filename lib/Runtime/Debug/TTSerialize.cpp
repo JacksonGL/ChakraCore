@@ -10,9 +10,9 @@ namespace TTD
 {
     namespace NSTokens
     {
-        void InitKeyNamesArray(LPCWSTR** names, size_t** lengths)
+        void InitKeyNamesArray(const char16*** names, size_t** lengths)
         {
-            LPCWSTR* nameArray = TT_HEAP_ALLOC_ARRAY(LPCWSTR, (uint32)Key::Count);
+            const char16** nameArray = TT_HEAP_ALLOC_ARRAY(const char16*, (uint32)Key::Count);
             size_t* lengthArray = TT_HEAP_ALLOC_ARRAY(size_t, (uint32)Key::Count);
 
 #define __STEXT(X) ((const char16*)__TEXT(X))
@@ -24,11 +24,11 @@ namespace TTD
             *lengths = lengthArray;
         }
 
-        void CleanupKeyNamesArray(LPCWSTR** names, size_t** lengths)
+        void CleanupKeyNamesArray(const char16*** names, size_t** lengths)
         {
             if(*names != nullptr)
             {
-                TT_HEAP_FREE_ARRAY(LPCWSTR, *names, (uint32)NSTokens::Key::Count);
+                TT_HEAP_FREE_ARRAY(char16*, *names, (uint32)NSTokens::Key::Count);
                 *names = nullptr;
             }
 
@@ -216,7 +216,7 @@ namespace TTD
         this->WriteSeperator(separator);
 
         AssertMsg(1 <= (uint32)key && (uint32)key < (uint32)NSTokens::Key::Count, "Key not in valid range!");
-        LPCWSTR kname = this->m_keyNameArray[(uint32)key];
+        const char16* kname = this->m_keyNameArray[(uint32)key];
         size_t ksize = this->m_keyNameLengthArray[(uint32)key];
 
         this->WriteRawCharBuff(kname, ksize);
@@ -1162,11 +1162,11 @@ namespace TTD
         FileReader::FileReadAssert(tok == NSTokens::ParseTokenKind::String);
 
         this->m_charListPrimary.Add(_u('\0'));
-        LPCWSTR keystr = this->m_charListPrimary.GetBuffer();
+        const char16* keystr = this->m_charListPrimary.GetBuffer();
 
         //check key strings are the same
         FileReader::FileReadAssert(1 <= (uint32)keyCheck && (uint32)keyCheck < (uint32)NSTokens::Key::Count);
-        LPCWSTR kname = this->m_keyNameArray[(uint32)keyCheck];
+        const char16* kname = this->m_keyNameArray[(uint32)keyCheck];
         FileReader::FileReadAssert(kname != nullptr);
 
         FileReader::FileReadAssert(wcscmp(keystr, kname) == 0);
@@ -1917,7 +1917,7 @@ namespace TTD
         Js::JavascriptString* displayName = function->GetDisplayName();
 
         this->AppendIndent();
-        LPCWSTR nameStr = displayName->GetSz();
+        char16* nameStr = displayName->GetSz();
         uint32 nameLength = displayName->GetLength();
         this->AppendText(nameStr, nameLength);
 
