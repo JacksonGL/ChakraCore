@@ -2868,8 +2868,6 @@ JsErrorCode RunScriptCore(INT64 hostCallbackId, const byte *script, size_t cb, L
     uint64 bodyCtrId = 0;
 #endif
 
-    AutoArrayPtr<WCHAR> ttdWideSourceString(nullptr, 0);
-
     JsErrorCode errorCode = ContextAPINoScriptWrapper(
         [&](Js::ScriptContext * scriptContext) -> JsErrorCode {
         PARAM_NOT_NULL(script);
@@ -2920,28 +2918,7 @@ JsErrorCode RunScriptCore(INT64 hostCallbackId, const byte *script, size_t cb, L
             //Make sure we have the body and text information available
             Js::FunctionBody* globalBody = TTD::JsSupport::ForceAndGetFunctionBody(scriptFunction->GetParseableFunctionInfo());
 
-            // TODO: TTT should use the utf8 source code natively, instead of having to convert to utf16
-            size_t length = (cb / chsize);
-            LPCWSTR scriptSrc = nullptr;
-            if((loadScriptFlag & LoadScriptFlag_Utf8Source) != LoadScriptFlag_Utf8Source)
-            {
-                scriptSrc = (LPCWSTR)script;
-            }
-            else
-            {
-                NarrowToWideChakraHeap wideSource((LPCSTR)script, length);
-
-                if(length == (size_t)-1)
-                {
-                    return JsErrorOutOfMemory;
-                }
-
-                Assert(length + 1 < INT_MAX);
-                ttdWideSourceString.Set(wideSource.Detach(), (int)(length + 1) /* include null terminator */);
-                scriptSrc = ttdWideSourceString;
-            }
-
-            const TTD::NSSnapValues::TopLevelScriptLoadFunctionBodyResolveInfo* tbfi = scriptContext->GetThreadContext()->TTDLog->AddScriptLoad(globalBody, kmodGlobal, globalBody->GetUtf8SourceInfo()->GetSourceInfoId(), scriptSrc, (uint32) length, loadScriptFlag);
+            const TTD::NSSnapValues::TopLevelScriptLoadFunctionBodyResolveInfo* tbfi = scriptContext->GetThreadContext()->TTDLog->AddScriptLoad(globalBody, kmodGlobal, globalBody->GetUtf8SourceInfo()->GetSourceInfoId(), script, (uint32)cb, loadScriptFlag);
             bodyCtrId = tbfi->TopLevelBase.TopLevelBodyCtr;
 
             //walk global body to (1) add functions to pin set (2) build parent map
@@ -2981,7 +2958,8 @@ JsErrorCode RunScriptCore(INT64 hostCallbackId, const byte *script, size_t cb, L
             //
             AssertMsg(!isSourceModule, "Modules not implemented in TTD yet!!!");
 
-            threadContext->TTDLog->RecordJsRTCodeParse(scriptContext, bodyCtrId, loadScriptFlag, scriptFunction, ttdWideSourceString, sourceUrl, scriptFunction);
+            bool isUtf8 = ((loadScriptFlag & LoadScriptFlag_Utf8Source) == LoadScriptFlag_Utf8Source);
+            threadContext->TTDLog->RecordJsRTCodeParse(scriptContext, bodyCtrId, loadScriptFlag, scriptFunction, isUtf8, script, (uint32)cb, sourceUrl, scriptFunction);
         }
 #endif
         if (parseOnly)

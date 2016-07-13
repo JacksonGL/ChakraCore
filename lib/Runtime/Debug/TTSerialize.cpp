@@ -404,6 +404,17 @@ namespace TTD
         this->WriteRawChar('~');
     }
 
+    void TextFormatWriter::WriteInlineCode(char16* code, uint32 length, NSTokens::Separator separator)
+    {
+        this->WriteSeperator(separator);
+
+        this->WriteFormattedCharData(_u("@%I32u"), length);
+
+        this->WriteRawChar('\"');
+        this->WriteRawCharBuff(code, length);
+        this->WriteRawChar('\"');
+    }
+
     BinaryFormatWriter::BinaryFormatWriter(HANDLE handle, bool doCompression, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose)
         : FileWriter(handle, doCompression, pfWrite, pfClose)
     {
@@ -551,6 +562,14 @@ namespace TTD
         uint32 charLen = (uint32)wcslen(val);
         this->WriteRawByteBuff_Fixed<uint32>(charLen);
         this->WriteRawByteBuff((const byte*)val, charLen * sizeof(char16));
+    }
+
+    void BinaryFormatWriter::WriteInlineCode(char16* code, uint32 length, NSTokens::Separator separator)
+    {
+        this->WriteSeperator(separator);
+
+        this->WriteRawByteBuff_Fixed<uint32>(length);
+        this->WriteRawByteBuff((const byte*)code, length * sizeof(char16));
     }
 
     //////////////////
@@ -1419,6 +1438,16 @@ namespace TTD
         return alloc.CopyRawNullTerminatedStringInto(this->m_charListOpt.GetBuffer() + 1);
     }
 
+    void TextFormatReader::ReadInlineCode(char16* code, uint32 length, bool readSeparator)
+    {
+        this->ReadSeperator(readSeparator);
+
+        NSTokens::ParseTokenKind tok = this->Scan(this->m_charListOpt);
+        FileReader::FileReadAssert(tok == NSTokens::ParseTokenKind::String);
+
+        js_memcpy_s(code, length * sizeof(char16), this->m_charListOpt.GetBuffer(), this->m_charListOpt.Count() * sizeof(char16));
+    }
+
     BinaryFormatReader::BinaryFormatReader(HANDLE handle, bool doDecompress, TTDReadBytesFromStreamCallback pfRead, TTDFlushAndCloseStreamCallback pfClose)
         : FileReader(handle, doDecompress, pfRead, pfClose)
     {
@@ -1659,6 +1688,15 @@ namespace TTD
         cbuff[charLen] = _u('\0');
 
         return cbuff;
+    }
+
+    void BinaryFormatReader::ReadInlineCode(char16* code, uint32 length, bool readSeparator)
+    {
+        uint32 wlen = 0;
+        this->ReadBytesInto_Fixed<uint32>(wlen);
+        AssertMsg(wlen == length, "Not exepcted string length!!!");
+
+        this->ReadBytesInto((byte*)code, length * sizeof(char16));
     }
 
     //////////////////

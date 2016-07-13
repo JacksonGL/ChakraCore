@@ -670,9 +670,11 @@ namespace TTD
 
             Js::JavascriptFunction* function = nullptr;
 
-            LPCWSTR script = cpInfo->SourceCode.Contents;
-            uint32 scriptLength = cpInfo->SourceCode.Length;
+            byte* script = cpInfo->SourceCode;
+            uint32 scriptByteLength = cpInfo->SourceByteLength;
             DWORD_PTR sourceContext = cpInfo->DocumentID;
+
+            AssertMsg(cpAction->AdditionalInfo->IsUtf8 == ((cpAction->AdditionalInfo->LoadFlag & LoadScriptFlag_Utf8Source) == LoadScriptFlag_Utf8Source), "Utf8 status is inconsistent!!!");
 
             SourceContextInfo * sourceContextInfo = ctx->GetSourceContextInfo(sourceContext, nullptr);
 
@@ -681,23 +683,25 @@ namespace TTD
                 sourceContextInfo = ctx->CreateSourceContextInfo(sourceContext, cpInfo->SourceUri.Contents, cpInfo->SourceUri.Length, nullptr);
             }
 
+            AssertMsg(cpAction->AdditionalInfo->IsUtf8 || sizeof(wchar) == sizeof(char16), "Non-utf8 code only allowed on windows!!!");
+            const int chsize = (cpAction->AdditionalInfo->LoadFlag & LoadScriptFlag_Utf8Source) ? sizeof(char) : sizeof(char16);
             SRCINFO si = {
                 /* sourceContextInfo   */ sourceContextInfo,
                 /* dlnHost             */ 0,
                 /* ulColumnHost        */ 0,
                 /* lnMinHost           */ 0,
                 /* ichMinHost          */ 0,
-                /* ichLimHost          */ static_cast<ULONG>(scriptLength), // OK to truncate since this is used to limit sourceText in debugDocument/compilation errors.
+                /* ichLimHost          */ static_cast<ULONG>(scriptByteLength / chsize), // OK to truncate since this is used to limit sourceText in debugDocument/compilation errors.
                 /* ulCharOffset        */ 0,
                 /* mod                 */ kmodGlobal,
                 /* grfsi               */ 0
             };
 
-            Js::Utf8SourceInfo* utf8SourceInfo;
+            Js::Utf8SourceInfo* utf8SourceInfo = nullptr;
             CompileScriptException se;
             BEGIN_LEAVE_SCRIPT_WITH_EXCEPTION(ctx)
             {
-                function = ctx->LoadScript((const byte*)script, scriptLength * sizeof(char16), &si, &se, &utf8SourceInfo, Js::Constants::GlobalCode, (LoadScriptFlag)(cpInfo->LoadFlag & ~LoadScriptFlag::LoadScriptFlag_Utf8Source));
+                function = ctx->LoadScript(script, scriptByteLength, &si, &se, &utf8SourceInfo, Js::Constants::GlobalCode, cpInfo->LoadFlag);
             }
             END_LEAVE_SCRIPT_WITH_EXCEPTION(ctx);
             AssertMsg(function != nullptr, "Something went wrong");
@@ -724,7 +728,7 @@ namespace TTD
             JsRTCodeParseAction* cpAction = GetInlineEventDataAs<JsRTCodeParseAction, EventKind::CodeParseActionTag>(evt);
             JsRTCodeParseAction_AdditionalInfo* cpInfo = cpAction->AdditionalInfo;
 
-            alloc.UnlinkString(cpInfo->SourceCode);
+            alloc.UnlinkAllocation(cpInfo->SourceCode);
 
             if(!IsNullPtrTTString(cpInfo->SourceUri))
             {
@@ -739,7 +743,7 @@ namespace TTD
             alloc.UnlinkAllocation(cpAction->AdditionalInfo);
         }
 
-        void JsRTCodeParseAction_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void JsRTCodeParseAction_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const JsRTCodeParseAction* cpAction = GetInlineEventDataAs<JsRTCodeParseAction, EventKind::CodeParseActionTag>(evt);
             JsRTCodeParseAction_AdditionalInfo* cpInfo = cpAction->AdditionalInfo;
@@ -755,13 +759,14 @@ namespace TTD
             writer->WriteString(NSTokens::Key::logDir, cpInfo->SrcDir, NSTokens::Separator::CommaSeparator);
             writer->WriteString(NSTokens::Key::uri, cpInfo->SourceUri, NSTokens::Separator::CommaSeparator);
 
-            writer->WriteLengthValue(cpInfo->SourceCode.Length, NSTokens::Separator::CommaSeparator);
+            writer->WriteBool(NSTokens::Key::boolVal, cpInfo->IsUtf8, NSTokens::Separator::CommaSeparator);
+            writer->WriteLengthValue(cpInfo->SourceByteLength, NSTokens::Separator::CommaSeparator);
 
             UtilSupport::TTAutoString docId;
             docId.Append(cpInfo->DocumentID);
             docId.Append(_u("ld"));
 
-            JsSupport::WriteCodeToFile(threadContext->TTDStreamFunctions, cpInfo->SrcDir.Contents, docId.GetStrValue(), cpInfo->SourceUri.Contents, cpInfo->SourceCode.Contents, cpInfo->SourceCode.Length);
+            JsSupport::WriteCodeToFile(threadContext->TTDStreamFunctions, cpInfo->SrcDir.Contents, docId.GetStrValue(), cpInfo->SourceUri.Contents, cpInfo->IsUtf8, cpInfo->SourceCode, cpInfo->SourceByteLength);
         }
 
         void JsRTCodeParseAction_Parse(EventLogEntry* evt, ThreadContext* threadContext, FileReader* reader, UnlinkableSlabAllocator& alloc)
@@ -782,14 +787,16 @@ namespace TTD
             reader->ReadString(NSTokens::Key::logDir, alloc, cpInfo->SrcDir, true);
             reader->ReadString(NSTokens::Key::uri, alloc, cpInfo->SourceUri, true);
 
-            cpInfo->SourceCode.Length = reader->ReadLengthValue(true);
-            cpInfo->SourceCode.Contents = alloc.SlabAllocateArray<wchar>(cpInfo->SourceCode.Length + 1);
+            cpInfo->IsUtf8 = reader->ReadBool(NSTokens::Key::boolVal, true);
+            cpInfo->SourceByteLength = reader->ReadLengthValue(true);
+
+            cpInfo->SourceCode = alloc.SlabAllocateArray<byte>(cpAction->AdditionalInfo->SourceByteLength);
 
             UtilSupport::TTAutoString docId;
             docId.Append(cpInfo->DocumentID);
             docId.Append(_u("ld"));
 
-            JsSupport::ReadCodeFromFile(threadContext->TTDStreamFunctions, cpInfo->SrcDir.Contents, docId.GetStrValue(), cpInfo->SourceUri.Contents, cpInfo->SourceCode.Contents, cpInfo->SourceCode.Length);
+            JsSupport::ReadCodeFromFile(threadContext->TTDStreamFunctions, cpInfo->SrcDir.Contents, docId.GetStrValue(), cpInfo->SourceUri.Contents, cpInfo->IsUtf8, cpInfo->SourceCode, cpInfo->SourceByteLength);
         }
 
 #if ENABLE_TTD_INTERNAL_DIAGNOSTICS

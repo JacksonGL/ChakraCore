@@ -438,9 +438,9 @@ namespace TTD
         void AddPropertyRecord(const Js::PropertyRecord* record);
 
         //Add top level function load info to our sets
-        const NSSnapValues::TopLevelScriptLoadFunctionBodyResolveInfo* AddScriptLoad(Js::FunctionBody* fb, Js::ModuleID moduleId, DWORD_PTR documentID, LPCWSTR source, uint32 sourceLen, LoadScriptFlag loadFlag);
-        const NSSnapValues::TopLevelNewFunctionBodyResolveInfo* AddNewFunction(Js::FunctionBody* fb, Js::ModuleID moduleId, LPCWSTR source, uint32 sourceLen);
-        const NSSnapValues::TopLevelEvalFunctionBodyResolveInfo* AddEvalFunction(Js::FunctionBody* fb, Js::ModuleID moduleId, LPCWSTR source, uint32 sourceLen, uint32 grfscr, bool registerDocument, BOOL isIndirect, BOOL strictMode);
+        const NSSnapValues::TopLevelScriptLoadFunctionBodyResolveInfo* AddScriptLoad(Js::FunctionBody* fb, Js::ModuleID moduleId, DWORD_PTR documentID, const byte* source, uint32 sourceLen, LoadScriptFlag loadFlag);
+        const NSSnapValues::TopLevelNewFunctionBodyResolveInfo* AddNewFunction(Js::FunctionBody* fb, Js::ModuleID moduleId, const char16* source, uint32 sourceLen);
+        const NSSnapValues::TopLevelEvalFunctionBodyResolveInfo* AddEvalFunction(Js::FunctionBody* fb, Js::ModuleID moduleId, const char16* source, uint32 sourceLen, uint32 grfscr, bool registerDocument, BOOL isIndirect, BOOL strictMode);
 
         void RecordTopLevelCodeAction(uint64 bodyCtrId);
         uint64 ReplayTopLevelCodeAction();
@@ -697,7 +697,7 @@ namespace TTD
         void RecordJsRTCallbackOperation(Js::ScriptContext* ctx, bool isCreate, bool isCancel, bool isRepeating, Js::JavascriptFunction* func, int64 callbackId);
 
         //Record code parse
-        void RecordJsRTCodeParse(Js::ScriptContext* ctx, uint64 bodyCtrId, LoadScriptFlag loadFlag, Js::JavascriptFunction* func, LPCWSTR srcCode, LPCWSTR sourceUri, Js::JavascriptFunction* resultFunction);
+        void RecordJsRTCodeParse(Js::ScriptContext* ctx, uint64 bodyCtrId, LoadScriptFlag loadFlag, Js::JavascriptFunction* func, bool isUft8, const byte* script, uint32 scriptByteLength, const char16* sourceUri, Js::JavascriptFunction* resultFunction);
 
         //Record callback of an existing function
         NSLogEvents::EventLogEntry* RecordJsRTCallFunction(Js::ScriptContext* ctx, int32 rootDepth, int64 hostCallbackId, Js::JavascriptFunction* func, uint32 argCount, Js::Var* args);

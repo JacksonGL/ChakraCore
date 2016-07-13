@@ -447,8 +447,12 @@ namespace TTD
             //TODO: it kinda sucks to copy all the source here when we have it in the Log as well maybe we can just record the bodyCtrId and look up the other info during replay?
             //
 
-            //The actual source code
-            TTString SourceCode;
+            //Is the code utf8
+            bool IsUtf8;
+
+            //The actual source code and the length in bytes
+            byte* SourceCode;
+            uint32 SourceByteLength;
 
             //The URI the souce code was loaded from and the document id we gave it internally
             TTString SourceUri;
@@ -475,7 +479,7 @@ namespace TTD
 
         void JsRTCodeParseAction_Execute(const EventLogEntry* evt, Js::ScriptContext* ctx);
         void JsRTCodeParseAction_UnloadEventMemory(EventLogEntry* evt, UnlinkableSlabAllocator& alloc);
-        void JsRTCodeParseAction_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext);
+        void JsRTCodeParseAction_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext);
         void JsRTCodeParseAction_Parse(EventLogEntry* evt, ThreadContext* threadContext, FileReader* reader, UnlinkableSlabAllocator& alloc);
 
         //A struct for additional info associated with calls to script parse

@@ -694,7 +694,7 @@ namespace TTD
         m_lastInflateSnapshotTime(-1), m_lastInflateMap(nullptr), m_propertyRecordPinSet(nullptr), m_propertyRecordList(&this->m_miscSlabAllocator), 
         m_loadedTopLevelScripts(&this->m_miscSlabAllocator), m_newFunctionTopLevelScripts(&this->m_miscSlabAllocator), m_evalTopLevelScripts(&this->m_miscSlabAllocator)
     {
-        JsSupport::CopyStringToHeapAllocator(logDir, this->m_logInfoRootDir);
+        JsSupport::CopyStringToHeapAllocatorWLength(logDir, (uint32)wcslen(logDir), this->m_logInfoRootDir);
 
         this->InitializeEventListVTable();
 
@@ -823,17 +823,18 @@ namespace TTD
         this->m_propertyRecordPinSet->AddNew(const_cast<Js::PropertyRecord*>(record));
     }
 
-    const NSSnapValues::TopLevelScriptLoadFunctionBodyResolveInfo* EventLog::AddScriptLoad(Js::FunctionBody* fb, Js::ModuleID moduleId, DWORD_PTR documentID, LPCWSTR source, uint32 sourceLen, LoadScriptFlag loadFlag)
+    const NSSnapValues::TopLevelScriptLoadFunctionBodyResolveInfo* EventLog::AddScriptLoad(Js::FunctionBody* fb, Js::ModuleID moduleId, DWORD_PTR documentID, const byte* source, uint32 sourceLen, LoadScriptFlag loadFlag)
     {
         NSSnapValues::TopLevelScriptLoadFunctionBodyResolveInfo* fbInfo = this->m_loadedTopLevelScripts.NextOpenEntry();
         uint64 fCount = (this->m_loadedTopLevelScripts.Count() + this->m_newFunctionTopLevelScripts.Count() + this->m_evalTopLevelScripts.Count());
+        bool isUtf8 = ((loadFlag & LoadScriptFlag_Utf8Source) == LoadScriptFlag_Utf8Source);
 
-        NSSnapValues::ExtractTopLevelLoadedFunctionBodyInfo(fbInfo, fb, fCount, moduleId, documentID, source, sourceLen, loadFlag, this->m_miscSlabAllocator);
+        NSSnapValues::ExtractTopLevelLoadedFunctionBodyInfo(fbInfo, fb, fCount, moduleId, documentID, isUtf8, source, sourceLen, loadFlag, this->m_miscSlabAllocator);
 
         return fbInfo;
     }
 
-    const NSSnapValues::TopLevelNewFunctionBodyResolveInfo* EventLog::AddNewFunction(Js::FunctionBody* fb, Js::ModuleID moduleId, LPCWSTR source, uint32 sourceLen)
+    const NSSnapValues::TopLevelNewFunctionBodyResolveInfo* EventLog::AddNewFunction(Js::FunctionBody* fb, Js::ModuleID moduleId, const char16* source, uint32 sourceLen)
     {
         NSSnapValues::TopLevelNewFunctionBodyResolveInfo* fbInfo = this->m_newFunctionTopLevelScripts.NextOpenEntry();
         uint64 fCount = (this->m_loadedTopLevelScripts.Count() + this->m_newFunctionTopLevelScripts.Count() + this->m_evalTopLevelScripts.Count());
@@ -843,7 +844,7 @@ namespace TTD
         return fbInfo;
     }
 
-    const NSSnapValues::TopLevelEvalFunctionBodyResolveInfo* EventLog::AddEvalFunction(Js::FunctionBody* fb, Js::ModuleID moduleId, LPCWSTR source, uint32 sourceLen, uint32 grfscr, bool registerDocument, BOOL isIndirect, BOOL strictMode)
+    const NSSnapValues::TopLevelEvalFunctionBodyResolveInfo* EventLog::AddEvalFunction(Js::FunctionBody* fb, Js::ModuleID moduleId, const char16* source, uint32 sourceLen, uint32 grfscr, bool registerDocument, BOOL isIndirect, BOOL strictMode)
     {
         NSSnapValues::TopLevelEvalFunctionBodyResolveInfo* fbInfo = this->m_evalTopLevelScripts.NextOpenEntry();
         uint64 fCount = (this->m_loadedTopLevelScripts.Count() + this->m_newFunctionTopLevelScripts.Count() + this->m_evalTopLevelScripts.Count());
@@ -2448,7 +2449,7 @@ namespace TTD
         cbrAction->RegisterLocation = nullptr;
     }
 
-    void EventLog::RecordJsRTCodeParse(Js::ScriptContext* ctx, uint64 bodyCtrId, LoadScriptFlag loadFlag, Js::JavascriptFunction* func, LPCWSTR srcCode, LPCWSTR sourceUri, Js::JavascriptFunction* resultFunction)
+    void EventLog::RecordJsRTCodeParse(Js::ScriptContext* ctx, uint64 bodyCtrId, LoadScriptFlag loadFlag, Js::JavascriptFunction* func, bool isUft8, const byte* script, uint32 scriptByteLength, const char16* sourceUri, Js::JavascriptFunction* resultFunction)
     {
         NSLogEvents::JsRTCodeParseAction* cpAction = this->RecordGetInitializedEvent_Helper<NSLogEvents::JsRTCodeParseAction, NSLogEvents::EventKind::CodeParseActionTag>();
         cpAction->AdditionalInfo = this->m_eventSlabAllocator.SlabAllocateStruct<NSLogEvents::JsRTCodeParseAction_AdditionalInfo>();
@@ -2458,7 +2459,11 @@ namespace TTD
 
         Js::FunctionBody* fb = JsSupport::ForceAndGetFunctionBody(func->GetFunctionBody());
 
-        this->m_eventSlabAllocator.CopyNullTermStringInto(srcCode, cpAction->AdditionalInfo->SourceCode);
+        cpAction->AdditionalInfo->IsUtf8 = isUft8;
+        cpAction->AdditionalInfo->SourceByteLength = scriptByteLength;
+
+        cpAction->AdditionalInfo->SourceCode = this->m_eventSlabAllocator.SlabAllocateArray<byte>(cpAction->AdditionalInfo->SourceByteLength);
+        js_memcpy_s(cpAction->AdditionalInfo->SourceCode, cpAction->AdditionalInfo->SourceByteLength, script, scriptByteLength);
 
         this->m_eventSlabAllocator.CopyNullTermStringInto(fb->GetSourceContextInfo()->url, cpAction->AdditionalInfo->SourceUri);
         cpAction->AdditionalInfo->DocumentID = fb->GetUtf8SourceInfo()->GetSourceInfoId();
