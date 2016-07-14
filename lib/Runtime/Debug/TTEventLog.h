@@ -387,7 +387,7 @@ namespace TTD
         void InitializeEventListVTable();
 
     public:
-        EventLog(ThreadContext* threadContext, LPCWSTR logDir, uint32 snapInterval, uint32 snapHistoryLength);
+        EventLog(ThreadContext* threadContext, const char16* logDir, uint32 snapInterval, uint32 snapHistoryLength);
         ~EventLog();
 
 #if ENABLE_BASIC_TRACE || ENABLE_FULL_BC_TRACE
@@ -708,7 +708,7 @@ namespace TTD
         ////////////////////////////////
         //Emit code and support
 
-        LPCWSTR EmitLogIfNeeded();
+        const char16* EmitLogIfNeeded();
         void ParseLogInto();
     };
 }

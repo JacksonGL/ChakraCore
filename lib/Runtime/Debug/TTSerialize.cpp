@@ -681,7 +681,7 @@ namespace TTD
 
     //////////////////
 
-    NSTokens::ParseTokenKind TextFormatReader::Scan(JsUtil::List<wchar, HeapAllocator>& charList)
+    NSTokens::ParseTokenKind TextFormatReader::Scan(JsUtil::List<char16, HeapAllocator>& charList)
     {
         char16 c = _u('\0');
         charList.Clear();
@@ -752,7 +752,7 @@ namespace TTD
         return NSTokens::ParseTokenKind::Error;
     }
 
-    NSTokens::ParseTokenKind TextFormatReader::ScanKey(JsUtil::List<wchar, HeapAllocator>& charList)
+    NSTokens::ParseTokenKind TextFormatReader::ScanKey(JsUtil::List<char16, HeapAllocator>& charList)
     {
         charList.Clear();
 
@@ -873,7 +873,7 @@ namespace TTD
         }
     }
 
-    NSTokens::ParseTokenKind TextFormatReader::ScanNumber(JsUtil::List<wchar, HeapAllocator>& charList)
+    NSTokens::ParseTokenKind TextFormatReader::ScanNumber(JsUtil::List<char16, HeapAllocator>& charList)
     {
         char16 c = _u('\0');
         while(this->PeekRawChar(&c) && ((_u('0') <= c && c <= _u('9')) || (c == _u('.'))))
@@ -883,9 +883,9 @@ namespace TTD
         }
 
         bool likelyint; //we don't care about this just want to know that it is convertable to a number
-        const wchar* end;
-        const wchar* start = charList.GetBuffer();
-        double val = Js::NumberUtilities::StrToDbl<wchar>(start, &end, likelyint);
+        const char16* end;
+        const char16* start = charList.GetBuffer();
+        double val = Js::NumberUtilities::StrToDbl<char16>(start, &end, likelyint);
         if(start == end)
         {
             return NSTokens::ParseTokenKind::Error;
@@ -895,7 +895,7 @@ namespace TTD
         return NSTokens::ParseTokenKind::Number;
     }
 
-    NSTokens::ParseTokenKind TextFormatReader::ScanAddress(JsUtil::List<wchar, HeapAllocator>& charList)
+    NSTokens::ParseTokenKind TextFormatReader::ScanAddress(JsUtil::List<char16, HeapAllocator>& charList)
     {
         NSTokens::ParseTokenKind okNumber = this->ScanNumber(charList);
         if(okNumber != NSTokens::ParseTokenKind::Number)
@@ -906,7 +906,7 @@ namespace TTD
         return NSTokens::ParseTokenKind::Address;
     }
 
-    NSTokens::ParseTokenKind TextFormatReader::ScanLogTag(JsUtil::List<wchar, HeapAllocator>& charList)
+    NSTokens::ParseTokenKind TextFormatReader::ScanLogTag(JsUtil::List<char16, HeapAllocator>& charList)
     {
         NSTokens::ParseTokenKind okNumber = this->ScanNumber(charList);
         if(okNumber != NSTokens::ParseTokenKind::Number)
@@ -917,7 +917,7 @@ namespace TTD
         return NSTokens::ParseTokenKind::LogTag;
     }
 
-    NSTokens::ParseTokenKind TextFormatReader::ScanEnumTag(JsUtil::List<wchar, HeapAllocator>& charList)
+    NSTokens::ParseTokenKind TextFormatReader::ScanEnumTag(JsUtil::List<char16, HeapAllocator>& charList)
     {
         NSTokens::ParseTokenKind okNumber = this->ScanNumber(charList);
         if(okNumber != NSTokens::ParseTokenKind::Number)
@@ -928,7 +928,7 @@ namespace TTD
         return NSTokens::ParseTokenKind::EnumTag;
     }
 
-    NSTokens::ParseTokenKind TextFormatReader::ScanWellKnownToken(JsUtil::List<wchar, HeapAllocator>& charList)
+    NSTokens::ParseTokenKind TextFormatReader::ScanWellKnownToken(JsUtil::List<char16, HeapAllocator>& charList)
     {
         char16 c = _u('\0');
         bool endFound = false;
@@ -961,7 +961,7 @@ namespace TTD
         return NSTokens::ParseTokenKind::WellKnownToken;
     }
 
-    NSTokens::ParseTokenKind TextFormatReader::ScanString(JsUtil::List<wchar, HeapAllocator>& charList)
+    NSTokens::ParseTokenKind TextFormatReader::ScanString(JsUtil::List<char16, HeapAllocator>& charList)
     {
         bool ok = false;
         char16 c = _u('\0');
@@ -1005,7 +1005,7 @@ namespace TTD
         return NSTokens::ParseTokenKind::String;
     }
 
-    NSTokens::ParseTokenKind TextFormatReader::ScanNakedString(wchar leadChar)
+    NSTokens::ParseTokenKind TextFormatReader::ScanNakedString(char16 leadChar)
     {
         bool ok = false;
         char16 c = _u('\0');
@@ -1094,7 +1094,7 @@ namespace TTD
         }
     }
 
-    int64 TextFormatReader::ReadIntFromCharArray(const wchar* buff)
+    int64 TextFormatReader::ReadIntFromCharArray(const char16* buff)
     {
         int64 value = 0;
         int64 multiplier = 1;
@@ -1110,7 +1110,7 @@ namespace TTD
         int32 digitCount = (int32)wcslen(buff);
         for(int32 i = digitCount - 1; i >= lastIdx; --i)
         {
-            wchar digit = buff[i];
+            char16 digit = buff[i];
             uint32 digitValue = (digit - _u('0'));
 
             value += (multiplier * digitValue);
@@ -1120,7 +1120,7 @@ namespace TTD
         return value * sign;
     }
 
-    uint64 TextFormatReader::ReadUIntFromCharArray(const wchar* buff)
+    uint64 TextFormatReader::ReadUIntFromCharArray(const char16* buff)
     {
         uint64 value = 0;
         uint64 multiplier = 1;
@@ -1128,7 +1128,7 @@ namespace TTD
         int32 digitCount = (int32)wcslen(buff);
         for(int32 i = digitCount - 1; i >= 0; --i)
         {
-            wchar digit = buff[i];
+            char16 digit = buff[i];
             uint32 digitValue = (digit - _u('0'));
 
             value += (multiplier * digitValue);
@@ -1138,11 +1138,11 @@ namespace TTD
         return value;
     }
 
-    double TextFormatReader::ReadDoubleFromCharArray(const wchar* buff)
+    double TextFormatReader::ReadDoubleFromCharArray(const char16* buff)
     {
         bool likelytInt; //we don't care about this as we already know it is a double
-        const wchar* end;
-        double val = Js::NumberUtilities::StrToDbl<wchar>(buff, &end, likelytInt);
+        const char16* end;
+        double val = Js::NumberUtilities::StrToDbl<char16>(buff, &end, likelytInt);
         FileReader::FileReadAssert((buff != end) && !Js::JavascriptNumber::IsNan(val));
 
         return val;

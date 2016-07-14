@@ -8,7 +8,7 @@
 
 namespace TTD
 {
-    TTDebuggerAbortException::TTDebuggerAbortException(uint32 abortCode, int64 optEventTime, int64 optMoveMode, LPCWSTR staticAbortMessage)
+    TTDebuggerAbortException::TTDebuggerAbortException(uint32 abortCode, int64 optEventTime, int64 optMoveMode, const char16* staticAbortMessage)
         : m_abortCode(abortCode), m_optEventTime(optEventTime), m_optMoveMode(optMoveMode), m_staticAbortMessage(staticAbortMessage)
     {
         ;
@@ -19,17 +19,17 @@ namespace TTD
         ;
     }
 
-    TTDebuggerAbortException TTDebuggerAbortException::CreateAbortEndOfLog(LPCWSTR staticMessage)
+    TTDebuggerAbortException TTDebuggerAbortException::CreateAbortEndOfLog(const char16* staticMessage)
     {
         return TTDebuggerAbortException(1, -1, 0, staticMessage);
     }
 
-    TTDebuggerAbortException TTDebuggerAbortException::CreateTopLevelAbortRequest(int64 targetEventTime, int64 moveMode, LPCWSTR staticMessage)
+    TTDebuggerAbortException TTDebuggerAbortException::CreateTopLevelAbortRequest(int64 targetEventTime, int64 moveMode, const char16* staticMessage)
     {
         return TTDebuggerAbortException(2, targetEventTime, moveMode, staticMessage);
     }
 
-    TTDebuggerAbortException TTDebuggerAbortException::CreateUncaughtExceptionAbortRequest(int64 targetEventTime, LPCWSTR staticMessage)
+    TTDebuggerAbortException TTDebuggerAbortException::CreateUncaughtExceptionAbortRequest(int64 targetEventTime, const char16* staticMessage)
     {
         return TTDebuggerAbortException(3, targetEventTime, 0, staticMessage);;
     }
@@ -59,7 +59,7 @@ namespace TTD
         return this->m_optMoveMode;
     }
 
-    LPCWSTR TTDebuggerAbortException::GetStaticAbortMessage() const
+    const char16* TTDebuggerAbortException::GetStaticAbortMessage() const
     {
         return this->m_staticAbortMessage;
     }
@@ -81,10 +81,10 @@ namespace TTD
     {
         if(other.m_sourceFile != nullptr)
         {
-            size_t wcharLength = wcslen(other.m_sourceFile) + 1;
-            size_t byteLength = wcharLength * sizeof(wchar);
+            size_t char16Length = wcslen(other.m_sourceFile) + 1;
+            size_t byteLength = char16Length * sizeof(char16);
 
-            this->m_sourceFile = new wchar[wcharLength];
+            this->m_sourceFile = new char16[char16Length];
             js_memcpy_s(this->m_sourceFile, byteLength, other.m_sourceFile, byteLength);
         }
     }
@@ -190,10 +190,10 @@ namespace TTD
 
         if(other.m_sourceFile != nullptr)
         {
-            size_t wcharLength = wcslen(other.m_sourceFile) + 1;
-            size_t byteLength = wcharLength * sizeof(wchar);
+            size_t char16Length = wcslen(other.m_sourceFile) + 1;
+            size_t byteLength = char16Length * sizeof(char16);
 
-            this->m_sourceFile = new wchar[wcharLength];
+            this->m_sourceFile = new char16[char16Length];
             js_memcpy_s(this->m_sourceFile, byteLength, other.m_sourceFile, byteLength);
         }
 #endif
@@ -238,13 +238,13 @@ namespace TTD
         }
         this->m_sourceFile = nullptr;
 
-        LPCWSTR sourceFile = body->GetSourceContextInfo()->url;
+        const char16* sourceFile = body->GetSourceContextInfo()->url;
         if(sourceFile != nullptr)
         {
-            size_t wcharLength = wcslen(sourceFile) + 1;
-            size_t byteLength = wcharLength * sizeof(wchar);
+            size_t char16Length = wcslen(sourceFile) + 1;
+            size_t byteLength = char16Length * sizeof(char16);
 
-            this->m_sourceFile = new wchar[wcharLength];
+            this->m_sourceFile = new char16[char16Length];
             js_memcpy_s(this->m_sourceFile, byteLength, sourceFile, byteLength);
         }
 #endif
@@ -404,7 +404,7 @@ namespace TTD
 #endif
         }
 
-        void EventLogEntry_Emit(const EventLogEntry* evt, EventLogEntryVTableEntry* evtFPVTable, FileWriter* writer, LPCWSTR uri, ThreadContext* threadContext, NSTokens::Separator separator)
+        void EventLogEntry_Emit(const EventLogEntry* evt, EventLogEntryVTableEntry* evtFPVTable, FileWriter* writer, const char16* uri, ThreadContext* threadContext, NSTokens::Separator separator)
         {
             writer->WriteRecordStart(separator);
 
@@ -449,7 +449,7 @@ namespace TTD
             SnapshotEventLogEntry_UnloadSnapshot(evt);
         }
 
-        void SnapshotEventLogEntry_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void SnapshotEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const SnapshotEventLogEntry* snapEvt = GetInlineEventDataAs<SnapshotEventLogEntry, EventKind::SnapshotTag>(evt);
 
@@ -469,7 +469,7 @@ namespace TTD
             snapEvt->Snap = nullptr;
         }
 
-        void SnapshotEventLogEntry_EnsureSnapshotDeserialized(EventLogEntry* evt, LPCWSTR uri, ThreadContext* threadContext)
+        void SnapshotEventLogEntry_EnsureSnapshotDeserialized(EventLogEntry* evt, const char16* uri, ThreadContext* threadContext)
         {
             SnapshotEventLogEntry* snapEvt = GetInlineEventDataAs<SnapshotEventLogEntry, EventKind::SnapshotTag>(evt);
 
@@ -490,7 +490,7 @@ namespace TTD
             }
         }
 
-        void EventLoopYieldPointEntry_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void EventLoopYieldPointEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const EventLoopYieldPointEntry* ypEvt = GetInlineEventDataAs<EventLoopYieldPointEntry, EventKind::EventLoopYieldPointTag>(evt);
 
@@ -508,7 +508,7 @@ namespace TTD
 
         //////////////////
 
-        void CodeLoadEventLogEntry_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void CodeLoadEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const CodeLoadEventLogEntry* codeEvt = GetInlineEventDataAs<CodeLoadEventLogEntry, EventKind::TopLevelCodeTag>(evt);
 
@@ -529,7 +529,7 @@ namespace TTD
             alloc.UnlinkString(telemetryEvt->InfoString);
         }
 
-        void TelemetryEventLogEntry_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void TelemetryEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const TelemetryEventLogEntry* telemetryEvt = GetInlineEventDataAs<TelemetryEventLogEntry, EventKind::TelemetryLogTag>(evt);
 
@@ -547,7 +547,7 @@ namespace TTD
 
         //////////////////
 
-        void RandomSeedEventLogEntry_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void RandomSeedEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const RandomSeedEventLogEntry* rndEvt = GetInlineEventDataAs<RandomSeedEventLogEntry, EventKind::RandomSeedTag>(evt);
 
@@ -564,7 +564,7 @@ namespace TTD
             rndEvt->Seed1 = reader->ReadUInt64(NSTokens::Key::u64Val, true);
         }
 
-        void DoubleEventLogEntry_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void DoubleEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const DoubleEventLogEntry* dblEvt = GetInlineEventDataAs<DoubleEventLogEntry, EventKind::DoubleTag>(evt);
 
@@ -585,7 +585,7 @@ namespace TTD
             alloc.UnlinkString(strEvt->StringValue);
         }
 
-        void StringValueEventLogEntry_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void StringValueEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const StringValueEventLogEntry* strEvt = GetInlineEventDataAs<StringValueEventLogEntry, EventKind::StringTag>(evt);
 
@@ -611,7 +611,7 @@ namespace TTD
             }
         }
 
-        void PropertyEnumStepEventLogEntry_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void PropertyEnumStepEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const PropertyEnumStepEventLogEntry* propertyEvt = GetInlineEventDataAs<PropertyEnumStepEventLogEntry, EventKind::PropertyEnumTag>(evt);
 
@@ -657,7 +657,7 @@ namespace TTD
 
         //////////////////
 
-        void SymbolCreationEventLogEntry_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void SymbolCreationEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const SymbolCreationEventLogEntry* symEvt = GetInlineEventDataAs<SymbolCreationEventLogEntry, EventKind::SymbolCreationTag>(evt);
 
@@ -680,7 +680,7 @@ namespace TTD
             return cbrEvt->LastNestedEventTime;
         }
 
-        void ExternalCbRegisterCallEventLogEntry_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void ExternalCbRegisterCallEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const ExternalCbRegisterCallEventLogEntry* cbrEvt = GetInlineEventDataAs<ExternalCbRegisterCallEventLogEntry, EventKind::ExternalCbRegisterCall>(evt);
 
@@ -753,7 +753,7 @@ namespace TTD
             alloc.UnlinkAllocation(callEvt->AdditionalInfo);
         }
 
-        void ExternalCallEventLogEntry_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void ExternalCallEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const ExternalCallEventLogEntry* callEvt = GetInlineEventDataAs<ExternalCallEventLogEntry, EventKind::ExternalCallTag>(evt);
 

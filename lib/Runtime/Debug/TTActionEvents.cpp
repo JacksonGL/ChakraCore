@@ -423,7 +423,7 @@ namespace TTD
 
         //////////////////
 
-        void JsRTRawBufferCopyAction_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void JsRTRawBufferCopyAction_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const JsRTRawBufferCopyAction* rbcAction = GetInlineEventDataAs<JsRTRawBufferCopyAction, EventKind::RawBufferCopySync>(evt);
 
@@ -548,7 +548,7 @@ namespace TTD
             }
         }
 
-        void JsRTConstructCallAction_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void JsRTConstructCallAction_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const JsRTConstructCallAction* ccAction = GetInlineEventDataAs<JsRTConstructCallAction, EventKind::ConstructCallActionTag>(evt);
 
@@ -617,7 +617,7 @@ namespace TTD
             }
         }
 
-        void JsRTCallbackAction_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void JsRTCallbackAction_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const JsRTCallbackAction* cbAction = GetInlineEventDataAs<JsRTCallbackAction, EventKind::CallbackOpActionTag>(evt);
 
@@ -962,7 +962,7 @@ namespace TTD
             alloc.UnlinkAllocation(cfInfo);
         }
 
-        void JsRTCallFunctionAction_Emit(const EventLogEntry* evt, LPCWSTR uri, FileWriter* writer, ThreadContext* threadContext)
+        void JsRTCallFunctionAction_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
         {
             const JsRTCallFunctionAction* cfAction = GetInlineEventDataAs<JsRTCallFunctionAction, EventKind::CallExistingFunctionActionTag>(evt);
             const JsRTCallFunctionAction_AdditionalInfo* cfInfo = cfAction->AdditionalInfo;

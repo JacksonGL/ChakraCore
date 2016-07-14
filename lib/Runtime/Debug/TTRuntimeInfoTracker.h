@@ -96,7 +96,7 @@ namespace TTD
         //TODO: we need to fix this later since filenames are not 100% always unique
         //
         //Find the body with the filename from our top-level function bodies
-        Js::FunctionBody* FindFunctionBodyByFileName(LPCWSTR filename) const;
+        Js::FunctionBody* FindFunctionBodyByFileName(const char16* filename) const;
 
         void ClearLoadedSourcesForSnapshotRestore();
     };
@@ -123,7 +123,7 @@ namespace TTD
         JsUtil::List<Js::FunctionBody*, HeapAllocator> m_sortedFunctionBodyList;
         
         //Build a path string based on a given name
-        void BuildPathString(UtilSupport::TTAutoString, LPCWSTR name, LPCWSTR optaccessortag, UtilSupport::TTAutoString& into);
+        void BuildPathString(UtilSupport::TTAutoString, const char16* name, const char16* optaccessortag, UtilSupport::TTAutoString& into);
 
         //Ensure that when we do our core visit make sure that the properties always appear in the same order
         static void LoadAndOrderPropertyNames(Js::RecyclableObject* obj, JsUtil::List<const Js::PropertyRecord*, HeapAllocator>& propertyList);
@@ -151,14 +151,14 @@ namespace TTD
         ////
 
         //Enqueue a root object in our core path walk
-        void EnqueueRootPathObject(LPCWSTR rootName, Js::RecyclableObject* obj);
+        void EnqueueRootPathObject(const char16* rootName, Js::RecyclableObject* obj);
 
         //Enqueue a child object that is stored at the given property in the parent 
-        void EnqueueNewPathVarAsNeeded(Js::RecyclableObject* parent, Js::Var val, const Js::PropertyRecord* prop, LPCWSTR optacessortag = nullptr);
-        void EnqueueNewPathVarAsNeeded(Js::RecyclableObject* parent, Js::Var val, LPCWSTR propName, LPCWSTR optacessortag = nullptr);
+        void EnqueueNewPathVarAsNeeded(Js::RecyclableObject* parent, Js::Var val, const Js::PropertyRecord* prop, const char16* optacessortag = nullptr);
+        void EnqueueNewPathVarAsNeeded(Js::RecyclableObject* parent, Js::Var val, const char16* propName, const char16* optacessortag = nullptr);
 
         //Enqueue a child object that is stored at a special named location in the parent object
-        void EnqueueNewFunctionBodyObject(Js::RecyclableObject* parent, Js::FunctionBody* fbody, LPCWSTR name);
+        void EnqueueNewFunctionBodyObject(Js::RecyclableObject* parent, Js::FunctionBody* fbody, const char16* name);
 
         //Build a path string based on a root path and an array index
         void BuildArrayIndexBuffer(uint32 arrayidx, UtilSupport::TTAutoString& res);
@@ -210,7 +210,7 @@ namespace TTD
     }
 
     template <typename T, bool mustFind>
-    int32 LookupPositionInDictNameList(LPCWSTR key, const JsUtil::BaseDictionary<T, UtilSupport::TTAutoString*, HeapAllocator>& objToNameMap, const JsUtil::List<T, HeapAllocator>& sortedObjList, const UtilSupport::TTAutoString& nullString)
+    int32 LookupPositionInDictNameList(const char16* key, const JsUtil::BaseDictionary<T, UtilSupport::TTAutoString*, HeapAllocator>& objToNameMap, const JsUtil::List<T, HeapAllocator>& sortedObjList, const UtilSupport::TTAutoString& nullString)
     {
         AssertMsg(sortedObjList.Count() != 0, "We are using this for matching so obviously no match and there is a problem.");
 

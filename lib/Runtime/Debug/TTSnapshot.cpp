@@ -447,7 +447,7 @@ namespace TTD
         NSSnapValues::ResetPendingAsyncBufferModInfo(sCtx, tCtx, inflator);
     }
 
-    void SnapShot::EmitSnapshot(LPCWSTR sourceDir, DWORD snapId, ThreadContext* threadContext) const
+    void SnapShot::EmitSnapshot(const char16* sourceDir, DWORD snapId, ThreadContext* threadContext) const
     {
         char16* snapIdString = TT_HEAP_ALLOC_ARRAY_ZERO(char16, 64);
         swprintf_s(snapIdString, 64, _u("%u"), snapId);
@@ -462,7 +462,7 @@ namespace TTD
         TT_HEAP_FREE_ARRAY(char16, snapIdString, 64);
     }
 
-    SnapShot* SnapShot::Parse(LPCWSTR sourceDir, DWORD snapId, ThreadContext* threadContext)
+    SnapShot* SnapShot::Parse(const char16* sourceDir, DWORD snapId, ThreadContext* threadContext)
     {
         char16* snapIdString = TT_HEAP_ALLOC_ARRAY_ZERO(char16, 64);
         swprintf_s(snapIdString, 64, _u("%u"), snapId);

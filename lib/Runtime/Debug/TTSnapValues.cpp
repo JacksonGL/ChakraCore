@@ -1367,7 +1367,7 @@ namespace TTD
             }
             else
             {
-                LPCWSTR fname = resfb->GetDisplayName();
+                const char16* fname = resfb->GetDisplayName();
                 for(uint32 i = 0; i < fbInfo->FunctionName.Length; ++i)
                 {
                     updateName |= (fbInfo->FunctionName.Contents[i] != fname[i]);

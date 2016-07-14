@@ -284,7 +284,7 @@ namespace TTD
         return this->m_ttdFunctionBodyParentMap.LookupWithKey(body, nullptr);
     }
 
-    Js::FunctionBody* ScriptContextTTD::FindFunctionBodyByFileName(LPCWSTR filename) const
+    Js::FunctionBody* ScriptContextTTD::FindFunctionBodyByFileName(const char16* filename) const
     {
         AssertMsg(filename != nullptr, "We don't want to set breakpoints in non-user code!!!");
 
@@ -292,7 +292,7 @@ namespace TTD
         {
             Js::FunctionBody* cfb = static_cast<Js::FunctionBody*>(iter.CurrentValue());
 
-            LPCWSTR curi = cfb->GetSourceContextInfo()->url;
+            const char16* curi = cfb->GetSourceContextInfo()->url;
             if(curi != nullptr && wcscmp(filename, curi) == 0)
             {
                 return cfb;
@@ -316,7 +316,7 @@ namespace TTD
 
     //////////////////
 
-    void RuntimeContextInfo::BuildPathString(UtilSupport::TTAutoString rootpath, LPCWSTR name, LPCWSTR optaccessortag, UtilSupport::TTAutoString& into)
+    void RuntimeContextInfo::BuildPathString(UtilSupport::TTAutoString rootpath, const char16* name, const char16* optaccessortag, UtilSupport::TTAutoString& into)
     {
         into.Append(rootpath);
         into.Append(_u("."));
@@ -536,7 +536,7 @@ namespace TTD
 
     ////
 
-    void RuntimeContextInfo::EnqueueRootPathObject(LPCWSTR rootName, Js::RecyclableObject* obj)
+    void RuntimeContextInfo::EnqueueRootPathObject(const char16* rootName, Js::RecyclableObject* obj)
     {
         this->m_worklist.Enqueue(obj);
 
@@ -546,12 +546,12 @@ namespace TTD
         this->m_coreObjToPathMap.AddNew(obj, rootStr);
     }
 
-    void RuntimeContextInfo::EnqueueNewPathVarAsNeeded(Js::RecyclableObject* parent, Js::Var val, const Js::PropertyRecord* prop, LPCWSTR optacessortag)
+    void RuntimeContextInfo::EnqueueNewPathVarAsNeeded(Js::RecyclableObject* parent, Js::Var val, const Js::PropertyRecord* prop, const char16* optacessortag)
     {
         this->EnqueueNewPathVarAsNeeded(parent, val, prop->GetBuffer(), optacessortag);
     }
 
-    void RuntimeContextInfo::EnqueueNewPathVarAsNeeded(Js::RecyclableObject* parent, Js::Var val, LPCWSTR propName, LPCWSTR optacessortag)
+    void RuntimeContextInfo::EnqueueNewPathVarAsNeeded(Js::RecyclableObject* parent, Js::Var val, const char16* propName, const char16* optacessortag)
     {
         if(JsSupport::IsVarTaggedInline(val))
         {
@@ -584,7 +584,7 @@ namespace TTD
         }
     }
 
-    void RuntimeContextInfo::EnqueueNewFunctionBodyObject(Js::RecyclableObject* parent, Js::FunctionBody* fbody, LPCWSTR name)
+    void RuntimeContextInfo::EnqueueNewFunctionBodyObject(Js::RecyclableObject* parent, Js::FunctionBody* fbody, const char16* name)
     {
         if(!this->m_coreBodyToPathMap.ContainsKey(fbody))
         {

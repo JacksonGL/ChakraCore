@@ -677,7 +677,7 @@ namespace TTD
         this->m_eventListVTable[(uint32)NSLogEvents::EventKind::CallExistingFunctionActionTag] = { NSLogEvents::JsRTCallFunctionAction_Execute, NSLogEvents::JsRTCallFunctionAction_UnloadEventMemory, NSLogEvents::JsRTCallFunctionAction_Emit, NSLogEvents::JsRTCallFunctionAction_Parse };
     }
 
-    EventLog::EventLog(ThreadContext* threadContext, LPCWSTR logDir, uint32 snapInterval, uint32 snapHistoryLength)
+    EventLog::EventLog(ThreadContext* threadContext, const char16* logDir, uint32 snapInterval, uint32 snapHistoryLength)
         : m_threadContext(threadContext), m_eventSlabAllocator(TTD_SLAB_BLOCK_ALLOCATION_SIZE_MID), m_miscSlabAllocator(TTD_SLAB_BLOCK_ALLOCATION_SIZE_SMALL), m_snapInterval(snapInterval), m_snapHistoryLength(snapHistoryLength),
         m_eventTimeCtr(0), m_timer(), m_runningFunctionTimeCtr(0), m_topLevelCallbackEventTime(-1), m_hostCallbackId(-1),
         m_eventList(&this->m_eventSlabAllocator), m_eventListVTable(nullptr), m_currentReplayEventIterator(),
@@ -886,7 +886,7 @@ namespace TTD
         const NSLogEvents::TelemetryEventLogEntry* tEvent = this->ReplayGetReplayEvent_Helper<NSLogEvents::TelemetryEventLogEntry, NSLogEvents::EventKind::TelemetryLogTag>();
 
         uint32 infoStrLength = (uint32)infoStringJs->GetLength();
-        LPCWSTR infoStr = infoStringJs->GetSz();
+        const char16* infoStr = infoStringJs->GetSz();
 
         if(tEvent->InfoString.Length != infoStrLength)
         {
@@ -2518,7 +2518,7 @@ namespace TTD
         } while(eventTimeLimit >= this->m_eventTimeCtr);
     }
 
-    LPCWSTR EventLog::EmitLogIfNeeded()
+    const char16* EventLog::EmitLogIfNeeded()
     {
         //See if we have been running record mode (even if we are suspended for runtime execution) -- if we aren't then we don't want to emit anything
         if((this->m_currentMode & TTDMode::RecordEnabled) != TTDMode::RecordEnabled)
