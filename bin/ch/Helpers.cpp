@@ -246,15 +246,34 @@ void Helpers::CreateDirectoryIfNeeded(const char16* path)
         wcscat_s(fullpath, fplength, _u("\\"));
     }
 
-    DWORD dwAttrib = GetFileAttributes(fullpath);
-    if((dwAttrib != INVALID_FILE_ATTRIBUTES) && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY))
-    {
-        delete[] fullpath;
-        return;
-    }
+    char16 folder[MAX_PATH];
+    const char16* end;
+    ZeroMemory(folder, MAX_PATH * sizeof(char16));
 
-    BOOL success = CreateDirectory(fullpath, NULL);
-    Helpers::TTReportLastIOErrorAsNeeded(success, "Failed Directory Create");
+    //Advance 2 places (past root dir)
+    end = wcschr(path, _u('\\'));
+
+    while(end != NULL)
+    {
+        wcsncpy_s(folder, path, end - path + 1);
+        BOOL isDir = PathIsDirectory(folder);
+
+        if(!isDir)
+        {
+            BOOL success = CreateDirectory(folder, NULL);
+
+            //during test run we might race on directory creation so check that possibility here but report other errors
+            if(!success)
+            {
+                DWORD lastError = GetLastError();
+                if(lastError != ERROR_ALREADY_EXISTS)
+                {
+                    fprintf(stderr, "Error creating directory.\n");
+                }
+            }
+        }
+        end = wcschr(++end, L'\\');
+    }
 
     delete[] fullpath;
 #endif
@@ -354,7 +373,7 @@ void Helpers::GetDefaultTTDDirectory(char16** res, const char16* optExtraDir)
 
     GetModuleFileName(NULL, path, MAX_PATH);
 
-    char16* spos = wcsstr(path, _u("\\Build\\VcBuild\\"));
+    char16* spos = wcsstr(path, _u("\\ch.exe"));
     AssertMsg(spos != nullptr, "Something got renamed or moved!!!");
 
     int ccount = (int)((((byte*)spos) - ((byte*)path)) / sizeof(char16));
@@ -375,7 +394,7 @@ void Helpers::GetDefaultTTDDirectory(char16** res, const char16* optExtraDir)
     }
     (*res)[ccount] = _u('\0');
 
-    wcscat_s(*res, MAX_PATH, _u("\\test\\_ttdlog\\"));
+    wcscat_s(*res, MAX_PATH, _u("\\_ttdlog\\"));
 
     if(wcslen(optExtraDir) == 0)
     {
