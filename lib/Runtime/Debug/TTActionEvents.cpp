@@ -824,7 +824,7 @@ namespace TTD
         }
 #endif
 
-        void JsRTCallFunctionAction_ProcessArgs(EventLogEntry* evt, int32 rootDepth, int64 callEventTime, Js::JavascriptFunction* function, uint32 argc, Js::Var* argv, double wallTime, int64 hostCallbackId, int64 topLevelCallbackEventTime, UnlinkableSlabAllocator& alloc)
+        void JsRTCallFunctionAction_ProcessArgs(EventLogEntry* evt, int32 rootDepth, int64 callEventTime, Js::JavascriptFunction* function, uint32 argc, Js::Var* argv, double wallTime, int64 topLevelCallbackEventTime, UnlinkableSlabAllocator& alloc)
         {
             JsRTCallFunctionAction* cfAction = GetInlineEventDataAs<JsRTCallFunctionAction, EventKind::CallExistingFunctionActionTag>(evt);
             cfAction->AdditionalInfo = alloc.SlabAllocateStruct<JsRTCallFunctionAction_AdditionalInfo>();
@@ -843,7 +843,6 @@ namespace TTD
 
             cfAction->AdditionalInfo->CallEventTime = callEventTime;
 
-            cfAction->AdditionalInfo->HostCallbackId = hostCallbackId;
             cfAction->AdditionalInfo->TopLevelCallbackEventTime = topLevelCallbackEventTime;
 
             cfAction->AdditionalInfo->RtRSnap = nullptr;
@@ -884,7 +883,7 @@ namespace TTD
 
             if(cfAction->CallbackDepth == 0)
             {
-                threadContext->TTDLog->ResetCallStackForTopLevelCall(cfInfo->TopLevelCallbackEventTime, cfInfo->HostCallbackId);
+                threadContext->TTDLog->ResetCallStackForTopLevelCall(cfInfo->TopLevelCallbackEventTime);
             }
 
             Js::Var result = nullptr;
@@ -987,7 +986,6 @@ namespace TTD
 
             writer->WriteInt64(NSTokens::Key::eventTime, cfInfo->CallEventTime, NSTokens::Separator::CommaSeparator);
 
-            writer->WriteInt64(NSTokens::Key::hostCallbackId, cfInfo->HostCallbackId, NSTokens::Separator::CommaSeparator);
             writer->WriteInt64(NSTokens::Key::eventTime, cfInfo->TopLevelCallbackEventTime, NSTokens::Separator::CommaSeparator);
 
             writer->WriteBool(NSTokens::Key::boolVal, cfInfo->HasScriptException, NSTokens::Separator::CommaSeparator);
@@ -1025,7 +1023,6 @@ namespace TTD
 
             cfInfo->CallEventTime = reader->ReadInt64(NSTokens::Key::eventTime, true);
 
-            cfInfo->HostCallbackId = reader->ReadInt64(NSTokens::Key::hostCallbackId, true);
             cfInfo->TopLevelCallbackEventTime = reader->ReadInt64(NSTokens::Key::eventTime, true);
 
             cfInfo->HasScriptException = reader->ReadBool(NSTokens::Key::boolVal, true);

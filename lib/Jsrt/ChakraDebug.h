@@ -676,6 +676,15 @@ typedef UINT32 DWORD;
         JsTTDMoveBreakOnEntry = 0x100
     } JsTTDMoveMode;
 
+    //
+    //TODO: Move this into the appropriate x-plat definition file
+    //
+#if _WIN32
+    typedef HANDLE JsTTDStreamHandle;
+#else
+    typedef FILE JsTTDStreamHandle;
+#endif
+
     /// <summary>
     ///     TTD API -- may change in future versions:
     ///     Given the uri location specified for the TTD output data, which may be relative or contain other implcit information,
@@ -696,7 +705,7 @@ typedef UINT32 DWORD;
 
     /// <summary>
     ///     TTD API -- may change in future versions:
-    ///     Construct a HANDLE that will be used to read/write the event log portion of the TTD data based on the uri
+    ///     Construct a JsTTDStreamHandle that will be used to read/write the event log portion of the TTD data based on the uri
     ///     provided by JsTTDInitializeUriCallback.
     /// </summary>
     /// <remarks>
@@ -705,12 +714,12 @@ typedef UINT32 DWORD;
     /// <param name="uri">The fully resolved location for the TTD data as provied by JsTTDInitializeUriCallback.</param>
     /// <param name="read">If the handle should be opened for reading.</param>
     /// <param name="write">If the handle should be opened for writing.</param>
-    /// <returns>A HANDLE opened in read/write mode as specified.</returns>
-    typedef HANDLE (CHAKRA_CALLBACK *JsTTDGetLogStreamCallback)(_In_z_ const wchar_t* uri, _In_ bool read, _In_ bool write);
+    /// <returns>A JsTTDStreamHandle opened in read/write mode as specified.</returns>
+    typedef JsTTDStreamHandle (CHAKRA_CALLBACK *JsTTDGetLogStreamCallback)(_In_z_ const wchar_t* uri, _In_ bool read, _In_ bool write);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
-    ///     Construct a HANDLE that will be used to read/write a snapshot and generate a unique uri that is associated with this snapshot.
+    ///     Construct a JsTTDStreamHandle that will be used to read/write a snapshot and generate a unique uri that is associated with this snapshot.
     /// </summary>
     /// <remarks>
     ///     <para>Exactly one of read or write will be set to true.</para>
@@ -719,8 +728,8 @@ typedef UINT32 DWORD;
     /// <param name="snapId">A unique string identifier for this snapshot.</param>
     /// <param name="read">If the handle should be opened for reading.</param>
     /// <param name="write">If the handle should be opened for writing.</param>
-    /// <returns>A HANDLE opened in read/write mode as specified.</returns>
-    typedef HANDLE (CHAKRA_CALLBACK *JsTTDGetSnapshotStreamCallback)(_In_z_ const wchar_t* uri, _In_z_ const wchar_t* snapId, _In_ bool read, _In_ bool write);
+    /// <returns>A JsTTDStreamHandle opened in read/write mode as specified.</returns>
+    typedef JsTTDStreamHandle (CHAKRA_CALLBACK *JsTTDGetSnapshotStreamCallback)(_In_z_ const wchar_t* uri, _In_z_ const wchar_t* snapId, _In_ bool read, _In_ bool write);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
@@ -734,30 +743,30 @@ typedef UINT32 DWORD;
     /// <param name="srcFileName">The base filename for this source code.</param>
     /// <param name="read">If the handle should be opened for reading.</param>
     /// <param name="write">If the handle should be opened for writing.</param>
-    /// <returns>A HANDLE opened in read/write mode as specified.</returns>
-    typedef HANDLE (CHAKRA_CALLBACK *JsTTDGetSrcCodeStreamCallback)(_In_z_ const wchar_t* uri, _In_z_ const wchar_t* bodyCtrId, _In_z_ const wchar_t* srcFileName, _In_ bool read, _In_ bool write);
+    /// <returns>A JsTTDStreamHandle opened in read/write mode as specified.</returns>
+    typedef JsTTDStreamHandle (CHAKRA_CALLBACK *JsTTDGetSrcCodeStreamCallback)(_In_z_ const wchar_t* uri, _In_z_ const wchar_t* bodyCtrId, _In_z_ const wchar_t* srcFileName, _In_ bool read, _In_ bool write);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
     ///     A callback for reading data from a handle.
     /// </summary>
-    /// <param name="handle">The HANDLE to read the data from.</param>
+    /// <param name="handle">The JsTTDStreamHandle to read the data from.</param>
     /// <param name="buff">The buffer to place the data into.</param>
     /// <param name="size">The max number of bytes that should be read.</param>
     /// <param name="readCount">The actual number of bytes read and placed in the buffer.</param>
     /// <returns>true if the read was successful false otherwise.</returns>
-    typedef bool (CHAKRA_CALLBACK *JsTTDReadBytesFromStreamCallback)(_In_ HANDLE handle, _Out_writes_(size) BYTE* buff, _In_ DWORD size, _Out_ DWORD* readCount);
+    typedef bool (CHAKRA_CALLBACK *JsTTDReadBytesFromStreamCallback)(_In_ JsTTDStreamHandle handle, _Out_writes_(size) byte* buff, _In_ size_t size, _Out_ size_t* readCount);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
     ///     A callback for writing data to a handle.
     /// </summary>
-    /// <param name="handle">The HANDLE to write the data to.</param>
+    /// <param name="handle">The JsTTDStreamHandle to write the data to.</param>
     /// <param name="buff">The buffer to copy the data from.</param>
     /// <param name="size">The max number of bytes that should be written.</param>
     /// <param name="readCount">The actual number of bytes written to the HANDLE.</param>
     /// <returns>true if the write was successful false otherwise.</returns>
-    typedef bool (CHAKRA_CALLBACK *JsTTDWriteBytesToStreamCallback)(_In_ HANDLE handle, _In_reads_(size) BYTE* buff, _In_ DWORD size, _Out_ DWORD* writtenCount);
+    typedef bool (CHAKRA_CALLBACK *JsTTDWriteBytesToStreamCallback)(_In_ JsTTDStreamHandle handle, _In_reads_(size) byte* buff, _In_ size_t size, _Out_ size_t* writtenCount);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
@@ -766,10 +775,10 @@ typedef UINT32 DWORD;
     /// <remarks>
     ///     <para>Exactly one of read or write will be set to true.</para>
     /// </remarks>
-    /// <param name="handle">The HANDLE to close.</param>
+    /// <param name="handle">The JsTTDStreamHandle to close.</param>
     /// <param name="read">If the handle was opened for reading.</param>
     /// <param name="write">If the handle was opened for writing.</param>
-    typedef void (CHAKRA_CALLBACK *JsTTDFlushAndCloseStreamCallback)(_In_ HANDLE handle, _In_ bool read, _In_ bool write);
+    typedef void (CHAKRA_CALLBACK *JsTTDFlushAndCloseStreamCallback)(_In_ JsTTDStreamHandle handle, _In_ bool read, _In_ bool write);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
@@ -792,8 +801,8 @@ typedef UINT32 DWORD;
             _In_ JsRuntimeAttributes attributes,
             _In_z_ char* infoUri,
             _In_ size_t infoUriCount,
-            _In_ UINT32 snapInterval,
-            _In_ UINT32 snapHistoryLength,
+            _In_ size_t snapInterval,
+            _In_ size_t snapHistoryLength,
             _In_opt_ JsThreadServiceCallback threadService,
             _Out_ JsRuntimeHandle *runtime);
 
@@ -833,57 +842,6 @@ typedef UINT32 DWORD;
         JsTTDCreateContext(
             _In_ JsRuntimeHandle runtime,
             _Out_ JsContextRef *newContext);
-
-    /// <summary>
-    ///     TTD API -- may change in future versions:
-    ///     Executes a script with additional Time-Travel causality tracking via the <c>hostCallbackId</c>.
-    /// </summary>
-    /// <remarks>
-    ///     <para>See <c>JsRunScript</c> for more information.</para>
-    /// </remarks>
-    /// <param name="hostCallbackId">
-    ///     A unique id that specifies which callback execution caused this code to be registered for execution (e.g., the timeoutId from setTimeout).
-    ///     If there is no applicable causual event then -1.
-    ///</param>
-    /// <param name="script">The script to run.</param>
-    /// <param name="sourceContext">A cookie identifying the script that can be used by debuggable script contexts.</param>
-    /// <param name="sourceUrl">The location the script came from.</param>
-    /// <param name="result">The result of the script, if any. This parameter can be null.</param>
-    /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
-    CHAKRA_API
-        JsTTDRunScript(
-            _In_ INT64 hostCallbackId,
-            _In_z_ const char *script,
-            _In_ JsSourceContext sourceContext,
-            _In_z_ const char *sourceUrl,
-            _Out_ JsValueRef *result);
-
-    /// <summary>
-    ///     TTD API -- may change in future versions:
-    ///     Invokes a function with additional Time-Travel causality tracking via the <c>hostCallbackId</c>.
-    /// </summary>
-    /// <remarks>
-    ///     <para>
-    ///         Requires thisArg as first argument of arguments.
-    ///         Requires an active script context.
-    ///     </para>
-    /// </remarks>
-    /// <param name="hostCallbackId">
-    ///     A unique id that specifies which callback execution caused this code to be registered for execution (e.g., the timeoutId from setTimeout).
-    ///     If there is no applicable causual event then -1.
-    ///</param>
-    /// <param name="function">The function to invoke.</param>
-    /// <param name="arguments">The arguments to the call.</param>
-    /// <param name="argumentCount">The number of arguments being passed in to the function.</param>
-    /// <param name="result">The value returned from the function invocation, if any.</param>
-    /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
-    CHAKRA_API
-        JsTTDCallFunction(
-            _In_ INT64 hostCallbackId,
-            _In_ JsValueRef function,
-            _In_reads_(argumentCount) JsValueRef *arguments,
-            _In_ unsigned short argumentCount,
-            _Out_opt_ JsValueRef *result);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
@@ -960,24 +918,6 @@ typedef UINT32 DWORD;
 
     /// <summary>
     ///     TTD API -- may change in future versions:
-    ///     Notify the Js runtime that the host as created/canceled a callback with the given function and id.
-    /// </summary>
-    /// <param name="isCreated">True if the action is to create the callback with the callbackId.</param>
-    /// <param name="isCancel">True if the action is to cancel the callback with the callbackId.</param>
-    /// <param name="isRepeating">True if the action is to create a repeating callback (e.g., setInterval).</param>
-    /// <param name="function">The function associated with the callbackId.</param>
-    /// <param name="callbackId">The callbackId that is being created/canceled.</param>
-    /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
-    CHAKRA_API
-        JsTTDNotifyHostCallbackCreatedOrCanceled(
-            _In_ bool isCreated,
-            _In_ bool isCancel,
-            _In_ bool isRepeating,
-            _In_ JsValueRef function,
-            _In_ INT64 callbackId);
-
-    /// <summary>
-    ///     TTD API -- may change in future versions:
     ///     Notify the Js runtime we are at a safe yield point in the event loop (i.e. no locals on the stack and we can proccess as desired).
     /// </summary>
     /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
@@ -996,10 +936,10 @@ typedef UINT32 DWORD;
     CHAKRA_API
         JsTTDRawBufferCopySyncIndirect(
             _In_ JsValueRef dst,
-            _In_ UINT32 dstIndex,
+            _In_ size_t dstIndex,
             _In_ JsValueRef src,
-            _In_ UINT32 srcIndex,
-            _In_ UINT32 count);
+            _In_ size_t srcIndex,
+            _In_ size_t count);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
@@ -1011,8 +951,8 @@ typedef UINT32 DWORD;
     CHAKRA_API
         JsTTDRawBufferModifySyncIndirect(
             _In_ JsValueRef buffer,
-            _In_ UINT32 index,
-            _In_ UINT32 count);
+            _In_ size_t index,
+            _In_ size_t count);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
@@ -1050,10 +990,10 @@ typedef UINT32 DWORD;
     CHAKRA_API JsTTDGetSnapTimeTopLevelEventMove(
         _In_ JsRuntimeHandle runtimeHandle,
         _In_ JsTTDMoveMode moveMode,
-        _Inout_ INT64* targetEventTime,
+        _Inout_ int64_t* targetEventTime,
         _Out_ bool* createFreshCxts,
-        _Out_ INT64* targetStartSnapTime,
-        _Out_opt_ INT64* targetEndSnapTime);
+        _Out_ int64_t* targetStartSnapTime,
+        _Out_opt_ int64_t* targetEndSnapTime);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
@@ -1078,8 +1018,8 @@ typedef UINT32 DWORD;
     /// <param name="moveMode">Additional flags for controling how the move is done.</param>
     /// <returns>The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.</returns>
     CHAKRA_API JsTTDPreExecuteSnapShotInterval(
-        _In_ INT64 startSnapTime,
-        _In_ INT64 endSnapTime,
+        _In_ int64_t startSnapTime,
+        _In_ int64_t endSnapTime,
         _In_ JsTTDMoveMode moveMode);
 
     /// <summary>
@@ -1094,8 +1034,8 @@ typedef UINT32 DWORD;
     CHAKRA_API
         JsTTDMoveToTopLevelEvent(
             _In_ JsTTDMoveMode moveMode,
-            _In_ INT64 snapshotTime,
-            _In_ INT64 eventTime);
+            _In_ int64_t snapshotTime,
+            _In_ int64_t eventTime);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
@@ -1111,6 +1051,6 @@ typedef UINT32 DWORD;
     CHAKRA_API
         JsTTDReplayExecution(
             _Inout_ JsTTDMoveMode* moveMode,
-            _Inout_ INT64* rootEventTime);
+            _Inout_ int64_t* rootEventTime);
 
 #endif // _CHAKRADEBUG_H_

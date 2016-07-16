@@ -24,8 +24,6 @@ JsDiagStopDebugging
 JsTTDCreateRecordRuntime
 JsTTDCreateDebugRuntime
 JsTTDCreateContext
-JsTTDRunScript
-JsTTDCallFunction
 JsTTDSetIOCallbacks
 JsTTDStartTimeTravelRecording
 JsTTDStopTimeTravelRecording
@@ -33,7 +31,6 @@ JsTTDEmitTimeTravelRecording
 JsTTDStartTimeTravelDebugging
 JsTTDPauseTimeTravelBeforeRuntimeOperation
 JsTTDReStartTimeTravelAfterRuntimeOperation
-JsTTDNotifyHostCallbackCreatedOrCanceled
 JsTTDNotifyYield
 JsTTDRawBufferCopySyncIndirect
 JsTTDRawBufferModifySyncIndirect

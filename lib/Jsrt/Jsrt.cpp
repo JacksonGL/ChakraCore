@@ -305,86 +305,6 @@ JsErrorCode CreateContextCore(_In_ JsRuntimeHandle runtimeHandle, _In_ bool crea
     });
 }
 
-//A call function method that we can funnel to for regular and causal aware invokes
-JsErrorCode CallFunctionCore(_In_ INT64 hostCallbackId, _In_ JsValueRef function, _In_reads_(cargs) JsValueRef *args, _In_ ushort cargs, _Out_opt_ JsValueRef *result)
-{
-    if (result != nullptr)
-    {
-        *result = nullptr;
-    }
-
-    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
-        VALIDATE_INCOMING_FUNCTION(function, scriptContext);
-
-        if (cargs == 0 || args == nullptr) {
-            return JsErrorInvalidArgument;
-        }
-
-        for(int index = 0; index < cargs; index++)
-        {
-            VALIDATE_INCOMING_REFERENCE(args[index], scriptContext);
-        }
-
-        Js::JavascriptFunction *jsFunction = Js::JavascriptFunction::FromVar(function);
-        Js::CallInfo callInfo(cargs);
-        Js::Arguments jsArgs(callInfo, reinterpret_cast<Js::Var *>(args));
-
-#if ENABLE_TTD
-        double ttdStartTime = -1.0;
-
-        if (PERFORM_JSRT_TTD_RECORD_ACTION_CHECK(scriptContext))
-        {
-            TTD::NSLogEvents::EventLogEntry* callEvent = scriptContext->GetThreadContext()->TTDLog->RecordJsRTCallFunction(scriptContext, scriptContext->TTDRootNestingCount, hostCallbackId, jsFunction, cargs, jsArgs.Values);
-            TTD::TTDRecordJsRTFunctionCallActionPopper actionPopper(scriptContext, callEvent);
-
-            if (scriptContext->TTDRootNestingCount == 0)
-            {
-                TTD::EventLog* elog = scriptContext->GetThreadContext()->TTDLog;
-                elog->ResetCallStackForTopLevelCall(elog->GetLastEventTime(), hostCallbackId);
-
-                ttdStartTime = elog->GetCurrentWallTime();
-            }
-
-            Js::Var varResult = jsFunction->CallRootFunction(jsArgs, scriptContext, true);
-            if (result != nullptr)
-            {
-                *result = varResult;
-                Assert(*result == nullptr || !Js::CrossSite::NeedMarshalVar(*result, scriptContext));
-            }
-
-            actionPopper.NormalReturn(result != nullptr ? *result : nullptr);
-        }
-        else
-        {
-            Js::Var varResult = jsFunction->CallRootFunction(jsArgs, scriptContext, true);
-            if (result != nullptr)
-            {
-                *result = varResult;
-                Assert(*result == nullptr || !Js::CrossSite::NeedMarshalVar(*result, scriptContext));
-            }
-        }
-
-        //Update the time elapsed since a snapshot if needed
-        if (ttdStartTime >= 0.0)
-        {
-            TTD::EventLog* elog = scriptContext->GetThreadContext()->TTDLog;
-
-            double ttdEndTime = elog->GetCurrentWallTime();
-            elog->IncrementElapsedSnapshotTime(ttdEndTime - ttdStartTime);
-        }
-#else
-        Js::Var varResult = jsFunction->CallRootFunction(jsArgs, scriptContext, true);
-        if (result != nullptr)
-        {
-            *result = varResult;
-            Assert(*result == nullptr || !Js::CrossSite::NeedMarshalVar(*result, scriptContext));
-        }
-#endif
-
-        return JsNoError;
-    });
-}
-
 /////////////////////
 
 CHAKRA_API JsCreateRuntime(_In_ JsRuntimeAttributes attributes, _In_opt_ JsThreadServiceCallback threadService, _Out_ JsRuntimeHandle *runtimeHandle)
@@ -2208,7 +2128,81 @@ CHAKRA_API JsSetExternalData(_In_ JsValueRef object, _In_opt_ void *data)
 
 CHAKRA_API JsCallFunction(_In_ JsValueRef function, _In_reads_(cargs) JsValueRef *args, _In_ ushort cargs, _Out_opt_ JsValueRef *result)
 {
-    return CallFunctionCore(-1, function, args, cargs, result);
+    if(result != nullptr)
+    {
+        *result = nullptr;
+    }
+
+    return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
+        VALIDATE_INCOMING_FUNCTION(function, scriptContext);
+
+        if(cargs == 0 || args == nullptr) {
+            return JsErrorInvalidArgument;
+        }
+
+        for(int index = 0; index < cargs; index++)
+        {
+            VALIDATE_INCOMING_REFERENCE(args[index], scriptContext);
+        }
+
+        Js::JavascriptFunction *jsFunction = Js::JavascriptFunction::FromVar(function);
+        Js::CallInfo callInfo(cargs);
+        Js::Arguments jsArgs(callInfo, reinterpret_cast<Js::Var *>(args));
+
+#if ENABLE_TTD
+        double ttdStartTime = -1.0;
+
+        if(PERFORM_JSRT_TTD_RECORD_ACTION_CHECK(scriptContext))
+        {
+            TTD::NSLogEvents::EventLogEntry* callEvent = scriptContext->GetThreadContext()->TTDLog->RecordJsRTCallFunction(scriptContext, scriptContext->TTDRootNestingCount, jsFunction, cargs, jsArgs.Values);
+            TTD::TTDRecordJsRTFunctionCallActionPopper actionPopper(scriptContext, callEvent);
+
+            if(scriptContext->TTDRootNestingCount == 0)
+            {
+                TTD::EventLog* elog = scriptContext->GetThreadContext()->TTDLog;
+                elog->ResetCallStackForTopLevelCall(elog->GetLastEventTime());
+
+                ttdStartTime = elog->GetCurrentWallTime();
+            }
+
+            Js::Var varResult = jsFunction->CallRootFunction(jsArgs, scriptContext, true);
+            if(result != nullptr)
+            {
+                *result = varResult;
+                Assert(*result == nullptr || !Js::CrossSite::NeedMarshalVar(*result, scriptContext));
+            }
+
+            actionPopper.NormalReturn(result != nullptr ? *result : nullptr);
+        }
+        else
+        {
+            Js::Var varResult = jsFunction->CallRootFunction(jsArgs, scriptContext, true);
+            if(result != nullptr)
+            {
+                *result = varResult;
+                Assert(*result == nullptr || !Js::CrossSite::NeedMarshalVar(*result, scriptContext));
+            }
+        }
+
+        //Update the time elapsed since a snapshot if needed
+        if(ttdStartTime >= 0.0)
+        {
+            TTD::EventLog* elog = scriptContext->GetThreadContext()->TTDLog;
+
+            double ttdEndTime = elog->GetCurrentWallTime();
+            elog->IncrementElapsedSnapshotTime(ttdEndTime - ttdStartTime);
+        }
+#else
+        Js::Var varResult = jsFunction->CallRootFunction(jsArgs, scriptContext, true);
+        if(result != nullptr)
+        {
+            *result = varResult;
+            Assert(*result == nullptr || !Js::CrossSite::NeedMarshalVar(*result, scriptContext));
+        }
+#endif
+
+        return JsNoError;
+    });
 }
 
 CHAKRA_API JsConstructObject(_In_ JsValueRef function, _In_reads_(cargs) JsValueRef *args, _In_ ushort cargs, _Out_ JsValueRef *result)
@@ -2859,7 +2853,7 @@ CHAKRA_API JsSetPromiseContinuationCallback(_In_ JsPromiseContinuationCallback p
     /*allowInObjectBeforeCollectCallback*/true);
 }
 
-JsErrorCode RunScriptCore(INT64 hostCallbackId, const byte *script, size_t cb, LoadScriptFlag loadScriptFlag, JsSourceContext sourceContext, const wchar_t *sourceUrl, bool parseOnly, JsParseScriptAttributes parseAttributes, bool isSourceModule, JsValueRef *result)
+JsErrorCode RunScriptCore(const byte *script, size_t cb, LoadScriptFlag loadScriptFlag, JsSourceContext sourceContext, const wchar_t *sourceUrl, bool parseOnly, JsParseScriptAttributes parseAttributes, bool isSourceModule, JsValueRef *result)
 {
     Js::JavascriptFunction *scriptFunction;
     CompileScriptException se;
@@ -2986,13 +2980,13 @@ JsErrorCode RunScriptCore(INT64 hostCallbackId, const byte *script, size_t cb, L
 
             if (PERFORM_JSRT_TTD_RECORD_ACTION_CHECK(scriptContext))
             {
-                TTD::NSLogEvents::EventLogEntry* callEvent = scriptContext->GetThreadContext()->TTDLog->RecordJsRTCallFunction(scriptContext, scriptContext->TTDRootNestingCount, hostCallbackId, scriptFunction, args.Info.Count, args.Values);
+                TTD::NSLogEvents::EventLogEntry* callEvent = scriptContext->GetThreadContext()->TTDLog->RecordJsRTCallFunction(scriptContext, scriptContext->TTDRootNestingCount, scriptFunction, args.Info.Count, args.Values);
                 TTD::TTDRecordJsRTFunctionCallActionPopper actionPopper(scriptContext, callEvent);
 
                 if (scriptContext->TTDRootNestingCount == 0)
                 {
                     TTD::EventLog* elog = scriptContext->GetThreadContext()->TTDLog;
-                    elog->ResetCallStackForTopLevelCall(elog->GetLastEventTime(), hostCallbackId);
+                    elog->ResetCallStackForTopLevelCall(elog->GetLastEventTime());
 
                     ttdStartTime = elog->GetCurrentWallTime();
                 }
@@ -3035,7 +3029,7 @@ JsErrorCode RunScriptCore(INT64 hostCallbackId, const byte *script, size_t cb, L
     });
 }
 
-JsErrorCode RunScriptCore(INT64 hostScriptId, const char *script, JsSourceContext sourceContext, const char *sourceUrl, bool parseOnly, JsParseScriptAttributes parseAttributes, bool isSourceModule, JsValueRef *result)
+JsErrorCode RunScriptCore(const char *script, JsSourceContext sourceContext, const char *sourceUrl, bool parseOnly, JsParseScriptAttributes parseAttributes, bool isSourceModule, JsValueRef *result)
 {
     utf8::NarrowToWide url((LPCSTR)sourceUrl);
     if (!url)
@@ -3043,18 +3037,18 @@ JsErrorCode RunScriptCore(INT64 hostScriptId, const char *script, JsSourceContex
         return JsErrorOutOfMemory;
     }
 
-    return RunScriptCore(hostScriptId, reinterpret_cast<const byte*>(script), strlen(script), LoadScriptFlag_Utf8Source, sourceContext, url, parseOnly, parseAttributes, isSourceModule, result);
+    return RunScriptCore(reinterpret_cast<const byte*>(script), strlen(script), LoadScriptFlag_Utf8Source, sourceContext, url, parseOnly, parseAttributes, isSourceModule, result);
 }
 
-JsErrorCode RunScriptCore(INT64 hostScriptId, const wchar_t *script, JsSourceContext sourceContext, const wchar_t *sourceUrl, bool parseOnly, JsParseScriptAttributes parseAttributes, bool isSourceModule, JsValueRef *result)
+JsErrorCode RunScriptCore(const wchar_t *script, JsSourceContext sourceContext, const wchar_t *sourceUrl, bool parseOnly, JsParseScriptAttributes parseAttributes, bool isSourceModule, JsValueRef *result)
 {
-    return RunScriptCore(hostScriptId, reinterpret_cast<const byte*>(script), wcslen(script) * sizeof(wchar_t), LoadScriptFlag_None, sourceContext, sourceUrl, parseOnly, parseAttributes, isSourceModule, result);
+    return RunScriptCore(reinterpret_cast<const byte*>(script), wcslen(script) * sizeof(wchar_t), LoadScriptFlag_None, sourceContext, sourceUrl, parseOnly, parseAttributes, isSourceModule, result);
 }
 
 #ifdef _WIN32
 CHAKRA_API JsParseScript(_In_z_ const wchar_t * script, _In_ JsSourceContext sourceContext, _In_z_ const wchar_t *sourceUrl, _Out_ JsValueRef * result)
 {
-    return RunScriptCore(-1, script, sourceContext, sourceUrl, true, JsParseScriptAttributeNone, false /*isModule*/, result);
+    return RunScriptCore(script, sourceContext, sourceUrl, true, JsParseScriptAttributeNone, false /*isModule*/, result);
 }
 
 CHAKRA_API JsParseScriptWithAttributes(
@@ -3064,17 +3058,17 @@ CHAKRA_API JsParseScriptWithAttributes(
     _In_ JsParseScriptAttributes parseAttributes,
     _Out_ JsValueRef *result)
 {
-    return RunScriptCore(-1, script, sourceContext, sourceUrl, true, parseAttributes, false /*isModule*/, result);
+    return RunScriptCore(script, sourceContext, sourceUrl, true, parseAttributes, false /*isModule*/, result);
 }
 
 CHAKRA_API JsRunScript(_In_z_ const wchar_t * script, _In_ JsSourceContext sourceContext, _In_z_ const wchar_t *sourceUrl, _Out_ JsValueRef * result)
 {
-    return RunScriptCore(-1, script, sourceContext, sourceUrl, false, JsParseScriptAttributeNone, false /*isModule*/, result);
+    return RunScriptCore(script, sourceContext, sourceUrl, false, JsParseScriptAttributeNone, false /*isModule*/, result);
 }
 
 CHAKRA_API JsExperimentalApiRunModule(_In_z_ const wchar_t * script, _In_ JsSourceContext sourceContext, _In_z_ const wchar_t *sourceUrl, _Out_ JsValueRef * result)
 {
-    return RunScriptCore(-1, script, sourceContext, sourceUrl, false, JsParseScriptAttributeNone, true, result);
+    return RunScriptCore(script, sourceContext, sourceUrl, false, JsParseScriptAttributeNone, true, result);
 }
 #endif
 
@@ -3339,7 +3333,7 @@ CHAKRA_API JsParseScriptUtf8(
     _In_z_ const char *sourceUrl,
     _Out_ JsValueRef *result)
 {
-    return RunScriptCore(-1, script, sourceContext, sourceUrl, /*parseOnly*/true,
+    return RunScriptCore(script, sourceContext, sourceUrl, /*parseOnly*/true,
             JsParseScriptAttributeNone, /*isSourceModule*/false, result);
 }
 
@@ -3350,7 +3344,7 @@ CHAKRA_API JsParseScriptWithAttributesUtf8(
     _In_ JsParseScriptAttributes parseAttributes,
     _Out_ JsValueRef *result)
 {
-    return RunScriptCore(-1, script, sourceContext, sourceUrl, true, parseAttributes, false, result);
+    return RunScriptCore(script, sourceContext, sourceUrl, true, parseAttributes, false, result);
 }
 
 CHAKRA_API JsRunScriptUtf8(
@@ -3359,7 +3353,7 @@ CHAKRA_API JsRunScriptUtf8(
     _In_z_ const char *sourceUrl,
     _Out_ JsValueRef *result)
 {
-    return RunScriptCore(-1, script, sourceContext, sourceUrl, false, JsParseScriptAttributeNone, false, result);
+    return RunScriptCore(script, sourceContext, sourceUrl, false, JsParseScriptAttributeNone, false, result);
 }
 
 CHAKRA_API JsSerializeScriptUtf8(
@@ -3396,7 +3390,7 @@ CHAKRA_API JsExperimentalApiRunModuleUtf8(
     _In_z_ const char *sourceUrl,
     _Out_ JsValueRef *result)
 {
-    return RunScriptCore(-1, script, sourceContext, sourceUrl, false, JsParseScriptAttributeNone, true, result);
+    return RunScriptCore(script, sourceContext, sourceUrl, false, JsParseScriptAttributeNone, true, result);
 }
 
 CHAKRA_API JsStringFree(_In_ char* stringValue)
@@ -3415,13 +3409,18 @@ CHAKRA_API JsStringFree(_In_ char* stringValue)
 /////////////////////
 
 CHAKRA_API JsTTDCreateRecordRuntime(_In_ JsRuntimeAttributes attributes, _In_z_ char* infoUri, _In_ size_t infoUriCount,
-    _In_ UINT32 snapInterval, _In_ UINT32 snapHistoryLength,
+    _In_ size_t snapInterval, _In_ size_t snapHistoryLength,
     _In_opt_ JsThreadServiceCallback threadService, _Out_ JsRuntimeHandle *runtime)
 {
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
 #else
-    return CreateRuntimeCore(attributes, infoUri, infoUriCount, nullptr, 0, snapInterval, snapHistoryLength, threadService, runtime);
+    if(snapInterval > UINT32_MAX || snapHistoryLength > UINT32_MAX)
+    {
+        return JsErrorInvalidArgument;
+    }
+
+    return CreateRuntimeCore(attributes, infoUri, infoUriCount, nullptr, 0, (uint32)snapInterval, (uint32)snapHistoryLength, threadService, runtime);
 #endif
 }
 
@@ -3441,26 +3440,6 @@ CHAKRA_API JsTTDCreateContext(_In_ JsRuntimeHandle runtime, _Out_ JsContextRef *
     return JsErrorCategoryUsage;
 #else
     return CreateContextCore(runtime, true, newContext);
-#endif
-}
-
-CHAKRA_API JsTTDRunScript(_In_ INT64 hostCallbackId, _In_z_ const char *script, _In_ JsSourceContext sourceContext,
-    _In_z_ const char *sourceUrl, _Out_ JsValueRef *result)
-{
-#if !ENABLE_TTD
-    return JsErrorCategoryUsage;
-#else
-    return RunScriptCore(hostCallbackId, script, sourceContext, sourceUrl, false, JsParseScriptAttributeNone, false /*isModule*/, result);
-#endif
-}
-
-CHAKRA_API JsTTDCallFunction(_In_ INT64 hostCallbackId, _In_ JsValueRef function,
-    _In_reads_(argumentCount) JsValueRef *arguments, _In_ unsigned short argumentCount, _Out_opt_ JsValueRef *result)
-{
-#if !ENABLE_TTD
-    return JsErrorCategoryUsage;
-#else
-    return CallFunctionCore(hostCallbackId, function, arguments, argumentCount, result);
 #endif
 }
 
@@ -3701,28 +3680,6 @@ CHAKRA_API JsTTDReStartTimeTravelAfterRuntimeOperation()
 #endif
 }
 
-CHAKRA_API JsTTDNotifyHostCallbackCreatedOrCanceled(_In_ bool isCreated, _In_ bool isCancel, _In_ bool isRepeating,
-    _In_ JsValueRef function, _In_ INT64 callbackId)
-{
-#if !ENABLE_TTD
-    return JsErrorCategoryUsage;
-#else
-    JsrtContext *currentContext = JsrtContext::GetCurrent();
-    Js::ScriptContext* scriptContext = currentContext->GetScriptContext();
-
-    VALIDATE_INCOMING_FUNCTION(function, scriptContext);
-
-    if (PERFORM_JSRT_TTD_RECORD_ACTION_CHECK(scriptContext))
-    {
-        Js::JavascriptFunction* jsFunction = (function != nullptr) ? Js::JavascriptFunction::FromVar(function) : nullptr;
-
-        scriptContext->GetThreadContext()->TTDLog->RecordJsRTCallbackOperation(scriptContext, isCreated, isCancel, isRepeating, jsFunction, callbackId);
-    }
-
-    return JsNoError;
-#endif
-}
-
 CHAKRA_API JsTTDNotifyYield()
 {
 #if !ENABLE_TTD
@@ -3740,7 +3697,7 @@ CHAKRA_API JsTTDNotifyYield()
 #endif
 }
 
-CHAKRA_API JsTTDRawBufferCopySyncIndirect(_In_ JsValueRef dst, _In_ UINT32 dstIndex, _In_ JsValueRef src, _In_ UINT32 srcIndex, _In_ UINT32 count)
+CHAKRA_API JsTTDRawBufferCopySyncIndirect(_In_ JsValueRef dst, _In_ size_t dstIndex, _In_ JsValueRef src, _In_ size_t srcIndex, _In_ size_t count)
 {
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
@@ -3748,7 +3705,12 @@ CHAKRA_API JsTTDRawBufferCopySyncIndirect(_In_ JsValueRef dst, _In_ UINT32 dstIn
     return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
         if (PERFORM_JSRT_TTD_RECORD_ACTION_CHECK(scriptContext))
         {
-            scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferCopySync(scriptContext, dst, dstIndex, src, srcIndex, count);
+            if(dstIndex > UINT32_MAX || srcIndex > UINT32_MAX || count > UINT32_MAX)
+            {
+                return JsErrorInvalidArgument;
+            }
+
+            scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferCopySync(scriptContext, dst, (uint32)dstIndex, src, (uint32)srcIndex, (uint32)count);
         }
 
         return JsNoError;
@@ -3756,7 +3718,7 @@ CHAKRA_API JsTTDRawBufferCopySyncIndirect(_In_ JsValueRef dst, _In_ UINT32 dstIn
 #endif
 }
 
-CHAKRA_API JsTTDRawBufferModifySyncIndirect(_In_ JsValueRef buffer, _In_ UINT32 index, _In_ UINT32 count)
+CHAKRA_API JsTTDRawBufferModifySyncIndirect(_In_ JsValueRef buffer, _In_ size_t index, _In_ size_t count)
 {
 #if !ENABLE_TTD
     return JsErrorCategoryUsage;
@@ -3764,7 +3726,12 @@ CHAKRA_API JsTTDRawBufferModifySyncIndirect(_In_ JsValueRef buffer, _In_ UINT32 
     return ContextAPIWrapper<true>([&](Js::ScriptContext *scriptContext) -> JsErrorCode {
         if (PERFORM_JSRT_TTD_RECORD_ACTION_CHECK(scriptContext))
         {
-            scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferModifySync(scriptContext, buffer, index, count);
+            if(index > UINT32_MAX || count > UINT32_MAX)
+            {
+                return JsErrorInvalidArgument;
+            }
+
+            scriptContext->GetThreadContext()->TTDLog->RecordJsRTRawBufferModifySync(scriptContext, buffer, (uint32)index, (uint32)count);
         }
 
         return JsNoError;
@@ -3845,8 +3812,8 @@ static void CALLBACK TTDDummyPromiseContinuationCallback(JsValueRef task, void *
 #endif
 
 CHAKRA_API JsTTDGetSnapTimeTopLevelEventMove(_In_ JsRuntimeHandle runtimeHandle, 
-    _In_ JsTTDMoveMode moveMode, _Inout_ INT64* targetEventTime, 
-    _Out_ bool* createFreshCxts, _Out_ INT64* targetStartSnapTime, _Out_opt_ INT64* targetEndSnapTime)
+    _In_ JsTTDMoveMode moveMode, _Inout_ int64_t* targetEventTime, 
+    _Out_ bool* createFreshCxts, _Out_ int64_t* targetStartSnapTime, _Out_opt_ int64_t* targetEndSnapTime)
 {
 #if !ENABLE_TTD_DEBUGGING
     return JsErrorCategoryUsage;
@@ -3969,7 +3936,7 @@ CHAKRA_API JsTTDPrepContextsForTopLevelEventMove(_In_ JsRuntimeHandle runtimeHan
 #endif
 }
 
-CHAKRA_API JsTTDPreExecuteSnapShotInterval(_In_ INT64 startSnapTime, _In_ INT64 endSnapTime, _In_ JsTTDMoveMode moveMode)
+CHAKRA_API JsTTDPreExecuteSnapShotInterval(_In_ int64_t startSnapTime, _In_ int64_t endSnapTime, _In_ JsTTDMoveMode moveMode)
 {
 #if !ENABLE_TTD_DEBUGGING
     return JsErrorCategoryUsage;
@@ -4036,7 +4003,7 @@ CHAKRA_API JsTTDPreExecuteSnapShotInterval(_In_ INT64 startSnapTime, _In_ INT64 
 #endif
 }
 
-CHAKRA_API JsTTDMoveToTopLevelEvent(_In_ JsTTDMoveMode moveMode, _In_ INT64 snapshotTime, _In_ INT64 eventTime)
+CHAKRA_API JsTTDMoveToTopLevelEvent(_In_ JsTTDMoveMode moveMode, _In_ int64_t snapshotTime, _In_ int64_t eventTime)
 {
 #if !ENABLE_TTD_DEBUGGING
     return JsErrorCategoryUsage;
@@ -4087,7 +4054,7 @@ CHAKRA_API JsTTDMoveToTopLevelEvent(_In_ JsTTDMoveMode moveMode, _In_ INT64 snap
 #endif
 }
 
-CHAKRA_API JsTTDReplayExecution(_Inout_ JsTTDMoveMode* moveMode, _Inout_ INT64* rootEventTime)
+CHAKRA_API JsTTDReplayExecution(_Inout_ JsTTDMoveMode* moveMode, _Inout_ int64_t* rootEventTime)
 {
 #if !ENABLE_TTD_DEBUGGING
     return JsErrorCategoryUsage;

@@ -1761,13 +1761,13 @@ namespace TTD
     }
 #endif
 
-    void EventLog::ResetCallStackForTopLevelCall(int64 topLevelCallbackEventTime, int64 hostCallbackId)
+    void EventLog::ResetCallStackForTopLevelCall(int64 topLevelCallbackEventTime)
     {
         AssertMsg(this->m_callStack.Count() == 0, "We should be at the top-level entry!!!");
 
         this->m_runningFunctionTimeCtr = 0;
         this->m_topLevelCallbackEventTime = topLevelCallbackEventTime;
-        this->m_hostCallbackId = hostCallbackId;
+        this->m_hostCallbackId = -1;
 
 #if ENABLE_TTD_DEBUGGING
         this->m_lastReturnLocation.Clear();
@@ -2052,7 +2052,7 @@ namespace TTD
             }
 
             //clear this out -- it shouldn't matter for most JsRT actions (alloc etc.) and should be reset by any call actions
-            this->ResetCallStackForTopLevelCall(-1, -1);
+            this->ResetCallStackForTopLevelCall(-1);
         }
 
 #if ENABLE_BASIC_TRACE || ENABLE_FULL_BC_TRACE
@@ -2473,7 +2473,7 @@ namespace TTD
         this->m_eventSlabAllocator.CopyStringIntoWLength(this->m_logInfoRootDir.Contents, this->m_logInfoRootDir.Length, cpAction->AdditionalInfo->SrcDir);
     }
 
-    NSLogEvents::EventLogEntry* EventLog::RecordJsRTCallFunction(Js::ScriptContext* ctx, int32 rootDepth, int64 hostCallbackId, Js::JavascriptFunction* func, uint32 argCount, Js::Var* args)
+    NSLogEvents::EventLogEntry* EventLog::RecordJsRTCallFunction(Js::ScriptContext* ctx, int32 rootDepth, Js::JavascriptFunction* func, uint32 argCount, Js::Var* args)
     {
         NSLogEvents::EventLogEntry* evt = nullptr;
         this->RecordGetInitializedEvent_HelperWithMainEvent<NSLogEvents::JsRTCallFunctionAction, NSLogEvents::EventKind::CallExistingFunctionActionTag>(&evt);
@@ -2481,7 +2481,7 @@ namespace TTD
         int64 evtTime = this->GetLastEventTime();
         int64 topLevelCallTime = (rootDepth == 0) ? evtTime : this->m_topLevelCallbackEventTime;
         double wallTime = this->m_timer.Now();
-        NSLogEvents::JsRTCallFunctionAction_ProcessArgs(evt, rootDepth, evtTime, func, argCount, args, wallTime, hostCallbackId, topLevelCallTime, this->m_eventSlabAllocator);
+        NSLogEvents::JsRTCallFunctionAction_ProcessArgs(evt, rootDepth, evtTime, func, argCount, args, wallTime, topLevelCallTime, this->m_eventSlabAllocator);
 
 #if ENABLE_TTD_INTERNAL_DIAGNOSTICS
         NSLogEvents::JsRTCallFunctionAction_ProcessDiagInfoPre(evt, func, this->m_eventSlabAllocator);

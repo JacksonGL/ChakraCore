@@ -47,7 +47,7 @@ namespace TTD
         AssertMsg(bufflen != 0, "Shouldn't be writing empty blocks");
         AssertMsg(this->m_hfile != INVALID_HANDLE_VALUE, "Trying to write to closed file.");
 
-        DWORD bwp = 0;
+        size_t bwp = 0;
         this->m_pfWrite(this->m_hfile, (byte*)this->m_buffer, (DWORD)this->m_cursor, &bwp);
     }
 
@@ -578,7 +578,7 @@ namespace TTD
     {
         AssertMsg(this->m_hfile != INVALID_HANDLE_VALUE, "Trying to read a invalid file.");
 
-        DWORD bwp = 0;
+        size_t bwp = 0;
         this->m_pfRead(this->m_hfile, buff, TTD_SERIALIZATION_BUFFER_SIZE, &bwp);
 
         *readSize = (size_t)bwp;

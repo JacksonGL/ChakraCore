@@ -24,7 +24,7 @@ public :
     static HANDLE CALLBACK TTGetLogStreamCallback(const char16* uri, bool read, bool write);
     static HANDLE CALLBACK TTGetSnapshotStreamCallback(const char16* uri, const char16* snapId, bool read, bool write);
     static HANDLE CALLBACK TTGetSrcCodeStreamCallback(const char16* uri, const char16* bodyCtrId, const char16* srcFileName, bool read, bool write);
-    static bool CALLBACK TTReadBytesFromStreamCallback(HANDLE handle, BYTE* buff, DWORD size, DWORD* readCount);
-    static bool CALLBACK TTWriteBytesToStreamCallback(HANDLE handle, BYTE* buff, DWORD size, DWORD* writtenCount);
-    static void CALLBACK TTFlushAndCloseStreamCallback(HANDLE handle, bool read, bool write);
+    static bool CALLBACK TTReadBytesFromStreamCallback(JsTTDStreamHandle handle, byte* buff, size_t size, size_t* readCount);
+    static bool CALLBACK TTWriteBytesToStreamCallback(JsTTDStreamHandle handle, byte* buff, size_t size, size_t* writtenCount);
+    static void CALLBACK TTFlushAndCloseStreamCallback(JsTTDStreamHandle handle, bool read, bool write);
 };

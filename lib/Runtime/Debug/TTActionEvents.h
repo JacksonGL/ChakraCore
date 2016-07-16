@@ -491,9 +491,6 @@ namespace TTD
             //The actual event time associated with this call (is >= the TopLevelCallbackEventTime)
             int64 CallEventTime;
 
-            //The id given by the host for this callback (or -1 if this call is not associated with any callback)
-            int64 HostCallbackId;
-
             //The event time that corresponds to the top-level event time around this call
             int64 TopLevelCallbackEventTime;
 
@@ -545,7 +542,7 @@ namespace TTD
         void JsRTCallFunctionAction_ProcessDiagInfoPost(EventLogEntry* evt, double wallTime, int64 lastNestedEvent);
 #endif
 
-        void JsRTCallFunctionAction_ProcessArgs(EventLogEntry* evt, int32 rootDepth, int64 callEventTime, Js::JavascriptFunction* function, uint32 argc, Js::Var* argv, double wallTime, int64 hostCallbackId, int64 topLevelCallbackEventTime, UnlinkableSlabAllocator& alloc);
+        void JsRTCallFunctionAction_ProcessArgs(EventLogEntry* evt, int32 rootDepth, int64 callEventTime, Js::JavascriptFunction* function, uint32 argc, Js::Var* argv, double wallTime, int64 topLevelCallbackEventTime, UnlinkableSlabAllocator& alloc);
         void JsRTCallFunctionAction_ProcessReturn(EventLogEntry* evt, Js::Var res, bool hasScriptException, bool hasTerminiatingException);
 
         void JsRTCallFunctionAction_Execute(const EventLogEntry* evt, Js::ScriptContext* ctx);

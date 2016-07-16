@@ -557,16 +557,22 @@ HANDLE CALLBACK Helpers::TTGetSrcCodeStreamCallback(const char16* uri, const cha
 #endif
 }
 
-bool CALLBACK Helpers::TTReadBytesFromStreamCallback(HANDLE handle, BYTE* buff, DWORD size, DWORD* readCount)
+bool CALLBACK Helpers::TTReadBytesFromStreamCallback(JsTTDStreamHandle handle, byte* buff, size_t size, size_t* readCount)
 {
 #ifndef _WIN32
     AssertMsg(false, "Not XPLAT yet.");
     return FALSE;
 #else
     AssertMsg(handle != INVALID_HANDLE_VALUE, "Bad file handle.");
+    if(size > MAXDWORD)
+    {
+        *readCount = 0;
+        return false;
+    }
 
-    *readCount = 0;
-    BOOL ok = ReadFile(handle, buff, size, readCount, NULL);
+    DWORD dwReadCount = 0;
+    BOOL ok = ReadFile(handle, buff, (DWORD)size, &dwReadCount, NULL);
+    *readCount = dwReadCount;
 
     Helpers::TTReportLastIOErrorAsNeeded(ok, "Failed Read!!!");
 
@@ -574,15 +580,22 @@ bool CALLBACK Helpers::TTReadBytesFromStreamCallback(HANDLE handle, BYTE* buff, 
 #endif
 }
 
-bool CALLBACK Helpers::TTWriteBytesToStreamCallback(HANDLE handle, BYTE* buff, DWORD size, DWORD* writtenCount)
+bool CALLBACK Helpers::TTWriteBytesToStreamCallback(JsTTDStreamHandle handle, byte* buff, size_t size, size_t* writtenCount)
 {
 #ifndef _WIN32
     AssertMsg(false, "Not XPLAT yet.");
     return FALSE;
 #else
     AssertMsg(handle != INVALID_HANDLE_VALUE, "Bad file handle.");
+    if(size > MAXDWORD)
+    {
+        *writtenCount = 0;
+        return false;
+    }
 
-    BOOL ok = WriteFile(handle, buff, size, writtenCount, NULL);
+    DWORD dwWrittenCount = 0;
+    BOOL ok = WriteFile(handle, buff, (DWORD)size, &dwWrittenCount, NULL);
+    *writtenCount = dwWrittenCount;
 
     Helpers::TTReportLastIOErrorAsNeeded(ok && (*writtenCount == size), "Write Failed!!!");
 
@@ -590,7 +603,7 @@ bool CALLBACK Helpers::TTWriteBytesToStreamCallback(HANDLE handle, BYTE* buff, D
 #endif
 }
 
-void CALLBACK Helpers::TTFlushAndCloseStreamCallback(HANDLE handle, bool read, bool write)
+void CALLBACK Helpers::TTFlushAndCloseStreamCallback(JsTTDStreamHandle handle, bool read, bool write)
 {
 #ifndef _WIN32
     AssertMsg(false, "Not XPLAT yet.");

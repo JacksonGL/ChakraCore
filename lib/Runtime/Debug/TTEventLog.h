@@ -584,7 +584,7 @@ namespace TTD
 #endif
 
         //Ensure the call stack is clear and counters are zeroed appropriately
-        void ResetCallStackForTopLevelCall(int64 topLevelCallbackEventTime, int64 hostCallbackId);
+        void ResetCallStackForTopLevelCall(int64 topLevelCallbackEventTime);
 
         //Check if we want to take a snapshot
         bool IsTimeForSnapshot() const;
@@ -700,7 +700,7 @@ namespace TTD
         void RecordJsRTCodeParse(Js::ScriptContext* ctx, uint64 bodyCtrId, LoadScriptFlag loadFlag, Js::JavascriptFunction* func, bool isUft8, const byte* script, uint32 scriptByteLength, const char16* sourceUri, Js::JavascriptFunction* resultFunction);
 
         //Record callback of an existing function
-        NSLogEvents::EventLogEntry* RecordJsRTCallFunction(Js::ScriptContext* ctx, int32 rootDepth, int64 hostCallbackId, Js::JavascriptFunction* func, uint32 argCount, Js::Var* args);
+        NSLogEvents::EventLogEntry* RecordJsRTCallFunction(Js::ScriptContext* ctx, int32 rootDepth, Js::JavascriptFunction* func, uint32 argCount, Js::Var* args);
 
         //Replay a sequence of JsRT actions until (and including) the one at eventTimeLimit
         void ReplayActionLoopRange(int64 eventTimeLimit);

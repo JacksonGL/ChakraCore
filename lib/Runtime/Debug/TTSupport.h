@@ -220,17 +220,21 @@ namespace TTD
     };
 
     //Function pointer definitions and a struct for writing data out of memory (presumably to stable storage)
-    typedef bool(CALLBACK *TTDDbgCallback)(INT64* optEventTimeRequest, char16** optStaticRequestMessage);
+#if _WIN32
+    typedef HANDLE JsTTDStreamHandle;
+#else
+    typedef FILE JsTTDStreamHandle;
+#endif
 
     typedef void(CALLBACK *TTDInitializeTTDUriCallback)(const char16* uri, char16** fullTTDUri);
     typedef void(CALLBACK *TTDInitializeForWriteLogStreamCallback)(const char16* uri);
-    typedef HANDLE(CALLBACK *TTDGetLogStreamCallback)(const char16* uri, bool read, bool write);
-    typedef HANDLE(CALLBACK *TTDGetSnapshotStreamCallback)(const char16* uri, const char16* snapId, bool read, bool write);
-    typedef HANDLE(CALLBACK *TTDGetSrcCodeStreamCallback)(const char16* uri, const char16* srcid, const char16* srcFileName, bool read, bool write);
+    typedef JsTTDStreamHandle(CALLBACK *TTDGetLogStreamCallback)(const char16* uri, bool read, bool write);
+    typedef JsTTDStreamHandle(CALLBACK *TTDGetSnapshotStreamCallback)(const char16* uri, const char16* snapId, bool read, bool write);
+    typedef JsTTDStreamHandle(CALLBACK *TTDGetSrcCodeStreamCallback)(const char16* uri, const char16* srcid, const char16* srcFileName, bool read, bool write);
 
-    typedef bool(CALLBACK *TTDReadBytesFromStreamCallback)(HANDLE handle, BYTE* buff, DWORD size, DWORD* readCount);
-    typedef bool(CALLBACK *TTDWriteBytesToStreamCallback)(HANDLE handle, BYTE* buff, DWORD size, DWORD* writtenCount);
-    typedef void(CALLBACK *TTDFlushAndCloseStreamCallback)(HANDLE handle, bool read, bool write);
+    typedef bool(CALLBACK *TTDReadBytesFromStreamCallback)(JsTTDStreamHandle handle, byte* buff, size_t size, size_t* readCount);
+    typedef bool(CALLBACK *TTDWriteBytesToStreamCallback)(JsTTDStreamHandle handle, byte* buff, size_t size, size_t* writtenCount);
+    typedef void(CALLBACK *TTDFlushAndCloseStreamCallback)(JsTTDStreamHandle handle, bool read, bool write);
 
     struct IOStreamFunctions
     {

@@ -98,24 +98,24 @@ namespace TTD
 
         void WriteCodeToFile(IOStreamFunctions& streamFunctions, const char16* srcDir, const char16* docId, const char16* sourceUri, bool isUtf8Source, byte* sourceBuffer, uint32 length)
         {
-            HANDLE srcStream = streamFunctions.pfGetSrcCodeStream(srcDir, docId, sourceUri, false, true);
+            JsTTDStreamHandle srcStream = streamFunctions.pfGetSrcCodeStream(srcDir, docId, sourceUri, false, true);
 
             if(isUtf8Source)
             {
                 byte byteOrderArray[3] = { 0xEF, 0xBB, 0xBF };
-                DWORD byteOrderCount = 0;
+                size_t byteOrderCount = 0;
                 bool okBOC = streamFunctions.pfWriteBytesToStream(srcStream, byteOrderArray, 3, &byteOrderCount);
                 AssertMsg(okBOC && byteOrderCount == 3, "Write Failed!!!");
             }
             else
             {
                 byte byteOrderArray[2] = { 0xFF, 0xFE };
-                DWORD byteOrderCount = 0;
+                size_t byteOrderCount = 0;
                 bool okBOC = streamFunctions.pfWriteBytesToStream(srcStream, byteOrderArray, 2, &byteOrderCount);
                 AssertMsg(okBOC && byteOrderCount == 2, "Write Failed!!!");
             }
 
-            DWORD writtenCount = 0;
+            size_t writtenCount = 0;
             bool ok = streamFunctions.pfWriteBytesToStream(srcStream, sourceBuffer, length, &writtenCount);
             AssertMsg(ok && writtenCount == length, "Write Failed!!!");
 
@@ -124,24 +124,24 @@ namespace TTD
 
         void ReadCodeFromFile(IOStreamFunctions& streamFunctions, const char16* srcDir, const char16* docId, const char16* sourceUri, bool isUtf8Source, byte* sourceBuffer, uint32 length)
         {
-            HANDLE srcStream = streamFunctions.pfGetSrcCodeStream(srcDir, docId, sourceUri, true, false);
+            JsTTDStreamHandle srcStream = streamFunctions.pfGetSrcCodeStream(srcDir, docId, sourceUri, true, false);
 
             if(isUtf8Source)
             {
                 byte byteOrderArray[3] = { 0x0, 0x0, 0x0 };
-                DWORD byteOrderCount = 0;
+                size_t byteOrderCount = 0;
                 bool okBOC = streamFunctions.pfReadBytesFromStream(srcStream, byteOrderArray, 3, &byteOrderCount);
                 AssertMsg(okBOC && byteOrderCount == 3 && byteOrderArray[0] == 0xEF && byteOrderArray[1] == 0xBB && byteOrderArray[2] == 0xBF, "Read Failed!!!");
             }
             else
             {
                 byte byteOrderArray[2] = { 0x0, 0x0 };
-                DWORD byteOrderCount = 0;
+                size_t byteOrderCount = 0;
                 bool okBOC = streamFunctions.pfReadBytesFromStream(srcStream, byteOrderArray, 2, &byteOrderCount);
                 AssertMsg(okBOC && byteOrderCount == 2 && byteOrderArray[0] == 0xFF && byteOrderArray[1] == 0xFE, "Read Failed!!!");
             }
 
-            DWORD readCount = 0;
+            size_t readCount = 0;
             bool ok = streamFunctions.pfReadBytesFromStream(srcStream, sourceBuffer, length, &readCount);
             AssertMsg(ok && readCount == length, "Read Failed!!!");
 

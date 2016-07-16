@@ -26,6 +26,7 @@
 // Platform specific code
 #if defined(_WIN32) && defined(_MSC_VER)
 #include <oaidl.h>
+#include <stdint.h> //for uint64_t
 
 // Header macros
 #define CHAKRA_CALLBACK CALLBACK

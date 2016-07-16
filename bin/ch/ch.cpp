@@ -239,11 +239,6 @@ static void CALLBACK PromiseContinuationCallback(JsValueRef task, void *callback
     MessageQueue * messageQueue = (MessageQueue *)callbackState;
 
     WScriptJsrt::CallbackMessage *msg = new WScriptJsrt::CallbackMessage(0, task);
-
-#if ENABLE_TTD
-    ChakraRTInterface::JsTTDNotifyHostCallbackCreatedOrCanceled(true /*isCreate*/, false /*isCancel*/, false /*isRepeating*/, task, msg->GetId());
-#endif
-
     messageQueue->InsertSorted(msg);
 }
 
@@ -358,7 +353,7 @@ HRESULT RunScript(const char* fileName, LPCSTR fileContents, BYTE *bcBuffer, cha
                 ChakraRTInterface::JsTTDStartTimeTravelRecording();
             }
 
-            runScript = ChakraRTInterface::JsTTDRunScript(-1, fileContents, WScriptJsrt::GetNextSourceContext(), fullPath, nullptr /*result*/);
+            runScript = ChakraRTInterface::JsRunScriptUtf8(fileContents, WScriptJsrt::GetNextSourceContext(), fullPath, nullptr /*result*/);
 #else
             runScript = ChakraRTInterface::JsRunScriptUtf8(fileContents, WScriptJsrt::GetNextSourceContext(), fullPath, nullptr /*result*/);
 #endif
