@@ -271,6 +271,9 @@ namespace Js
 #if ENABLE_TTD
         Var result = nullptr;
 
+        //
+        //TODO: This may be a hot path so we may want to reduce the number of checks here and perhaps create a special TTD external function so only record code is needed here (see also in StdCallExternalFunctionThunk below).
+        //
         if(scriptContext->ShouldPerformDebugAction())
         {
             TTD::TTDReplayExternalFunctionCallActionPopper logPopper(externalFunction);
@@ -295,26 +298,14 @@ namespace Js
         }
         else
         {
-            if(externalFunction->nativeMethod == nullptr)
-            {
-                //
-                //TODO: we really shouldn't be seeing this and should suppress the eval of getters/setters instead to avoid any statefullness.
-                //
+            AssertMsg(externalFunction->nativeMethod != nullptr, "We should suppress the eval of getters/setters instead to avoid any statefullness.");
 
-                //The only way this should happen is if the debugger is requesting a value to display that is an external accessor.
-                //We don't support this so it should be ok to return a Js string message.
-                LPCWSTR msg = _u("Non-Inspectable External Value");
-                result = Js::JavascriptString::NewCopyBuffer(msg, (charcount_t)wcslen(msg), scriptContext);
-            }
-            else
+            BEGIN_LEAVE_SCRIPT_WITH_EXCEPTION(scriptContext)
             {
-                BEGIN_LEAVE_SCRIPT_WITH_EXCEPTION(scriptContext)
-                {
-                    // Don't do stack probe since BEGIN_LEAVE_SCRIPT_WITH_EXCEPTION does that for us already
-                    result = externalFunction->nativeMethod(function, callInfo, args.Values);
-                }
-                END_LEAVE_SCRIPT_WITH_EXCEPTION(scriptContext);
+                // Don't do stack probe since BEGIN_LEAVE_SCRIPT_WITH_EXCEPTION does that for us already
+                result = externalFunction->nativeMethod(function, callInfo, args.Values);
             }
+            END_LEAVE_SCRIPT_WITH_EXCEPTION(scriptContext);
         }
 #else
         Var result = nullptr;

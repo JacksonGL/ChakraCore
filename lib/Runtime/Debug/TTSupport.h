@@ -226,11 +226,8 @@ namespace TTD
     typedef FILE JsTTDStreamHandle;
 #endif
 
-    typedef void(CALLBACK *TTDInitializeTTDUriCallback)(const char16* uri, char16** fullTTDUri);
-    typedef void(CALLBACK *TTDInitializeForWriteLogStreamCallback)(const char16* uri);
-    typedef JsTTDStreamHandle(CALLBACK *TTDGetLogStreamCallback)(const char16* uri, bool read, bool write);
-    typedef JsTTDStreamHandle(CALLBACK *TTDGetSnapshotStreamCallback)(const char16* uri, const char16* snapId, bool read, bool write);
-    typedef JsTTDStreamHandle(CALLBACK *TTDGetSrcCodeStreamCallback)(const char16* uri, const char16* srcid, const char16* srcFileName, bool read, bool write);
+    typedef void(CALLBACK *TTDInitializeForWriteLogStreamCallback)(size_t uriByteLength, const byte* uriBytes);
+    typedef JsTTDStreamHandle(CALLBACK *TTDOpenResourceStreamCallback)(size_t uriByteLength, const byte* uriBytes, const char* asciiNameString, bool read, bool write);
 
     typedef bool(CALLBACK *TTDReadBytesFromStreamCallback)(JsTTDStreamHandle handle, byte* buff, size_t size, size_t* readCount);
     typedef bool(CALLBACK *TTDWriteBytesToStreamCallback)(JsTTDStreamHandle handle, byte* buff, size_t size, size_t* writtenCount);
@@ -238,9 +235,7 @@ namespace TTD
 
     struct IOStreamFunctions
     {
-        TTDGetLogStreamCallback pfGetLogStream;
-        TTDGetSnapshotStreamCallback pfGetSnapshotStream;
-        TTDGetSrcCodeStreamCallback pfGetSrcCodeStream;
+        TTDOpenResourceStreamCallback pfGetResourceStream;
 
         TTDReadBytesFromStreamCallback pfReadBytesFromStream;
         TTDWriteBytesToStreamCallback pfWriteBytesToStream;
@@ -328,6 +323,26 @@ namespace TTD
     //This is for diagnostic purposes only
     bool TTStringEQForDiagnosticsUtf8(const TTStringUtf8& utf8str1, const TTStringUtf8& utf8str2);
 #endif
+
+    //A simple class for representing a uri from the host as an opaque sequence of bytes (which the host is responsible for interpreting as needed)
+    class TTUriString
+    {
+    public:
+        //Length of the uri data in bytes (including any null terminator)
+        size_t UriByteLength; 
+
+        //Actual URI data which the host is responsible for interpreting (ascii, utf8, wchar, etc.)
+        byte* UriBytes;
+
+        TTUriString();
+        ~TTUriString();
+
+        //ensure no copy or assign
+        TTUriString(const TTUriString&) = delete;
+        TTUriString& operator=(const TTUriString&) = delete;
+
+        void SetUriValue(size_t byteLength, const byte* data);
+    };
 
     //A class that implements a simple slab memory allocator
     template <int32 canUnlink>

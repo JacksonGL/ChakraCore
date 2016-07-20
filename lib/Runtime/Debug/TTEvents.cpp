@@ -404,7 +404,7 @@ namespace TTD
 #endif
         }
 
-        void EventLogEntry_Emit(const EventLogEntry* evt, EventLogEntryVTableEntry* evtFPVTable, FileWriter* writer, const char16* uri, ThreadContext* threadContext, NSTokens::Separator separator)
+        void EventLogEntry_Emit(const EventLogEntry* evt, EventLogEntryVTableEntry* evtFPVTable, FileWriter* writer, ThreadContext* threadContext, NSTokens::Separator separator)
         {
             writer->WriteRecordStart(separator);
 
@@ -417,7 +417,7 @@ namespace TTD
             auto emitFP = evtFPVTable[(uint32)evt->EventKind].EmitFP;
             if(emitFP != nullptr)
             {
-                emitFP(evt, uri, writer, threadContext);
+                emitFP(evt, writer, threadContext);
             }
 
             writer->WriteRecordEnd();
@@ -449,7 +449,7 @@ namespace TTD
             SnapshotEventLogEntry_UnloadSnapshot(evt);
         }
 
-        void SnapshotEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void SnapshotEventLogEntry_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const SnapshotEventLogEntry* snapEvt = GetInlineEventDataAs<SnapshotEventLogEntry, EventKind::SnapshotTag>(evt);
 
@@ -457,7 +457,7 @@ namespace TTD
 
             if(snapEvt->Snap != nullptr)
             {
-                snapEvt->Snap->EmitSnapshot(uri, (DWORD)snapEvt->RestoreTimestamp, threadContext);
+                snapEvt->Snap->EmitSnapshot(snapEvt->RestoreTimestamp, threadContext);
             }
         }
 
@@ -469,13 +469,13 @@ namespace TTD
             snapEvt->Snap = nullptr;
         }
 
-        void SnapshotEventLogEntry_EnsureSnapshotDeserialized(EventLogEntry* evt, const char16* uri, ThreadContext* threadContext)
+        void SnapshotEventLogEntry_EnsureSnapshotDeserialized(EventLogEntry* evt, ThreadContext* threadContext)
         {
             SnapshotEventLogEntry* snapEvt = GetInlineEventDataAs<SnapshotEventLogEntry, EventKind::SnapshotTag>(evt);
 
             if(snapEvt->Snap == nullptr)
             {
-                snapEvt->Snap = SnapShot::Parse(uri, (DWORD)snapEvt->RestoreTimestamp, threadContext);
+                snapEvt->Snap = SnapShot::Parse(snapEvt->RestoreTimestamp, threadContext);
             }
         }
 
@@ -490,7 +490,7 @@ namespace TTD
             }
         }
 
-        void EventLoopYieldPointEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void EventLoopYieldPointEntry_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const EventLoopYieldPointEntry* ypEvt = GetInlineEventDataAs<EventLoopYieldPointEntry, EventKind::EventLoopYieldPointTag>(evt);
 
@@ -508,7 +508,7 @@ namespace TTD
 
         //////////////////
 
-        void CodeLoadEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void CodeLoadEventLogEntry_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const CodeLoadEventLogEntry* codeEvt = GetInlineEventDataAs<CodeLoadEventLogEntry, EventKind::TopLevelCodeTag>(evt);
 
@@ -529,7 +529,7 @@ namespace TTD
             alloc.UnlinkString(telemetryEvt->InfoString);
         }
 
-        void TelemetryEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void TelemetryEventLogEntry_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const TelemetryEventLogEntry* telemetryEvt = GetInlineEventDataAs<TelemetryEventLogEntry, EventKind::TelemetryLogTag>(evt);
 
@@ -547,7 +547,7 @@ namespace TTD
 
         //////////////////
 
-        void RandomSeedEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void RandomSeedEventLogEntry_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const RandomSeedEventLogEntry* rndEvt = GetInlineEventDataAs<RandomSeedEventLogEntry, EventKind::RandomSeedTag>(evt);
 
@@ -564,7 +564,7 @@ namespace TTD
             rndEvt->Seed1 = reader->ReadUInt64(NSTokens::Key::u64Val, true);
         }
 
-        void DoubleEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void DoubleEventLogEntry_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const DoubleEventLogEntry* dblEvt = GetInlineEventDataAs<DoubleEventLogEntry, EventKind::DoubleTag>(evt);
 
@@ -585,7 +585,7 @@ namespace TTD
             alloc.UnlinkString(strEvt->StringValue);
         }
 
-        void StringValueEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void StringValueEventLogEntry_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const StringValueEventLogEntry* strEvt = GetInlineEventDataAs<StringValueEventLogEntry, EventKind::StringTag>(evt);
 
@@ -611,7 +611,7 @@ namespace TTD
             }
         }
 
-        void PropertyEnumStepEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void PropertyEnumStepEventLogEntry_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const PropertyEnumStepEventLogEntry* propertyEvt = GetInlineEventDataAs<PropertyEnumStepEventLogEntry, EventKind::PropertyEnumTag>(evt);
 
@@ -657,7 +657,7 @@ namespace TTD
 
         //////////////////
 
-        void SymbolCreationEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void SymbolCreationEventLogEntry_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const SymbolCreationEventLogEntry* symEvt = GetInlineEventDataAs<SymbolCreationEventLogEntry, EventKind::SymbolCreationTag>(evt);
 
@@ -680,7 +680,7 @@ namespace TTD
             return cbrEvt->LastNestedEventTime;
         }
 
-        void ExternalCbRegisterCallEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void ExternalCbRegisterCallEventLogEntry_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const ExternalCbRegisterCallEventLogEntry* cbrEvt = GetInlineEventDataAs<ExternalCbRegisterCallEventLogEntry, EventKind::ExternalCbRegisterCall>(evt);
 
@@ -753,7 +753,7 @@ namespace TTD
             alloc.UnlinkAllocation(callEvt->AdditionalInfo);
         }
 
-        void ExternalCallEventLogEntry_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void ExternalCallEventLogEntry_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const ExternalCallEventLogEntry* callEvt = GetInlineEventDataAs<ExternalCallEventLogEntry, EventKind::ExternalCallTag>(evt);
 

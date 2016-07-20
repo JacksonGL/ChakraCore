@@ -193,11 +193,10 @@ ThreadContext::ThreadContext(AllocationPolicyManager * allocationPolicyManager, 
 #if ENABLE_TTD
     , IsTTRecordRequested(false)
     , IsTTDebugRequested(false)
-    , TTDUri(nullptr)
+    , TTDUri()
     , TTSnapInterval(2000)
     , TTSnapHistoryLength(UINT32_MAX)
     , TTDLog(nullptr)
-    , TTDInitializeTTDUriFunction(nullptr)
     , TTDWriteInitializeFunction(nullptr)
     , TTDStreamFunctions({ 0 })
 #endif
@@ -343,12 +342,6 @@ ThreadContext::~ThreadContext()
     }
 
 #if ENABLE_TTD
-    if(this->TTDUri != nullptr)
-    {
-        TT_HEAP_FREE_ARRAY(wchar, this->TTDUri, wcslen(this->TTDUri) + 1);
-        this->TTDUri = nullptr;
-    }
-
     if(this->TTDLog != nullptr)
     {
         TT_HEAP_DELETE(TTD::EventLog, this->TTDLog);
@@ -1831,12 +1824,12 @@ ThreadContext::IsInAsyncHostOperation() const
 #endif
 
 #if ENABLE_TTD
-void ThreadContext::InitTimeTravel(LPCWSTR ttdDirectory, bool doRecord, bool doReplay, uint32 snapInterval, uint32 snapHistoryLength)
+void ThreadContext::InitTimeTravel(bool doRecord, bool doReplay)
 {
     AssertMsg(this->TTDLog == nullptr, "We should only init once.");
     AssertMsg((doRecord & !doReplay) || (!doRecord && doReplay), "Should be exactly 1 of record or replay.");
 
-    this->TTDLog = HeapNewNoThrow(TTD::EventLog, this, ttdDirectory, snapInterval, snapHistoryLength);
+    this->TTDLog = HeapNewNoThrow(TTD::EventLog, this);
 
     if(doRecord)
     {

@@ -199,13 +199,6 @@ namespace TTD
         //Allocator we use for all the property records
         SlabAllocator m_miscSlabAllocator;
 
-        //The root directory that the log info gets stored into
-        TTString m_logInfoRootDir;
-
-        //The interval between snapshots we want to use and the history length we want to keep (at least 2)
-        uint32 m_snapInterval;
-        uint32 m_snapHistoryLength;
-
         //The global event time variable and a high res timer we can use to extract some diagnostic timing info as we go
         int64 m_eventTimeCtr;
 
@@ -387,7 +380,7 @@ namespace TTD
         void InitializeEventListVTable();
 
     public:
-        EventLog(ThreadContext* threadContext, const char16* logDir, uint32 snapInterval, uint32 snapHistoryLength);
+        EventLog(ThreadContext* threadContext);
         ~EventLog();
 
 #if ENABLE_BASIC_TRACE || ENABLE_FULL_BC_TRACE
@@ -708,7 +701,7 @@ namespace TTD
         ////////////////////////////////
         //Emit code and support
 
-        const char16* EmitLogIfNeeded();
+        void EmitLogIfNeeded();
         void ParseLogInto();
     };
 }

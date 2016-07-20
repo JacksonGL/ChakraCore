@@ -572,7 +572,7 @@ namespace TTD
             //this->m_threadContext->TTDLog->PushMode(TTD::TTDMode::ExcludedExecution);
 
             NSLogEvents::EventLogEntry* evt = this->m_currentReplayEventIterator.Current();
-            NSLogEvents::SnapshotEventLogEntry_EnsureSnapshotDeserialized(evt, this->m_logInfoRootDir.Contents, this->m_threadContext);
+            NSLogEvents::SnapshotEventLogEntry_EnsureSnapshotDeserialized(evt, this->m_threadContext);
 
             SnapShot* snap = this->DoSnapshotExtract_Helper();
 
@@ -677,8 +677,8 @@ namespace TTD
         this->m_eventListVTable[(uint32)NSLogEvents::EventKind::CallExistingFunctionActionTag] = { NSLogEvents::JsRTCallFunctionAction_Execute, NSLogEvents::JsRTCallFunctionAction_UnloadEventMemory, NSLogEvents::JsRTCallFunctionAction_Emit, NSLogEvents::JsRTCallFunctionAction_Parse };
     }
 
-    EventLog::EventLog(ThreadContext* threadContext, const char16* logDir, uint32 snapInterval, uint32 snapHistoryLength)
-        : m_threadContext(threadContext), m_eventSlabAllocator(TTD_SLAB_BLOCK_ALLOCATION_SIZE_MID), m_miscSlabAllocator(TTD_SLAB_BLOCK_ALLOCATION_SIZE_SMALL), m_snapInterval(snapInterval), m_snapHistoryLength(snapHistoryLength),
+    EventLog::EventLog(ThreadContext* threadContext)
+        : m_threadContext(threadContext), m_eventSlabAllocator(TTD_SLAB_BLOCK_ALLOCATION_SIZE_MID), m_miscSlabAllocator(TTD_SLAB_BLOCK_ALLOCATION_SIZE_SMALL),
         m_eventTimeCtr(0), m_timer(), m_runningFunctionTimeCtr(0), m_topLevelCallbackEventTime(-1), m_hostCallbackId(-1),
         m_eventList(&this->m_eventSlabAllocator), m_eventListVTable(nullptr), m_currentReplayEventIterator(),
         m_callStack(&HeapAllocator::Instance, 32), 
@@ -694,14 +694,7 @@ namespace TTD
         m_lastInflateSnapshotTime(-1), m_lastInflateMap(nullptr), m_propertyRecordPinSet(nullptr), m_propertyRecordList(&this->m_miscSlabAllocator), 
         m_loadedTopLevelScripts(&this->m_miscSlabAllocator), m_newFunctionTopLevelScripts(&this->m_miscSlabAllocator), m_evalTopLevelScripts(&this->m_miscSlabAllocator)
     {
-        JsSupport::CopyStringToHeapAllocatorWLength(logDir, (uint32)wcslen(logDir), this->m_logInfoRootDir);
-
         this->InitializeEventListVTable();
-
-        if(this->m_snapHistoryLength < 2)
-        {
-            this->m_snapHistoryLength = 2;
-        }
 
         this->m_modeStack.Add(TTDMode::Pending);
 
@@ -714,8 +707,6 @@ namespace TTD
         this->m_eventList.UnloadEventList(this->m_eventListVTable);
 
         this->UnloadRetainedData();
-
-        JsSupport::DeleteStringFromHeapAllocator(this->m_logInfoRootDir);
     }
 
 #if ENABLE_BASIC_TRACE || ENABLE_FULL_BC_TRACE
@@ -728,7 +719,7 @@ namespace TTD
     void EventLog::InitForTTDRecord()
     {
         //Prepare the logging stream so it is ready for us to write into
-        this->m_threadContext->TTDWriteInitializeFunction(this->m_logInfoRootDir.Contents);
+        this->m_threadContext->TTDWriteInitializeFunction(this->m_threadContext->TTDUri.UriByteLength, this->m_threadContext->TTDUri.UriBytes);
 
         //pin all the current properties so they don't move/disappear on us
         for(Js::PropertyId pid = TotalNumberOfBuiltInProperties; pid < this->m_threadContext->GetMaxPropertyId(); ++pid)
@@ -1777,12 +1768,12 @@ namespace TTD
 
     bool EventLog::IsTimeForSnapshot() const
     {
-        return (this->m_elapsedExecutionTimeSinceSnapshot > this->m_snapInterval);
+        return (this->m_elapsedExecutionTimeSinceSnapshot > this->m_threadContext->TTSnapInterval);
     }
 
     void EventLog::PruneLogLength()
     {
-        uint32 maxEvents = this->m_snapHistoryLength;
+        uint32 maxEvents = this->m_threadContext->TTSnapHistoryLength;
         auto tailIter = this->m_eventList.GetIteratorAtLast();
         while(maxEvents != 0 && tailIter.IsValid())
         {
@@ -1932,7 +1923,7 @@ namespace TTD
                 NSLogEvents::SnapshotEventLogEntry* snapEvent = NSLogEvents::GetInlineEventDataAs<NSLogEvents::SnapshotEventLogEntry, NSLogEvents::EventKind::SnapshotTag>(evt);
                 if(snapEvent->RestoreTimestamp == etime)
                 {
-                    NSLogEvents::SnapshotEventLogEntry_EnsureSnapshotDeserialized(evt, this->m_logInfoRootDir.Contents, this->m_threadContext);
+                    NSLogEvents::SnapshotEventLogEntry_EnsureSnapshotDeserialized(evt, this->m_threadContext);
 
                     restoreEventTime = snapEvent->RestoreTimestamp;
                     snap = snapEvent->Snap;
@@ -2469,8 +2460,6 @@ namespace TTD
         cpAction->AdditionalInfo->DocumentID = fb->GetUtf8SourceInfo()->GetSourceInfoId();
 
         cpAction->AdditionalInfo->LoadFlag = loadFlag;
-
-        this->m_eventSlabAllocator.CopyStringIntoWLength(this->m_logInfoRootDir.Contents, this->m_logInfoRootDir.Length, cpAction->AdditionalInfo->SrcDir);
     }
 
     NSLogEvents::EventLogEntry* EventLog::RecordJsRTCallFunction(Js::ScriptContext* ctx, int32 rootDepth, Js::JavascriptFunction* func, uint32 argCount, Js::Var* args)
@@ -2518,19 +2507,19 @@ namespace TTD
         } while(eventTimeLimit >= this->m_eventTimeCtr);
     }
 
-    const char16* EventLog::EmitLogIfNeeded()
+    void EventLog::EmitLogIfNeeded()
     {
         //See if we have been running record mode (even if we are suspended for runtime execution) -- if we aren't then we don't want to emit anything
         if((this->m_currentMode & TTDMode::RecordEnabled) != TTDMode::RecordEnabled)
         {
-            return _u("Record Disabled -- No Log Written!");
+            return;
         }
 
 #if ENABLE_BASIC_TRACE || ENABLE_FULL_BC_TRACE
         this->m_diagnosticLogger.ForceFlush();
 #endif
 
-        HANDLE logHandle = this->m_threadContext->TTDStreamFunctions.pfGetLogStream(this->m_logInfoRootDir.Contents, false, true);
+        JsTTDStreamHandle logHandle = this->m_threadContext->TTDStreamFunctions.pfGetResourceStream(this->m_threadContext->TTDUri.UriByteLength, this->m_threadContext->TTDUri.UriBytes, "ttdlog.log", false, true);
         TTD_LOG_WRITER writer(logHandle, TTD_COMPRESSED_OUTPUT, this->m_threadContext->TTDStreamFunctions.pfWriteBytesToStream, this->m_threadContext->TTDStreamFunctions.pfFlushAndCloseStream);
 
         writer.WriteRecordStart();
@@ -2580,7 +2569,7 @@ namespace TTD
             const NSLogEvents::EventLogEntry* evt = iter.Current();
 
             NSTokens::Separator sep = firstElem ? NSTokens::Separator::NoSeparator : NSTokens::Separator::BigSpaceSeparator;
-            NSLogEvents::EventLogEntry_Emit(evt, this->m_eventListVTable, &writer, this->m_logInfoRootDir.Contents, this->m_threadContext, sep);
+            NSLogEvents::EventLogEntry_Emit(evt, this->m_eventListVTable, &writer, this->m_threadContext, sep);
 
             firstElem = false;
 #if ENABLE_TTD_INTERNAL_DIAGNOSTICS
@@ -2679,7 +2668,7 @@ namespace TTD
         for(auto iter = this->m_loadedTopLevelScripts.GetIterator(); iter.IsValid(); iter.MoveNext())
         {
             NSTokens::Separator sep = (!firstLoadScript) ? NSTokens::Separator::CommaAndBigSpaceSeparator : NSTokens::Separator::BigSpaceSeparator;
-            NSSnapValues::EmitTopLevelLoadedFunctionBodyInfo(iter.Current(), this->m_logInfoRootDir.Contents, this->m_threadContext->TTDStreamFunctions, &writer, sep);
+            NSSnapValues::EmitTopLevelLoadedFunctionBodyInfo(iter.Current(), this->m_threadContext, &writer, sep);
 
             firstLoadScript = false;
         }
@@ -2693,7 +2682,7 @@ namespace TTD
         for(auto iter = this->m_newFunctionTopLevelScripts.GetIterator(); iter.IsValid(); iter.MoveNext())
         {
             NSTokens::Separator sep = (!firstNewScript) ? NSTokens::Separator::CommaAndBigSpaceSeparator : NSTokens::Separator::BigSpaceSeparator;
-            NSSnapValues::EmitTopLevelNewFunctionBodyInfo(iter.Current(), this->m_logInfoRootDir.Contents, this->m_threadContext->TTDStreamFunctions, &writer, sep);
+            NSSnapValues::EmitTopLevelNewFunctionBodyInfo(iter.Current(), this->m_threadContext, &writer, sep);
 
             firstNewScript = false;
         }
@@ -2707,7 +2696,7 @@ namespace TTD
         for(auto iter = this->m_evalTopLevelScripts.GetIterator(); iter.IsValid(); iter.MoveNext())
         {
             NSTokens::Separator sep = (!firstEvalScript) ? NSTokens::Separator::CommaAndBigSpaceSeparator : NSTokens::Separator::BigSpaceSeparator;
-            NSSnapValues::EmitTopLevelEvalFunctionBodyInfo(iter.Current(), this->m_logInfoRootDir.Contents, this->m_threadContext->TTDStreamFunctions, &writer, sep);
+            NSSnapValues::EmitTopLevelEvalFunctionBodyInfo(iter.Current(), this->m_threadContext, &writer, sep);
 
             firstEvalScript = false;
         }
@@ -2719,13 +2708,11 @@ namespace TTD
         writer.WriteRecordEnd(NSTokens::Separator::BigSpaceSeparator);
 
         writer.FlushAndClose();
-
-        return this->m_logInfoRootDir.Contents;
     }
 
     void EventLog::ParseLogInto()
     {
-        HANDLE logHandle = this->m_threadContext->TTDStreamFunctions.pfGetLogStream(this->m_logInfoRootDir.Contents, true, false);
+        JsTTDStreamHandle logHandle = this->m_threadContext->TTDStreamFunctions.pfGetResourceStream(this->m_threadContext->TTDUri.UriByteLength, this->m_threadContext->TTDUri.UriBytes, "ttdlog.log", true, false);
         TTD_LOG_READER reader(logHandle, TTD_COMPRESSED_OUTPUT, this->m_threadContext->TTDStreamFunctions.pfReadBytesFromStream, this->m_threadContext->TTDStreamFunctions.pfFlushAndCloseStream);
 
         reader.ReadRecordStart();
@@ -2817,7 +2804,7 @@ namespace TTD
         for(uint32 i = 0; i < loadedScriptCount; ++i)
         {
             NSSnapValues::TopLevelScriptLoadFunctionBodyResolveInfo* fbInfo = this->m_loadedTopLevelScripts.NextOpenEntry();
-            NSSnapValues::ParseTopLevelLoadedFunctionBodyInfo(fbInfo, i != 0, this->m_logInfoRootDir.Contents, this->m_threadContext->TTDStreamFunctions, &reader, this->m_miscSlabAllocator);
+            NSSnapValues::ParseTopLevelLoadedFunctionBodyInfo(fbInfo, i != 0, this->m_threadContext, &reader, this->m_miscSlabAllocator);
         }
         reader.ReadSequenceEnd();
 
@@ -2826,7 +2813,7 @@ namespace TTD
         for(uint32 i = 0; i < newScriptCount; ++i)
         {
             NSSnapValues::TopLevelNewFunctionBodyResolveInfo* fbInfo = this->m_newFunctionTopLevelScripts.NextOpenEntry();
-            NSSnapValues::ParseTopLevelNewFunctionBodyInfo(fbInfo, i != 0, this->m_logInfoRootDir.Contents, this->m_threadContext->TTDStreamFunctions, &reader, this->m_miscSlabAllocator);
+            NSSnapValues::ParseTopLevelNewFunctionBodyInfo(fbInfo, i != 0, this->m_threadContext, &reader, this->m_miscSlabAllocator);
         }
         reader.ReadSequenceEnd();
 
@@ -2835,7 +2822,7 @@ namespace TTD
         for(uint32 i = 0; i < evalScriptCount; ++i)
         {
             NSSnapValues::TopLevelEvalFunctionBodyResolveInfo* fbInfo = this->m_evalTopLevelScripts.NextOpenEntry();
-            NSSnapValues::ParseTopLevelEvalFunctionBodyInfo(fbInfo, i != 0, this->m_logInfoRootDir.Contents, this->m_threadContext->TTDStreamFunctions, &reader, this->m_miscSlabAllocator);
+            NSSnapValues::ParseTopLevelEvalFunctionBodyInfo(fbInfo, i != 0, this->m_threadContext, &reader, this->m_miscSlabAllocator);
         }
         reader.ReadSequenceEnd();
         //

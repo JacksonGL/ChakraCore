@@ -4,6 +4,21 @@
 //-------------------------------------------------------------------------------------------------------
 #include "stdafx.h"
 
+//TODO: #include <string> gets angry about this being redefined in yvals.h?
+//      As a workaround we undef it for this file where we include string
+#ifdef _STRINGIZE
+#undef _STRINGIZE
+#endif
+
+#include <string>
+
+//TODO: x-plat definitions
+#ifdef _WIN32
+#define TTDPathSeparator _u("\\")
+#else
+#define TTDPathSeparator "/"
+#endif
+
 HRESULT Helpers::LoadScriptFromFile(LPCSTR filename, LPCSTR& contents, UINT* lengthBytesOut /*= nullptr*/)
 {
     HRESULT hr = S_OK;
@@ -212,7 +227,6 @@ void Helpers::LogError(__in __nullterminated const char16 *msg, ...)
     va_end(args);
 }
 
-
 void Helpers::TTReportLastIOErrorAsNeeded(BOOL ok, char* msg)
 {
     if(!ok)
@@ -229,396 +243,220 @@ void Helpers::TTReportLastIOErrorAsNeeded(BOOL ok, char* msg)
     }
 }
 
-void Helpers::CreateDirectoryIfNeeded(const char16* path)
+void Helpers::CreateDirectoryIfNeeded(size_t uriByteLength, const byte* uriBytes)
 {
-#ifndef _WIN32
-    AssertMsg(false, "Not XPLAT yet.");
-#else
-    bool isPathDirName = (path[wcslen(path) - 1] == _u('\\'));
+#ifdef _WIN32
+    char16 opath[MAX_PATH];
+    memcpy_s(opath, MAX_PATH * sizeof(char16), uriBytes, uriByteLength);
+    char16* context = nullptr;
 
-    size_t fplength = (wcslen(path) + 2);
-    char16* fullpath = new char16[fplength];
-    fullpath[0] = _u('\0');
+    struct _stat statVal;
+    char16* token = wcstok_s(opath, TTDPathSeparator, &context);
+    std::wstring cpath(token);
 
-    wcscat_s(fullpath, fplength, path);
-    if(!isPathDirName)
+    //At least 1 part of the path must exist so iterate until we find it
+    while(_wstat(cpath.c_str(), &statVal) == -1)
     {
-        wcscat_s(fullpath, fplength, _u("\\"));
+        token = wcstok_s(nullptr, TTDPathSeparator, &context);
+        cpath.append(TTDPathSeparator);
+        cpath.append(token);
     }
 
-    char16 folder[MAX_PATH];
-    const char16* end;
-    ZeroMemory(folder, MAX_PATH * sizeof(char16));
-
-    //Advance 2 places (past root dir)
-    end = wcschr(path, _u('\\'));
-
-    while(end != NULL)
+    //Now continue until we hit the part that doesn't exist (or the end of the path)
+    while(token != nullptr && _wstat(cpath.c_str(), &statVal) != -1)
     {
-        wcsncpy_s(folder, path, end - path + 1);
-        BOOL isDir = PathIsDirectory(folder);
-
-        if(!isDir)
+        token = wcstok_s(nullptr, TTDPathSeparator, &context);
+        if(token != nullptr)
         {
-            BOOL success = CreateDirectory(folder, NULL);
-
-            //during test run we might race on directory creation so check that possibility here but report other errors
-            if(!success)
-            {
-                DWORD lastError = GetLastError();
-                if(lastError != ERROR_ALREADY_EXISTS)
-                {
-                    fprintf(stderr, "Error creating directory.\n");
-                }
-            }
+            cpath.append(TTDPathSeparator);
+            cpath.append(token);
         }
-        end = wcschr(++end, L'\\');
     }
 
-    delete[] fullpath;
+    //Now if there is path left then continue build up the directory tree as we go
+    while(token != nullptr)
+    {
+        _wmkdir(cpath.c_str());
+
+        token = wcstok_s(nullptr, TTDPathSeparator, &context);
+        if(token != nullptr)
+        {
+            cpath.append(TTDPathSeparator);
+            cpath.append(token);
+        }
+    }
+#else
+    AssertMsg(false, "Not x-plat yet!!!");
 #endif
 }
 
-void Helpers::DeleteDirectory(const char16* path)
+void Helpers::DeleteDirectory(size_t uriByteLength, const byte* uriBytes)
 {
-#ifndef _WIN32
-    AssertMsg(false, "Not XPLAT yet.");
-#else
-    HANDLE hFile;
-    WIN32_FIND_DATA FileInformation;
+#ifdef _WIN32
+    intptr_t hFile;
+    struct _wfinddata_t FileInformation;
 
-    bool isPathDirName = (path[wcslen(path) - 1] == _u('\\'));
+    std::wstring strPattern((const char16*)uriBytes, uriByteLength / sizeof(char16));
+    strPattern.append(_u("*.*"));
 
-    size_t splength = (wcslen(path) + 5);
-    char16* strPattern = new char16[splength];
-    strPattern[0] = _u('\0');
-
-    wcscat_s(strPattern, splength, path);
-    if(!isPathDirName)
-    {
-        wcscat_s(strPattern, splength, _u("\\"));
-    }
-    wcscat_s(strPattern, splength, _u("*.*"));
-
-    hFile = ::FindFirstFile(strPattern, &FileInformation);
-    if(hFile != INVALID_HANDLE_VALUE)
+    hFile = _wfindfirst(strPattern.c_str(), &FileInformation);
+    if(hFile != -1)
     {
         do
         {
-            if(FileInformation.cFileName[0] != '.')
+            if(FileInformation.name[0] != '.')
             {
-                size_t sfplength = (wcslen(path) + wcslen(FileInformation.cFileName) + 2);
-                char16* strFilePath = new char16[sfplength];
-                strFilePath[0] = _u('\0');
+                std::wstring strFilePath((const char16*)uriBytes, uriByteLength / sizeof(char16));
 
-                wcscat_s(strFilePath, sfplength, path);
-                if(!isPathDirName)
+                if(FileInformation.attrib & FILE_ATTRIBUTE_DIRECTORY)
                 {
-                    wcscat_s(strFilePath, sfplength, _u("\\"));
-                }
-                wcscat_s(strFilePath, sfplength, FileInformation.cFileName);
-
-                if(FileInformation.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-                {
-                    DeleteDirectory(strFilePath);
-                    ::RemoveDirectory(strFilePath);
+                    DeleteDirectory(strFilePath.length() * sizeof(char16), (const byte*)strFilePath.c_str());
+                    _wrmdir(strFilePath.c_str());
                 }
                 else
                 {
                     // Set file attributes
-                    ::SetFileAttributes(strFilePath, FILE_ATTRIBUTE_NORMAL);
-                    ::DeleteFile(strFilePath);
+                    _wchmod(strFilePath.c_str(), S_IREAD | _S_IWRITE);
+                    _wremove(strFilePath.c_str());
                 }
-
-                delete[] strFilePath;
             }
-        } while(::FindNextFile(hFile, &FileInformation) == TRUE);
+        } while(_wfindnext(hFile, &FileInformation) == TRUE);
 
         // Close handle
-        ::FindClose(hFile);
+        _findclose(hFile);
     }
-
-    delete[] strPattern;
+#else
+    AssertMsg(false, "Not x-plat yet!!!");
 #endif
 }
 
-void Helpers::GetFileFromURI(const char16* uri, char16** res)
+void Helpers::GetTTDDirectory(const char16* curi, size_t* uriByteLength, byte** uriBytes)
 {
-    int urilen = (int)wcslen(uri);
-    int fpos = 0;
-    for(int spos = urilen - 1; spos >= 0; --spos)
+#ifdef _WIN32
+    std::wstring turi;
+    if(curi[0] != _u('!'))
     {
-        if(uri[spos] == _u('\\') || uri[spos] == _u('/'))
-        {
-            fpos = spos + 1;
-            break;
-        }
-    }
-
-    size_t rlength = (wcslen(uri + fpos) + 1);
-    *res = new char16[rlength];
-    (*res)[0] = _u('\0');
-
-    wcscat_s(*res, rlength, uri + fpos);
-}
-
-void Helpers::GetDefaultTTDDirectory(char16** res, const char16* optExtraDir)
-{
-#ifndef _WIN32
-    *res = nullptr;
-    AssertMsg(false, "Not XPLAT yet.");
-#else
-    char16* path = new char16[MAX_PATH];
-    path[0] = _u('\0');
-
-    GetModuleFileName(NULL, path, MAX_PATH);
-
-    char16* spos = wcsstr(path, _u("\\ch.exe"));
-    AssertMsg(spos != nullptr, "Something got renamed or moved!!!");
-
-    int ccount = (int)((((byte*)spos) - ((byte*)path)) / sizeof(char16));
-
-    *res = (char16*)CoTaskMemAlloc(MAX_PATH * sizeof(char16));
-    if(*res == nullptr)
-    {
-        //This is for testing only so just assert and return here is ok
-        AssertMsg(false, "OOM");
-        return;
-    }
-
-    (*res)[0] = _u('\0');
-
-    for(int i = 0; i < ccount; ++i)
-    {
-        (*res)[i] = path[i];
-    }
-    (*res)[ccount] = _u('\0');
-
-    wcscat_s(*res, MAX_PATH, _u("\\_ttdlog\\"));
-
-    if(wcslen(optExtraDir) == 0)
-    {
-        wcscat_s(*res, MAX_PATH, _u("_defaultLog"));
+        turi.append(curi);
+        turi.append(TTDPathSeparator);
     }
     else
     {
-        wcscat_s(*res, MAX_PATH, optExtraDir);
+        char16 cexeLocation[MAX_PATH];
+        GetModuleFileName(NULL, cexeLocation, MAX_PATH);
+
+        char16 drive[_MAX_DRIVE];
+        char16 dir[_MAX_DIR];
+        char16 name[_MAX_FNAME];
+        char16 ext[_MAX_EXT];
+        _wsplitpath_s(cexeLocation, drive, dir, name, ext);
+
+        char16 rootPath[MAX_PATH];
+        _wmakepath_s(rootPath, drive, dir, nullptr, nullptr);
+
+        turi.append(rootPath);
+
+        turi.append(_u("_ttdlog"));
+        turi.append(TTDPathSeparator);
+
+        turi.append(curi + 1);
+        turi.append(TTDPathSeparator);
     }
 
-    bool isPathDirName = ((*res)[wcslen(*res) - 1] == _u('\\'));
-    if(!isPathDirName)
-    {
-        wcscat_s(*res, MAX_PATH, _u("\\"));
-    }
+    *uriBytes = (byte*)CoTaskMemAlloc(MAX_PATH * sizeof(char16));
+    memset(*uriBytes, 0, MAX_PATH * sizeof(char16));
+    char16* nuri = (char16*)(*uriBytes);
 
-    delete[] path;
-#endif
-}
-
-void CALLBACK Helpers::GetTTDDirectory(const char16* uri, char16** fullTTDUri)
-{
-#ifndef _WIN32
-    *fullTTDUri = nullptr;
-    AssertMsg(false, "Not XPLAT yet.");
+    _wfullpath(nuri, turi.c_str(), MAX_PATH);
+    *uriByteLength = wcslen(nuri) * sizeof(char16); //include null terminator in size computation
 #else
-    if(uri[0] != _u('!'))
-    {
-        bool isPathDirName = (uri[wcslen(uri) - 1] == _u('\\'));
-
-        size_t rlength = (wcslen(uri) + wcslen(_u("\\")) + 1);
-        *fullTTDUri = (wchar_t*)CoTaskMemAlloc(rlength * sizeof(char16));
-        if(*fullTTDUri == nullptr)
-        {
-            //This is for testing only so just assert and return here is ok
-            AssertMsg(false, "OOM");
-            return;
-        }
-
-        (*fullTTDUri)[0] = _u('\0');
-
-        wcscat_s(*fullTTDUri, rlength, uri);
-        if(!isPathDirName)
-        {
-            wcscat_s(*fullTTDUri, rlength, _u("\\"));
-        }
-    }
-    else
-    {
-        Helpers::GetDefaultTTDDirectory(fullTTDUri, uri + 1);
-    }
+    AssertMsg(false, "Not x-plat yet!!!");
 #endif
 }
 
-void CALLBACK Helpers::TTInitializeForWriteLogStreamCallback(const char16* uri)
+void CALLBACK Helpers::TTInitializeForWriteLogStreamCallback(size_t uriByteLength, const byte* uriBytes)
 {
     //If the directory does not exist then we want to create it
-    Helpers::CreateDirectoryIfNeeded(uri);
+    Helpers::CreateDirectoryIfNeeded(uriByteLength, uriBytes);
 
     //Clear the logging directory so it is ready for us to write into
-    Helpers::DeleteDirectory(uri);
+    Helpers::DeleteDirectory(uriByteLength, uriBytes);
 }
 
-HANDLE Helpers::TTOpenStream_Helper(const char16* uri, bool read, bool write)
+JsTTDStreamHandle Helpers::TTCreateStreamCallback(size_t uriByteLength, const byte* uriBytes, const char* asciiResourceName, bool read, bool write)
 {
-#ifndef _WIN32
-    AssertMsg(false, "Not XPLAT yet.");
-    return 0;
-#else
     AssertMsg((read | write) & (!read | !write), "Read/Write streams not supported yet -- defaulting to read only");
 
-    HANDLE res = INVALID_HANDLE_VALUE;
+    FILE* res = nullptr;
+#ifdef _WIN32
+    std::wstring path((const char16*)uriBytes, uriByteLength / sizeof(char16));
 
-    if(read)
+    size_t slen = strlen(asciiResourceName);
+    for(size_t i = 0; i < slen; ++i)
     {
-        res = CreateFile(uri, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    }
-    else
-    {
-        res = CreateFile(uri, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        char16 c = asciiResourceName[i];
+        path.push_back(c);
     }
 
-    Helpers::TTReportLastIOErrorAsNeeded(res != INVALID_HANDLE_VALUE, "Failed File Open");
-
-    return res;
-#endif
-}
-
-HANDLE CALLBACK Helpers::TTGetLogStreamCallback(const char16* uri, bool read, bool write)
-{
-#ifndef _WIN32
-    AssertMsg(false, "Not XPLAT yet.");
-    return 0;
+    _wfopen_s(&res, path.c_str(), read ? _u("r+b") : _u("w+b"));
 #else
-    AssertMsg((read | write) & !(read & write), "Should be either read or write and at least one.");
-
-    size_t rlength = (wcslen(uri) + wcslen(_u("ttdlog.log")) + 1);
-    char16* logfile = new char16[rlength];
-    logfile[0] = _u('\0');
-
-    wcscat_s(logfile, rlength, uri);
-    wcscat_s(logfile, rlength, _u("ttdlog.log"));
-
-    HANDLE res = TTOpenStream_Helper(logfile, read, write);
-
-    delete[] logfile;
-    return res;
+    AssertMsg(false, "Not x-plat yet!!!");
 #endif
-}
 
-HANDLE CALLBACK Helpers::TTGetSnapshotStreamCallback(const char16* uri, const char16* snapId, bool read, bool write)
-{
-#ifndef _WIN32
-    AssertMsg(false, "Not XPLAT yet.");
-    return 0;
-#else
-    AssertMsg((read | write) & !(read & write), "Should be either read or write and at least one.");
-
-    size_t rlength = (wcslen(uri) + wcslen(_u("\\snap_")) + wcslen(snapId) + wcslen(_u(".snp")) + 1);
-    char16* snapfile = new char16[rlength];
-    snapfile[0] = _u('\0');
-
-    wcscat_s(snapfile, rlength, uri);
-    wcscat_s(snapfile, rlength, _u("\\snap_"));
-    wcscat_s(snapfile, rlength, snapId);
-    wcscat_s(snapfile, rlength, _u(".snp"));
-
-    HANDLE res = TTOpenStream_Helper(snapfile, read, write);
-
-    delete[] snapfile;
+    Helpers::TTReportLastIOErrorAsNeeded(res != nullptr, "Failed File Open");
     return res;
-#endif
-}
-
-HANDLE CALLBACK Helpers::TTGetSrcCodeStreamCallback(const char16* uri, const char16* bodyCtrId, const char16* srcFileName, bool read, bool write)
-{
-#ifndef _WIN32
-    AssertMsg(false, "Not XPLAT yet.");
-    return 0;
-#else
-    AssertMsg((read | write) & !(read & write), "Should be either read or write and at least one.");
-
-    char16* sFile = nullptr;
-    Helpers::GetFileFromURI(srcFileName, &sFile);
-
-    size_t rlength = (wcslen(uri) + wcslen(bodyCtrId) + wcslen(_u("_")) + wcslen(sFile) + 1);
-    char16* srcPath = new char16[rlength];
-    srcPath[0] = _u('\0');
-
-    wcscat_s(srcPath, rlength, uri);
-    wcscat_s(srcPath, rlength, bodyCtrId);
-    wcscat_s(srcPath, rlength, _u("_"));
-    wcscat_s(srcPath, rlength, sFile);
-
-    HANDLE res = TTOpenStream_Helper(srcPath, read, write);
-
-    delete[] sFile;
-    delete[] srcPath;
-    return res;
-#endif
 }
 
 bool CALLBACK Helpers::TTReadBytesFromStreamCallback(JsTTDStreamHandle handle, byte* buff, size_t size, size_t* readCount)
 {
-#ifndef _WIN32
-    AssertMsg(false, "Not XPLAT yet.");
-    return FALSE;
-#else
-    AssertMsg(handle != INVALID_HANDLE_VALUE, "Bad file handle.");
+    AssertMsg(handle != nullptr, "Bad file handle.");
+
     if(size > MAXDWORD)
     {
         *readCount = 0;
         return false;
     }
 
-    DWORD dwReadCount = 0;
-    BOOL ok = ReadFile(handle, buff, (DWORD)size, &dwReadCount, NULL);
-    *readCount = dwReadCount;
+    BOOL ok = FALSE;
+
+#ifdef _WIN32
+    *readCount = fread_s(buff, size, 1, size, (FILE*)handle);
+    ok = (*readCount != 0);
+#else
+    AssertMsg(false, "Not x-plat yet!!!");
+#endif
 
     Helpers::TTReportLastIOErrorAsNeeded(ok, "Failed Read!!!");
 
     return ok ? true : false;
-#endif
 }
 
 bool CALLBACK Helpers::TTWriteBytesToStreamCallback(JsTTDStreamHandle handle, byte* buff, size_t size, size_t* writtenCount)
 {
-#ifndef _WIN32
-    AssertMsg(false, "Not XPLAT yet.");
-    return FALSE;
-#else
-    AssertMsg(handle != INVALID_HANDLE_VALUE, "Bad file handle.");
+    AssertMsg(handle != nullptr, "Bad file handle.");
+
     if(size > MAXDWORD)
     {
         *writtenCount = 0;
         return false;
     }
 
-    DWORD dwWrittenCount = 0;
-    BOOL ok = WriteFile(handle, buff, (DWORD)size, &dwWrittenCount, NULL);
-    *writtenCount = dwWrittenCount;
+    BOOL ok = FALSE;
 
-    Helpers::TTReportLastIOErrorAsNeeded(ok && (*writtenCount == size), "Write Failed!!!");
+#ifdef _WIN32
+    *writtenCount = fwrite(buff, 1, size, (FILE*)handle);
+    ok = (*writtenCount == size);
+#else
+    AssertMsg(false, "Not x-plat yet!!!");
+#endif
+
+    Helpers::TTReportLastIOErrorAsNeeded(ok, "Failed Read!!!");
 
     return ok ? true : false;
-#endif
 }
 
 void CALLBACK Helpers::TTFlushAndCloseStreamCallback(JsTTDStreamHandle handle, bool read, bool write)
 {
-#ifndef _WIN32
-    AssertMsg(false, "Not XPLAT yet.");
-#else
-    AssertMsg((read | write) & !(read & write), "Should be either read or write and at least one.");
-
-    if(handle != INVALID_HANDLE_VALUE)
-    {
-        if(write)
-        {
-            FlushFileBuffers(handle);
-        }
-
-        CloseHandle(handle);
-    }
-#endif
+    fflush((FILE*)handle);
+    fclose((FILE*)handle);
 }
 

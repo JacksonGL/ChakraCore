@@ -96,56 +96,62 @@ namespace TTD
             }
         }
 
-        void WriteCodeToFile(IOStreamFunctions& streamFunctions, const char16* srcDir, const char16* docId, const char16* sourceUri, bool isUtf8Source, byte* sourceBuffer, uint32 length)
+        void WriteCodeToFile(ThreadContext* threadContext, bool fromEvent, DWORD_PTR docId, bool isUtf8Source, byte* sourceBuffer, uint32 length)
         {
-            JsTTDStreamHandle srcStream = streamFunctions.pfGetSrcCodeStream(srcDir, docId, sourceUri, false, true);
+            char asciiResourceName[64];
+            sprintf_s(asciiResourceName, "src%s_%I64u.js", (fromEvent ? "_ld" : ""), static_cast<uint64>(docId));
+
+            JsTTDStreamHandle srcStream = threadContext->TTDStreamFunctions.pfGetResourceStream(threadContext->TTDUri.UriByteLength, threadContext->TTDUri.UriBytes, asciiResourceName, false, true);
 
             if(isUtf8Source)
             {
                 byte byteOrderArray[3] = { 0xEF, 0xBB, 0xBF };
                 size_t byteOrderCount = 0;
-                bool okBOC = streamFunctions.pfWriteBytesToStream(srcStream, byteOrderArray, 3, &byteOrderCount);
+                bool okBOC = threadContext->TTDStreamFunctions.pfWriteBytesToStream(srcStream, byteOrderArray, 3, &byteOrderCount);
                 AssertMsg(okBOC && byteOrderCount == 3, "Write Failed!!!");
             }
             else
             {
                 byte byteOrderArray[2] = { 0xFF, 0xFE };
                 size_t byteOrderCount = 0;
-                bool okBOC = streamFunctions.pfWriteBytesToStream(srcStream, byteOrderArray, 2, &byteOrderCount);
+                bool okBOC = threadContext->TTDStreamFunctions.pfWriteBytesToStream(srcStream, byteOrderArray, 2, &byteOrderCount);
                 AssertMsg(okBOC && byteOrderCount == 2, "Write Failed!!!");
             }
 
             size_t writtenCount = 0;
-            bool ok = streamFunctions.pfWriteBytesToStream(srcStream, sourceBuffer, length, &writtenCount);
+            bool ok = threadContext->TTDStreamFunctions.pfWriteBytesToStream(srcStream, sourceBuffer, length, &writtenCount);
             AssertMsg(ok && writtenCount == length, "Write Failed!!!");
 
-            streamFunctions.pfFlushAndCloseStream(srcStream, false, true);
+            threadContext->TTDStreamFunctions.pfFlushAndCloseStream(srcStream, false, true);
         }
 
-        void ReadCodeFromFile(IOStreamFunctions& streamFunctions, const char16* srcDir, const char16* docId, const char16* sourceUri, bool isUtf8Source, byte* sourceBuffer, uint32 length)
+        void ReadCodeFromFile(ThreadContext* threadContext, bool fromEvent, DWORD_PTR docId, bool isUtf8Source, byte* sourceBuffer, uint32 length)
         {
-            JsTTDStreamHandle srcStream = streamFunctions.pfGetSrcCodeStream(srcDir, docId, sourceUri, true, false);
+            char asciiResourceName[64];
+            sprintf_s(asciiResourceName, "src%s_%I64u.js", (fromEvent ? "_ld" : ""), static_cast<uint64>(docId));
+
+            JsTTDStreamHandle srcStream = threadContext->TTDStreamFunctions.pfGetResourceStream(threadContext->TTDUri.UriByteLength, threadContext->TTDUri.UriBytes, asciiResourceName, true, false);
 
             if(isUtf8Source)
             {
                 byte byteOrderArray[3] = { 0x0, 0x0, 0x0 };
                 size_t byteOrderCount = 0;
-                bool okBOC = streamFunctions.pfReadBytesFromStream(srcStream, byteOrderArray, 3, &byteOrderCount);
+                bool okBOC = threadContext->TTDStreamFunctions.pfReadBytesFromStream(srcStream, byteOrderArray, 3, &byteOrderCount);
                 AssertMsg(okBOC && byteOrderCount == 3 && byteOrderArray[0] == 0xEF && byteOrderArray[1] == 0xBB && byteOrderArray[2] == 0xBF, "Read Failed!!!");
             }
             else
             {
                 byte byteOrderArray[2] = { 0x0, 0x0 };
                 size_t byteOrderCount = 0;
-                bool okBOC = streamFunctions.pfReadBytesFromStream(srcStream, byteOrderArray, 2, &byteOrderCount);
+                bool okBOC = threadContext->TTDStreamFunctions.pfReadBytesFromStream(srcStream, byteOrderArray, 2, &byteOrderCount);
                 AssertMsg(okBOC && byteOrderCount == 2 && byteOrderArray[0] == 0xFF && byteOrderArray[1] == 0xFE, "Read Failed!!!");
             }
 
             size_t readCount = 0;
-            bool ok = streamFunctions.pfReadBytesFromStream(srcStream, sourceBuffer, length, &readCount);
+            bool ok = threadContext->TTDStreamFunctions.pfReadBytesFromStream(srcStream, sourceBuffer, length, &readCount);
             AssertMsg(ok && readCount == length, "Read Failed!!!");
 
-            streamFunctions.pfFlushAndCloseStream(srcStream, true, false);
+            threadContext->TTDStreamFunctions.pfFlushAndCloseStream(srcStream, true, false);
         }
     }
 
@@ -937,7 +943,7 @@ namespace TTD
             fbInfo->DbgSerializedBytecodeBuffer = nullptr;
         }
 
-        void EmitTopLevelCommonBodyResolveInfo(const TopLevelCommonBodyResolveInfo* fbInfo, bool emitInline, const char16* sourceDir, IOStreamFunctions& streamFunctions, FileWriter* writer, NSTokens::Separator separator)
+        void EmitTopLevelCommonBodyResolveInfo(const TopLevelCommonBodyResolveInfo* fbInfo, bool emitInline, ThreadContext* threadContext, FileWriter* writer, NSTokens::Separator separator)
         {
             writer->WriteRecordStart(separator);
             writer->WriteUInt64(NSTokens::Key::functionBodyId, fbInfo->TopLevelBodyCtr);
@@ -960,14 +966,11 @@ namespace TTD
             }
             else
             {
-                UtilSupport::TTAutoString docId;
-                docId.Append(fbInfo->TopLevelBodyCtr);
-
-                JsSupport::WriteCodeToFile(streamFunctions, sourceDir, docId.GetStrValue(), fbInfo->SourceUri.Contents, fbInfo->IsUtf8, fbInfo->SourceBuffer, fbInfo->ByteLength);
+                JsSupport::WriteCodeToFile(threadContext, false, fbInfo->DocumentID, fbInfo->IsUtf8, fbInfo->SourceBuffer, fbInfo->ByteLength);
             }
         }
 
-        void ParseTopLevelCommonBodyResolveInfo(TopLevelCommonBodyResolveInfo* fbInfo, bool readSeperator, bool parseInline, const char16* sourceDir, IOStreamFunctions& streamFunctions, FileReader* reader, SlabAllocator& alloc)
+        void ParseTopLevelCommonBodyResolveInfo(TopLevelCommonBodyResolveInfo* fbInfo, bool readSeperator, bool parseInline, ThreadContext* threadContext, FileReader* reader, SlabAllocator& alloc)
         {
             reader->ReadRecordStart(readSeperator);
             fbInfo->TopLevelBodyCtr = reader->ReadUInt64(NSTokens::Key::functionBodyId);
@@ -991,10 +994,7 @@ namespace TTD
             }
             else
             {
-                UtilSupport::TTAutoString docId;
-                docId.Append(fbInfo->TopLevelBodyCtr);
-
-                JsSupport::ReadCodeFromFile(streamFunctions, sourceDir, docId.GetStrValue(), fbInfo->SourceUri.Contents, fbInfo->IsUtf8, fbInfo->SourceBuffer, fbInfo->ByteLength);
+                JsSupport::ReadCodeFromFile(threadContext, false, fbInfo->DocumentID, fbInfo->IsUtf8, fbInfo->SourceBuffer, fbInfo->ByteLength);
             }
 
             fbInfo->DbgSerializedBytecodeSize = 0;
@@ -1108,18 +1108,18 @@ namespace TTD
             return globalBody;
         }
 
-        void EmitTopLevelLoadedFunctionBodyInfo(const TopLevelScriptLoadFunctionBodyResolveInfo* fbInfo, const char16* sourceDir, IOStreamFunctions& streamFunctions, FileWriter* writer, NSTokens::Separator separator)
+        void EmitTopLevelLoadedFunctionBodyInfo(const TopLevelScriptLoadFunctionBodyResolveInfo* fbInfo, ThreadContext* threadContext, FileWriter* writer, NSTokens::Separator separator)
         {
-            NSSnapValues::EmitTopLevelCommonBodyResolveInfo(&fbInfo->TopLevelBase, false, sourceDir, streamFunctions, writer, separator);
+            NSSnapValues::EmitTopLevelCommonBodyResolveInfo(&fbInfo->TopLevelBase, false, threadContext, writer, separator);
 
             writer->WriteTag<LoadScriptFlag>(NSTokens::Key::loadFlag, fbInfo->LoadFlag, NSTokens::Separator::CommaSeparator);
 
             writer->WriteRecordEnd();
         }
 
-        void ParseTopLevelLoadedFunctionBodyInfo(TopLevelScriptLoadFunctionBodyResolveInfo* fbInfo, bool readSeperator, const char16* sourceDir, IOStreamFunctions& streamFunctions, FileReader* reader, SlabAllocator& alloc)
+        void ParseTopLevelLoadedFunctionBodyInfo(TopLevelScriptLoadFunctionBodyResolveInfo* fbInfo, bool readSeperator, ThreadContext* threadContext, FileReader* reader, SlabAllocator& alloc)
         {
-            NSSnapValues::ParseTopLevelCommonBodyResolveInfo(&fbInfo->TopLevelBase, readSeperator, false, sourceDir, streamFunctions, reader, alloc);
+            NSSnapValues::ParseTopLevelCommonBodyResolveInfo(&fbInfo->TopLevelBase, readSeperator, false, threadContext, reader, alloc);
 
             fbInfo->LoadFlag = reader->ReadTag<LoadScriptFlag>(NSTokens::Key::loadFlag, true);
 
@@ -1173,16 +1173,16 @@ namespace TTD
             return fb;
         }
 
-        void EmitTopLevelNewFunctionBodyInfo(const TopLevelNewFunctionBodyResolveInfo* fbInfo, const char16* sourceDir, IOStreamFunctions& streamFunctions, FileWriter* writer, NSTokens::Separator separator)
+        void EmitTopLevelNewFunctionBodyInfo(const TopLevelNewFunctionBodyResolveInfo* fbInfo, ThreadContext* threadContext, FileWriter* writer, NSTokens::Separator separator)
         {
-            NSSnapValues::EmitTopLevelCommonBodyResolveInfo(&fbInfo->TopLevelBase, true, sourceDir, streamFunctions, writer, separator);
+            NSSnapValues::EmitTopLevelCommonBodyResolveInfo(&fbInfo->TopLevelBase, true, threadContext, writer, separator);
 
             writer->WriteRecordEnd();
         }
 
-        void ParseTopLevelNewFunctionBodyInfo(TopLevelNewFunctionBodyResolveInfo* fbInfo, bool readSeperator, const char16* sourceDir, IOStreamFunctions& streamFunctions, FileReader* reader, SlabAllocator& alloc)
+        void ParseTopLevelNewFunctionBodyInfo(TopLevelNewFunctionBodyResolveInfo* fbInfo, bool readSeperator, ThreadContext* threadContext, FileReader* reader, SlabAllocator& alloc)
         {
-            NSSnapValues::ParseTopLevelCommonBodyResolveInfo(&fbInfo->TopLevelBase, readSeperator, false, sourceDir, streamFunctions, reader, alloc);
+            NSSnapValues::ParseTopLevelCommonBodyResolveInfo(&fbInfo->TopLevelBase, readSeperator, false, threadContext, reader, alloc);
 
             reader->ReadRecordEnd();
         }
@@ -1228,9 +1228,9 @@ namespace TTD
             return fb;
         }
 
-        void EmitTopLevelEvalFunctionBodyInfo(const TopLevelEvalFunctionBodyResolveInfo* fbInfo, const char16* sourceDir, IOStreamFunctions& streamFunctions, FileWriter* writer, NSTokens::Separator separator)
+        void EmitTopLevelEvalFunctionBodyInfo(const TopLevelEvalFunctionBodyResolveInfo* fbInfo, ThreadContext* threadContext, FileWriter* writer, NSTokens::Separator separator)
         {
-            NSSnapValues::EmitTopLevelCommonBodyResolveInfo(&fbInfo->TopLevelBase, true, sourceDir, streamFunctions, writer, separator);
+            NSSnapValues::EmitTopLevelCommonBodyResolveInfo(&fbInfo->TopLevelBase, true, threadContext, writer, separator);
 
             writer->WriteUInt64(NSTokens::Key::u64Val, fbInfo->EvalFlags, NSTokens::Separator::CommaSeparator);
             writer->WriteBool(NSTokens::Key::boolVal, fbInfo->RegisterDocument, NSTokens::Separator::CommaSeparator);
@@ -1239,9 +1239,9 @@ namespace TTD
             writer->WriteRecordEnd();
         }
 
-        void ParseTopLevelEvalFunctionBodyInfo(TopLevelEvalFunctionBodyResolveInfo* fbInfo, bool readSeperator, const char16* sourceDir, IOStreamFunctions& streamFunctions, FileReader* reader, SlabAllocator& alloc)
+        void ParseTopLevelEvalFunctionBodyInfo(TopLevelEvalFunctionBodyResolveInfo* fbInfo, bool readSeperator, ThreadContext* threadContext, FileReader* reader, SlabAllocator& alloc)
         {
-            NSSnapValues::ParseTopLevelCommonBodyResolveInfo(&fbInfo->TopLevelBase, readSeperator, false, sourceDir, streamFunctions, reader, alloc);
+            NSSnapValues::ParseTopLevelCommonBodyResolveInfo(&fbInfo->TopLevelBase, readSeperator, false, threadContext, reader, alloc);
 
             fbInfo->EvalFlags = reader->ReadUInt64(NSTokens::Key::u64Val, true);
             fbInfo->RegisterDocument = reader->ReadBool(NSTokens::Key::boolVal, true);

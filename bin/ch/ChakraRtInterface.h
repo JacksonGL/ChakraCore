@@ -71,11 +71,11 @@ struct JsAPIHooks
     typedef JsErrorCode(WINAPI *JsrtRunModuleUtf8Ptr)(const char *script, JsSourceContext sourceContext, const char *sourceUrl, JsValueRef *result);
     typedef JsErrorCode(WINAPI *JsrtStringFreePtr)(const char *stringValue);
 
-    typedef JsErrorCode(WINAPI *JsrtTTDCreateRecordRuntimePtr)(JsRuntimeAttributes attributes, char* infoUri, size_t infoUriCount, size_t snapInterval, size_t snapHistoryLength, JsThreadServiceCallback threadService, JsRuntimeHandle *runtime);
-    typedef JsErrorCode(WINAPI *JsrtTTDCreateDebugRuntimePtr)(JsRuntimeAttributes attributes, char* infoUri, size_t infoUriCount, JsThreadServiceCallback threadService, JsRuntimeHandle *runtime);
+    typedef JsErrorCode(WINAPI *JsrtTTDCreateRecordRuntimePtr)(JsRuntimeAttributes attributes, const byte* infoUri, size_t infoUriCount, size_t snapInterval, size_t snapHistoryLength, JsThreadServiceCallback threadService, JsRuntimeHandle *runtime);
+    typedef JsErrorCode(WINAPI *JsrtTTDCreateDebugRuntimePtr)(JsRuntimeAttributes attributes, const byte* infoUri, size_t infoUriCount, JsThreadServiceCallback threadService, JsRuntimeHandle *runtime);
     typedef JsErrorCode(WINAPI *JsrtTTDCreateContextPtr)(JsRuntimeHandle runtime, JsContextRef *newContext);
 
-    typedef JsErrorCode(WINAPI *JsrtTTDSetIOCallbacksPtr)(JsRuntimeHandle runtime, JsTTDInitializeUriCallback ttdInitializeTTDUriFunction, JsTTDInitializeForWriteLogStreamCallback writeInitializeFunction, JsTTDGetLogStreamCallback getLogStreamInfo, JsTTDGetSnapshotStreamCallback getSnapshotStreamInfo, JsTTDGetSrcCodeStreamCallback getSrcCodeStreamInfo, JsTTDReadBytesFromStreamCallback readBytesFromStream, JsTTDWriteBytesToStreamCallback writeBytesToStream, JsTTDFlushAndCloseStreamCallback flushAndCloseStream);
+    typedef JsErrorCode(WINAPI *JsrtTTDSetIOCallbacksPtr)(JsRuntimeHandle runtime, JsTTDInitializeForWriteLogStreamCallback writeInitializeFunction, TTDOpenResourceStreamCallback openTTDStream, JsTTDReadBytesFromStreamCallback readBytesFromStream, JsTTDWriteBytesToStreamCallback writeBytesToStream, JsTTDFlushAndCloseStreamCallback flushAndCloseStream);
 
     typedef JsErrorCode(WINAPI *JsrtTTDStartTimeTravelRecordingPtr)();
     typedef JsErrorCode(WINAPI *JsrtTTDStopTimeTravelRecordingPtr)();
@@ -330,11 +330,11 @@ public:
     static JsErrorCode WINAPI JsRunModuleUtf8(const char *script, JsSourceContext sourceContext, const char *sourceUrl, JsValueRef *result) { return HOOK_JS_API(ExperimentalApiRunModuleUtf8(script, sourceContext, sourceUrl, result)); }
     static JsErrorCode WINAPI JsPointerToStringUtf8(const char *stringValue, size_t length, JsValueRef *value) { return HOOK_JS_API(PointerToStringUtf8(stringValue, length, value)); }
     static JsErrorCode WINAPI JsStringFree(char *stringValue) { return HOOK_JS_API(StringFree(stringValue)); }
-    static JsErrorCode WINAPI JsTTDCreateRecordRuntime(JsRuntimeAttributes attributes, char* infoUri, size_t infoUriCount, size_t snapInterval, size_t snapHistoryLength, JsThreadServiceCallback threadService, JsRuntimeHandle *runtime) { return HOOK_JS_API(TTDCreateRecordRuntime(attributes, infoUri, infoUriCount, snapInterval, snapHistoryLength, threadService, runtime)); }
-    static JsErrorCode WINAPI JsTTDCreateDebugRuntime(JsRuntimeAttributes attributes, char* infoUri, size_t infoUriCount, JsThreadServiceCallback threadService, JsRuntimeHandle *runtime) { return HOOK_JS_API(TTDCreateDebugRuntime(attributes, infoUri, infoUriCount, threadService, runtime)); }
+    static JsErrorCode WINAPI JsTTDCreateRecordRuntime(JsRuntimeAttributes attributes, const byte* infoUri, size_t infoUriCount, size_t snapInterval, size_t snapHistoryLength, JsThreadServiceCallback threadService, JsRuntimeHandle *runtime) { return HOOK_JS_API(TTDCreateRecordRuntime(attributes, infoUri, infoUriCount, snapInterval, snapHistoryLength, threadService, runtime)); }
+    static JsErrorCode WINAPI JsTTDCreateDebugRuntime(JsRuntimeAttributes attributes, const byte* infoUri, size_t infoUriCount, JsThreadServiceCallback threadService, JsRuntimeHandle *runtime) { return HOOK_JS_API(TTDCreateDebugRuntime(attributes, infoUri, infoUriCount, threadService, runtime)); }
     static JsErrorCode WINAPI JsTTDCreateContext(JsRuntimeHandle runtime, JsContextRef *newContext) { return HOOK_JS_API(TTDCreateContext(runtime, newContext)); }
 
-    static JsErrorCode WINAPI JsTTDSetIOCallbacks(JsRuntimeHandle runtime, JsTTDInitializeUriCallback ttdInitializeTTDUriFunction, JsTTDInitializeForWriteLogStreamCallback writeInitializeFunction, JsTTDGetLogStreamCallback getLogStreamInfo, JsTTDGetSnapshotStreamCallback getSnapshotStreamInfo, JsTTDGetSrcCodeStreamCallback getSrcCodeStreamInfo, JsTTDReadBytesFromStreamCallback readBytesFromStream, JsTTDWriteBytesToStreamCallback writeBytesToStream, JsTTDFlushAndCloseStreamCallback flushAndCloseStream) { return HOOK_JS_API(TTDSetIOCallbacks(runtime, ttdInitializeTTDUriFunction, writeInitializeFunction, getLogStreamInfo, getSnapshotStreamInfo, getSrcCodeStreamInfo, readBytesFromStream, writeBytesToStream, flushAndCloseStream)); }
+    static JsErrorCode WINAPI JsTTDSetIOCallbacks(JsRuntimeHandle runtime, JsTTDInitializeForWriteLogStreamCallback writeInitializeFunction, TTDOpenResourceStreamCallback openTTDStream, JsTTDReadBytesFromStreamCallback readBytesFromStream, JsTTDWriteBytesToStreamCallback writeBytesToStream, JsTTDFlushAndCloseStreamCallback flushAndCloseStream) { return HOOK_JS_API(TTDSetIOCallbacks(runtime, writeInitializeFunction, openTTDStream, readBytesFromStream, writeBytesToStream, flushAndCloseStream)); }
 
     static JsErrorCode WINAPI JsTTDStartTimeTravelRecording() { return HOOK_JS_API(TTDStartTimeTravelRecording()); }
     static JsErrorCode WINAPI JsTTDStopTimeTravelRecording() { return HOOK_JS_API(TTDStopTimeTravelRecording()); }

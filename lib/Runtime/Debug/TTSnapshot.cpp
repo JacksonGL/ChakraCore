@@ -447,32 +447,28 @@ namespace TTD
         NSSnapValues::ResetPendingAsyncBufferModInfo(sCtx, tCtx, inflator);
     }
 
-    void SnapShot::EmitSnapshot(const char16* sourceDir, DWORD snapId, ThreadContext* threadContext) const
+    void SnapShot::EmitSnapshot(int64 snapId, ThreadContext* threadContext) const
     {
-        char16* snapIdString = TT_HEAP_ALLOC_ARRAY_ZERO(char16, 64);
-        swprintf_s(snapIdString, 64, _u("%u"), snapId);
+        char asciiResourceName[64];
+        sprintf_s(asciiResourceName, "snap_%I64i.snp", snapId);
 
-        HANDLE snapHandle = threadContext->TTDStreamFunctions.pfGetSnapshotStream(sourceDir, snapIdString, false, true);
+        JsTTDStreamHandle snapHandle = threadContext->TTDStreamFunctions.pfGetResourceStream(threadContext->TTDUri.UriByteLength, threadContext->TTDUri.UriBytes, asciiResourceName, false, true);
 
         TTD_SNAP_WRITER snapwriter(snapHandle, TTD_COMPRESSED_OUTPUT, threadContext->TTDStreamFunctions.pfWriteBytesToStream, threadContext->TTDStreamFunctions.pfFlushAndCloseStream);
 
         this->EmitSnapshotToFile(&snapwriter, threadContext);
         snapwriter.FlushAndClose();
-
-        TT_HEAP_FREE_ARRAY(char16, snapIdString, 64);
     }
 
-    SnapShot* SnapShot::Parse(const char16* sourceDir, DWORD snapId, ThreadContext* threadContext)
+    SnapShot* SnapShot::Parse(int64 snapId, ThreadContext* threadContext)
     {
-        char16* snapIdString = TT_HEAP_ALLOC_ARRAY_ZERO(char16, 64);
-        swprintf_s(snapIdString, 64, _u("%u"), snapId);
+        char asciiResourceName[64];
+        sprintf_s(asciiResourceName, "snap_%I64i.snp", snapId);
 
-        HANDLE snapHandle = threadContext->TTDStreamFunctions.pfGetSnapshotStream(sourceDir, snapIdString, true, false);
+        JsTTDStreamHandle snapHandle = threadContext->TTDStreamFunctions.pfGetResourceStream(threadContext->TTDUri.UriByteLength, threadContext->TTDUri.UriBytes, asciiResourceName, true, false);
 
         TTD_SNAP_READER snapreader(snapHandle, TTD_COMPRESSED_OUTPUT, threadContext->TTDStreamFunctions.pfReadBytesFromStream, threadContext->TTDStreamFunctions.pfFlushAndCloseStream);
         SnapShot* snap = SnapShot::ParseSnapshotFromFile(&snapreader);
-
-        TT_HEAP_FREE_ARRAY(char16, snapIdString, 64);
 
         return snap;
     }

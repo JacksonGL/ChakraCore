@@ -276,6 +276,31 @@ namespace TTD
     }
 #endif
 
+    TTUriString::TTUriString()
+        : UriByteLength(0), UriBytes(nullptr)
+    {
+        ;
+    }
+
+    TTUriString::~TTUriString()
+    {
+        if(this->UriBytes != nullptr)
+        {
+            CoTaskMemFree(this->UriBytes);
+            this->UriBytes = nullptr;
+        }
+    }
+
+    void TTUriString::SetUriValue(size_t byteLength, const byte* data)
+    {
+        AssertMsg(this->UriBytes == nullptr, "Should not set this if it is already set!!!");
+
+        this->UriByteLength = byteLength;
+        this->UriBytes = (byte*)CoTaskMemAlloc(byteLength);
+
+        js_memcpy_s(this->UriBytes, this->UriByteLength, data, byteLength);
+    }
+
     //////////////////
 
     MarkTable::MarkTable()

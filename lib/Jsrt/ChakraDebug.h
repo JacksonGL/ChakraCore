@@ -687,21 +687,12 @@ typedef UINT32 DWORD;
 
     /// <summary>
     ///     TTD API -- may change in future versions:
-    ///     Given the uri location specified for the TTD output data, which may be relative or contain other implcit information,
-    ///     convert it into a fully normalized location descriptor. This fully resolved location will be passed to the later callbacks
-    ///     such as JsTTDInitializeForWriteLogStreamCallback, JsTTDGetLogStreamCallback, and JsTTDGetSnapshotStreamCallback.
-    /// </summary>
-    /// <param name="uri">The uri the user provided for the output location of the TTD data.</param>
-    /// <param name="fullTTDUri">The fully resolved location for the TTD data output.</param>
-    typedef void (CHAKRA_CALLBACK *JsTTDInitializeUriCallback)(_In_z_ const wchar_t* uri, _Out_ wchar_t** fullTTDUri);
-
-    /// <summary>
-    ///     TTD API -- may change in future versions:
     ///     Ensure that the location specified for outputting the TTD data is clean. Specifically, ensure that any previous TTD
     ///     in the location has been removed.
     /// </summary>
-    /// <param name="fullTTDUri">The fully resolved location for the TTD data output as provied by JsTTDInitializeUriCallback.</param>
-    typedef void (CHAKRA_CALLBACK *JsTTDInitializeForWriteLogStreamCallback)(_In_z_ const wchar_t* uri);
+    /// <param name="uriByteLength">The length of the uriBytes array that the host passed in for storing log info.</param>
+    /// <param name="uriBytes">The bytes of the URI that the host passed in for storing log info.</param>
+    typedef void (CHAKRA_CALLBACK *JsTTDInitializeForWriteLogStreamCallback)(_In_ size_t uriByteLength, _In_reads_(uriByteLength) const byte* uriBytes);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
@@ -711,40 +702,13 @@ typedef UINT32 DWORD;
     /// <remarks>
     ///     <para>Exactly one of read or write will be set to true.</para>
     /// </remarks>
-    /// <param name="uri">The fully resolved location for the TTD data as provied by JsTTDInitializeUriCallback.</param>
+    /// <param name="uriByteLength">The length of the uriBytes array that the host passed in for storing log info.</param>
+    /// <param name="uriBytes">The bytes of the URI that the host passed in for storing log info.</param>
+    /// <param name="asciiResourceName">A null terminated ascii string giving a unique name to the resource that the JsTTDStreamHandle will be created for.</param>
     /// <param name="read">If the handle should be opened for reading.</param>
     /// <param name="write">If the handle should be opened for writing.</param>
     /// <returns>A JsTTDStreamHandle opened in read/write mode as specified.</returns>
-    typedef JsTTDStreamHandle (CHAKRA_CALLBACK *JsTTDGetLogStreamCallback)(_In_z_ const wchar_t* uri, _In_ bool read, _In_ bool write);
-
-    /// <summary>
-    ///     TTD API -- may change in future versions:
-    ///     Construct a JsTTDStreamHandle that will be used to read/write a snapshot and generate a unique uri that is associated with this snapshot.
-    /// </summary>
-    /// <remarks>
-    ///     <para>Exactly one of read or write will be set to true.</para>
-    /// </remarks>
-    /// <param name="uri">The fully resolved root location for the TTD data as provied by JsTTDInitializeUriCallback.</param>
-    /// <param name="snapId">A unique string identifier for this snapshot.</param>
-    /// <param name="read">If the handle should be opened for reading.</param>
-    /// <param name="write">If the handle should be opened for writing.</param>
-    /// <returns>A JsTTDStreamHandle opened in read/write mode as specified.</returns>
-    typedef JsTTDStreamHandle (CHAKRA_CALLBACK *JsTTDGetSnapshotStreamCallback)(_In_z_ const wchar_t* uri, _In_z_ const wchar_t* snapId, _In_ bool read, _In_ bool write);
-
-    /// <summary>
-    ///     TTD API -- may change in future versions:
-    ///     Construct a HANDLE that will be used to read/write information on source code loaded by the program.
-    /// </summary>
-    /// <remarks>
-    ///     <para>Exactly one of read or write will be set to true.</para>
-    /// </remarks>
-    /// <param name="uri">The fully resolved root location for the TTD source code data.</param>
-    /// <param name="bodyCtrId">A unique string identifier for this source file.</param>
-    /// <param name="srcFileName">The base filename for this source code.</param>
-    /// <param name="read">If the handle should be opened for reading.</param>
-    /// <param name="write">If the handle should be opened for writing.</param>
-    /// <returns>A JsTTDStreamHandle opened in read/write mode as specified.</returns>
-    typedef JsTTDStreamHandle (CHAKRA_CALLBACK *JsTTDGetSrcCodeStreamCallback)(_In_z_ const wchar_t* uri, _In_z_ const wchar_t* bodyCtrId, _In_z_ const wchar_t* srcFileName, _In_ bool read, _In_ bool write);
+    typedef JsTTDStreamHandle (CHAKRA_CALLBACK *TTDOpenResourceStreamCallback)(_In_ size_t uriByteLength, _In_reads_(uriByteLength) const byte* uriBytes, _In_z_ const char* asciiResourceName, _In_ bool read, _In_ bool write);
 
     /// <summary>
     ///     TTD API -- may change in future versions:
@@ -799,7 +763,7 @@ typedef UINT32 DWORD;
     CHAKRA_API
         JsTTDCreateRecordRuntime(
             _In_ JsRuntimeAttributes attributes,
-            _In_z_ char* infoUri,
+            _In_reads_(infoUriCount) const byte* infoUri,
             _In_ size_t infoUriCount,
             _In_ size_t snapInterval,
             _In_ size_t snapHistoryLength,
@@ -823,7 +787,7 @@ typedef UINT32 DWORD;
     CHAKRA_API
         JsTTDCreateDebugRuntime(
             _In_ JsRuntimeAttributes attributes,
-            _In_z_ char* infoUri,
+            _In_reads_(infoUriCount) const byte* infoUri,
             _In_ size_t infoUriCount,
             _In_opt_ JsThreadServiceCallback threadService,
             _Out_ JsRuntimeHandle *runtime);
@@ -859,11 +823,8 @@ typedef UINT32 DWORD;
     CHAKRA_API
         JsTTDSetIOCallbacks(
             _In_ JsRuntimeHandle runtime,
-            _In_ JsTTDInitializeUriCallback ttdInitializeTTDUriFunction,
             _In_ JsTTDInitializeForWriteLogStreamCallback writeInitializeFunction,
-            _In_ JsTTDGetLogStreamCallback getLogStreamInfo,
-            _In_ JsTTDGetSnapshotStreamCallback getSnapshotStreamInfo,
-            _In_ JsTTDGetSrcCodeStreamCallback getSrcCodeStreamInfo,
+            _In_ TTDOpenResourceStreamCallback openResourceStream,
             _In_ JsTTDReadBytesFromStreamCallback readBytesFromStream,
             _In_ JsTTDWriteBytesToStreamCallback writeBytesToStream,
             _In_ JsTTDFlushAndCloseStreamCallback flushAndCloseStream);

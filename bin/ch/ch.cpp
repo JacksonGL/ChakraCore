@@ -49,13 +49,11 @@ JsRuntimeHandle chRuntime = JS_INVALID_RUNTIME_HANDLE;
 
 BOOL doTTRecord = false;
 BOOL doTTDebug = false;
-char* ttUri = nullptr;
+byte* ttUri = nullptr;
+size_t ttUriByteLength = 0;
 UINT32 snapInterval = MAXUINT32;
 UINT32 snapHistoryLength = MAXUINT32;
 UINT32 startEventCount = 1;
-
-const char16* dbgIPAddr = nullptr;
-unsigned short dbgPort = 0;
 
 extern "C"
 HRESULT __stdcall OnChakraCoreLoadedEntry(TestHooks& testHooks)
@@ -480,10 +478,10 @@ HRESULT ExecuteTest(const char* fileName)
 
         jsrtAttributes = static_cast<JsRuntimeAttributes>(jsrtAttributes | JsRuntimeAttributeEnableExperimentalFeatures);
 
-        IfJsErrorFailLog(ChakraRTInterface::JsTTDCreateDebugRuntime(jsrtAttributes, ttUri, (charcount_t) strlen(ttUri), nullptr, &runtime));
+        IfJsErrorFailLog(ChakraRTInterface::JsTTDCreateDebugRuntime(jsrtAttributes, ttUri, ttUriByteLength, nullptr, &runtime));
         chRuntime = runtime;
 
-        ChakraRTInterface::JsTTDSetIOCallbacks(runtime, &Helpers::GetTTDDirectory, &Helpers::TTInitializeForWriteLogStreamCallback, &Helpers::TTGetLogStreamCallback, &Helpers::TTGetSnapshotStreamCallback, &Helpers::TTGetSrcCodeStreamCallback, &Helpers::TTReadBytesFromStreamCallback, &Helpers::TTWriteBytesToStreamCallback, &Helpers::TTFlushAndCloseStreamCallback);
+        ChakraRTInterface::JsTTDSetIOCallbacks(runtime, &Helpers::TTInitializeForWriteLogStreamCallback, &Helpers::TTCreateStreamCallback, &Helpers::TTReadBytesFromStreamCallback, &Helpers::TTWriteBytesToStreamCallback, &Helpers::TTFlushAndCloseStreamCallback);
 
         JsContextRef context = JS_INVALID_REFERENCE;
         IfJsErrorFailLog(ChakraRTInterface::JsCreateContext(runtime, &context));
@@ -514,10 +512,10 @@ HRESULT ExecuteTest(const char* fileName)
             //Ensure we run with experimental features (as that is what Node does right now).
             jsrtAttributes = static_cast<JsRuntimeAttributes>(jsrtAttributes | JsRuntimeAttributeEnableExperimentalFeatures);
 
-            IfJsErrorFailLog(ChakraRTInterface::JsTTDCreateRecordRuntime(jsrtAttributes, ttUri, (charcount_t) strlen(ttUri), snapInterval, snapHistoryLength, nullptr, &runtime));
+            IfJsErrorFailLog(ChakraRTInterface::JsTTDCreateRecordRuntime(jsrtAttributes, ttUri, ttUriByteLength, snapInterval, snapHistoryLength, nullptr, &runtime));
             chRuntime = runtime;
 
-            ChakraRTInterface::JsTTDSetIOCallbacks(runtime, &Helpers::GetTTDDirectory, &Helpers::TTInitializeForWriteLogStreamCallback, &Helpers::TTGetLogStreamCallback, &Helpers::TTGetSnapshotStreamCallback, &Helpers::TTGetSrcCodeStreamCallback, &Helpers::TTReadBytesFromStreamCallback, &Helpers::TTWriteBytesToStreamCallback, &Helpers::TTFlushAndCloseStreamCallback);
+            ChakraRTInterface::JsTTDSetIOCallbacks(runtime, &Helpers::TTInitializeForWriteLogStreamCallback, &Helpers::TTCreateStreamCallback, &Helpers::TTReadBytesFromStreamCallback, &Helpers::TTWriteBytesToStreamCallback, &Helpers::TTFlushAndCloseStreamCallback);
 
             JsContextRef context = JS_INVALID_REFERENCE;
             IfJsErrorFailLog(ChakraRTInterface::JsTTDCreateContext(runtime, &context));
@@ -694,12 +692,14 @@ int _cdecl wmain(int argc, __in_ecount(argc) LPWSTR argv[])
         if(wcsstr(argv[i], _u("-TTRecord:")) == argv[i])
         {
             doTTRecord = true;
-            ttUri = utf8::WideToNarrow(argv[i] + wcslen(_u("-TTRecord:"))).Detach();
+            char16* ruri = argv[i] + wcslen(_u("-TTRecord:"));
+            Helpers::GetTTDDirectory(ruri, &ttUriByteLength, &ttUri);
         }
         else if(wcsstr(argv[i], _u("-TTDebug:")) == argv[i])
         {
             doTTDebug = true;
-            ttUri = utf8::WideToNarrow(argv[i] + wcslen(_u("-TTDebug:"))).Detach();
+            char16* ruri = argv[i] + wcslen(_u("-TTDebug:"));
+            Helpers::GetTTDDirectory(ruri, &ttUriByteLength, &ttUri);
         }
         else if(wcsstr(argv[i], _u("-TTSnapInterval:")) == argv[i])
         {
@@ -715,13 +715,6 @@ int _cdecl wmain(int argc, __in_ecount(argc) LPWSTR argv[])
         {
             LPCWSTR startEventStr = argv[i] + wcslen(_u("-TTDStartEvent:"));
             startEventCount = (UINT32)_wtoi(startEventStr);
-        }
-        else if(wcsstr(argv[i], _u("--debug-brk=")) == argv[i])
-        {
-            dbgIPAddr = _u("127.0.0.1");
-
-            LPCWSTR portStr = argv[i] + wcslen(_u("--debug-brk="));
-            dbgPort = (unsigned short)_wtoi(portStr);
         }
         else
         {
@@ -789,7 +782,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) LPWSTR argv[])
 
     if (ttUri != nullptr)
     {
-        free(ttUri);
+        CoTaskMemFree(ttUri);
     }
 
     PAL_Shutdown();

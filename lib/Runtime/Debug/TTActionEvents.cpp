@@ -423,7 +423,7 @@ namespace TTD
 
         //////////////////
 
-        void JsRTRawBufferCopyAction_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void JsRTRawBufferCopyAction_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const JsRTRawBufferCopyAction* rbcAction = GetInlineEventDataAs<JsRTRawBufferCopyAction, EventKind::RawBufferCopySync>(evt);
 
@@ -548,7 +548,7 @@ namespace TTD
             }
         }
 
-        void JsRTConstructCallAction_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void JsRTConstructCallAction_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const JsRTConstructCallAction* ccAction = GetInlineEventDataAs<JsRTConstructCallAction, EventKind::ConstructCallActionTag>(evt);
 
@@ -617,7 +617,7 @@ namespace TTD
             }
         }
 
-        void JsRTCallbackAction_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void JsRTCallbackAction_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const JsRTCallbackAction* cbAction = GetInlineEventDataAs<JsRTCallbackAction, EventKind::CallbackOpActionTag>(evt);
 
@@ -735,15 +735,10 @@ namespace TTD
                 alloc.UnlinkString(cpInfo->SourceUri);
             }
 
-            if(!IsNullPtrTTString(cpInfo->SrcDir))
-            {
-                alloc.UnlinkString(cpInfo->SrcDir);
-            }
-
             alloc.UnlinkAllocation(cpAction->AdditionalInfo);
         }
 
-        void JsRTCodeParseAction_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void JsRTCodeParseAction_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const JsRTCodeParseAction* cpAction = GetInlineEventDataAs<JsRTCodeParseAction, EventKind::CodeParseActionTag>(evt);
             JsRTCodeParseAction_AdditionalInfo* cpInfo = cpAction->AdditionalInfo;
@@ -756,17 +751,12 @@ namespace TTD
 
             writer->WriteUInt64(NSTokens::Key::bodyCounterId, cpAction->BodyCtrId, NSTokens::Separator::CommaSeparator);
 
-            writer->WriteString(NSTokens::Key::logDir, cpInfo->SrcDir, NSTokens::Separator::CommaSeparator);
             writer->WriteString(NSTokens::Key::uri, cpInfo->SourceUri, NSTokens::Separator::CommaSeparator);
 
             writer->WriteBool(NSTokens::Key::boolVal, cpInfo->IsUtf8, NSTokens::Separator::CommaSeparator);
             writer->WriteLengthValue(cpInfo->SourceByteLength, NSTokens::Separator::CommaSeparator);
 
-            UtilSupport::TTAutoString docId;
-            docId.Append(cpInfo->DocumentID);
-            docId.Append(_u("ld"));
-
-            JsSupport::WriteCodeToFile(threadContext->TTDStreamFunctions, cpInfo->SrcDir.Contents, docId.GetStrValue(), cpInfo->SourceUri.Contents, cpInfo->IsUtf8, cpInfo->SourceCode, cpInfo->SourceByteLength);
+            JsSupport::WriteCodeToFile(threadContext, true, cpInfo->DocumentID, cpInfo->IsUtf8, cpInfo->SourceCode, cpInfo->SourceByteLength);
         }
 
         void JsRTCodeParseAction_Parse(EventLogEntry* evt, ThreadContext* threadContext, FileReader* reader, UnlinkableSlabAllocator& alloc)
@@ -784,7 +774,6 @@ namespace TTD
 
             cpAction->BodyCtrId = reader->ReadUInt64(NSTokens::Key::bodyCounterId, true);
 
-            reader->ReadString(NSTokens::Key::logDir, alloc, cpInfo->SrcDir, true);
             reader->ReadString(NSTokens::Key::uri, alloc, cpInfo->SourceUri, true);
 
             cpInfo->IsUtf8 = reader->ReadBool(NSTokens::Key::boolVal, true);
@@ -792,11 +781,7 @@ namespace TTD
 
             cpInfo->SourceCode = alloc.SlabAllocateArray<byte>(cpAction->AdditionalInfo->SourceByteLength);
 
-            UtilSupport::TTAutoString docId;
-            docId.Append(cpInfo->DocumentID);
-            docId.Append(_u("ld"));
-
-            JsSupport::ReadCodeFromFile(threadContext->TTDStreamFunctions, cpInfo->SrcDir.Contents, docId.GetStrValue(), cpInfo->SourceUri.Contents, cpInfo->IsUtf8, cpInfo->SourceCode, cpInfo->SourceByteLength);
+            JsSupport::ReadCodeFromFile(threadContext, true, cpInfo->DocumentID, cpInfo->IsUtf8, cpInfo->SourceCode, cpInfo->SourceByteLength);
         }
 
 #if ENABLE_TTD_INTERNAL_DIAGNOSTICS
@@ -961,7 +946,7 @@ namespace TTD
             alloc.UnlinkAllocation(cfInfo);
         }
 
-        void JsRTCallFunctionAction_Emit(const EventLogEntry* evt, const char16* uri, FileWriter* writer, ThreadContext* threadContext)
+        void JsRTCallFunctionAction_Emit(const EventLogEntry* evt, FileWriter* writer, ThreadContext* threadContext)
         {
             const JsRTCallFunctionAction* cfAction = GetInlineEventDataAs<JsRTCallFunctionAction, EventKind::CallExistingFunctionActionTag>(evt);
             const JsRTCallFunctionAction_AdditionalInfo* cfInfo = cfAction->AdditionalInfo;
