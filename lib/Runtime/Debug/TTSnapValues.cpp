@@ -99,7 +99,7 @@ namespace TTD
         void WriteCodeToFile(ThreadContext* threadContext, bool fromEvent, DWORD_PTR docId, bool isUtf8Source, byte* sourceBuffer, uint32 length)
         {
             char asciiResourceName[64];
-            sprintf_s(asciiResourceName, "src%s_%I64u.js", (fromEvent ? "_ld" : ""), static_cast<uint64>(docId));
+            sprintf_s(asciiResourceName, 64, "src%s_%I64u.js", (fromEvent ? "_ld" : ""), static_cast<uint64>(docId));
 
             JsTTDStreamHandle srcStream = threadContext->TTDStreamFunctions.pfGetResourceStream(threadContext->TTDUri.UriByteLength, threadContext->TTDUri.UriBytes, asciiResourceName, false, true);
 
@@ -128,7 +128,7 @@ namespace TTD
         void ReadCodeFromFile(ThreadContext* threadContext, bool fromEvent, DWORD_PTR docId, bool isUtf8Source, byte* sourceBuffer, uint32 length)
         {
             char asciiResourceName[64];
-            sprintf_s(asciiResourceName, "src%s_%I64u.js", (fromEvent ? "_ld" : ""), static_cast<uint64>(docId));
+            sprintf_s(asciiResourceName, 64, "src%s_%I64u.js", (fromEvent ? "_ld" : ""), static_cast<uint64>(docId));
 
             JsTTDStreamHandle srcStream = threadContext->TTDStreamFunctions.pfGetResourceStream(threadContext->TTDUri.UriByteLength, threadContext->TTDUri.UriBytes, asciiResourceName, true, false);
 

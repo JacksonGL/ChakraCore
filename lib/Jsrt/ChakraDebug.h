@@ -679,11 +679,7 @@ typedef UINT32 DWORD;
     //
     //TODO: Move this into the appropriate x-plat definition file
     //
-#if _WIN32
-    typedef HANDLE JsTTDStreamHandle;
-#else
-    typedef FILE JsTTDStreamHandle;
-#endif
+    typedef FILE* JsTTDStreamHandle;
 
     /// <summary>
     ///     TTD API -- may change in future versions:

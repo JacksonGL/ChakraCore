@@ -11,7 +11,7 @@ public :
     static LPCWSTR JsErrorCodeToString(JsErrorCode jsErrorCode);
     static void LogError(__in __nullterminated const char16 *msg, ...);
 
-    static void TTReportLastIOErrorAsNeeded(BOOL ok, char* msg);
+    static void TTReportLastIOErrorAsNeeded(BOOL ok, const char* msg);
     static void CreateDirectoryIfNeeded(size_t uriByteLength, const byte* uriBytes);
     static void DeleteDirectory(size_t uriByteLength, const byte* uriBytes);
 

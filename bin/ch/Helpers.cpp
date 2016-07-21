@@ -4,16 +4,17 @@
 //-------------------------------------------------------------------------------------------------------
 #include "stdafx.h"
 
+//TODO: x-plat definitions
+#ifdef _WIN32
+
 //TODO: #include <string> gets angry about this being redefined in yvals.h?
-//      As a workaround we undef it for this file where we include string
+//      As a workaround we undef it for this file where we include string.
+//      Also strange that string is already included in Linux build but not in Windows?????
 #ifdef _STRINGIZE
 #undef _STRINGIZE
 #endif
-
 #include <string>
 
-//TODO: x-plat definitions
-#ifdef _WIN32
 #define TTDPathSeparator _u("\\")
 #else
 #define TTDPathSeparator "/"
@@ -227,7 +228,7 @@ void Helpers::LogError(__in __nullterminated const char16 *msg, ...)
     va_end(args);
 }
 
-void Helpers::TTReportLastIOErrorAsNeeded(BOOL ok, char* msg)
+void Helpers::TTReportLastIOErrorAsNeeded(BOOL ok, const char* msg)
 {
     if(!ok)
     {

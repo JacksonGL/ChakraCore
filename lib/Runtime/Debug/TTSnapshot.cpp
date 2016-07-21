@@ -450,7 +450,7 @@ namespace TTD
     void SnapShot::EmitSnapshot(int64 snapId, ThreadContext* threadContext) const
     {
         char asciiResourceName[64];
-        sprintf_s(asciiResourceName, "snap_%I64i.snp", snapId);
+        sprintf_s(asciiResourceName, 64, "snap_%I64i.snp", snapId);
 
         JsTTDStreamHandle snapHandle = threadContext->TTDStreamFunctions.pfGetResourceStream(threadContext->TTDUri.UriByteLength, threadContext->TTDUri.UriBytes, asciiResourceName, false, true);
 
@@ -463,7 +463,7 @@ namespace TTD
     SnapShot* SnapShot::Parse(int64 snapId, ThreadContext* threadContext)
     {
         char asciiResourceName[64];
-        sprintf_s(asciiResourceName, "snap_%I64i.snp", snapId);
+        sprintf_s(asciiResourceName, 64, "snap_%I64i.snp", snapId);
 
         JsTTDStreamHandle snapHandle = threadContext->TTDStreamFunctions.pfGetResourceStream(threadContext->TTDUri.UriByteLength, threadContext->TTDUri.UriBytes, asciiResourceName, true, false);
 

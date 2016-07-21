@@ -81,7 +81,7 @@ namespace TTD
     {
     private:
         //The file that we are writing into
-        HANDLE m_hfile;
+        JsTTDStreamHandle m_hfile;
         TTDWriteBytesToStreamCallback m_pfWrite;
         TTDFlushAndCloseStreamCallback m_pfClose;
 
@@ -181,7 +181,7 @@ namespace TTD
         }
 
     public:
-        FileWriter(HANDLE handle, bool doCompression, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose);
+        FileWriter(JsTTDStreamHandle handle, bool doCompression, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose);
         virtual ~FileWriter();
 
         void FlushAndClose();
@@ -265,7 +265,7 @@ namespace TTD
         uint32 m_indentSize;
 
     public:
-        TextFormatWriter(HANDLE handle, bool doCompression, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose);
+        TextFormatWriter(JsTTDStreamHandle handle, bool doCompression, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose);
         virtual ~TextFormatWriter();
 
         ////
@@ -311,7 +311,7 @@ namespace TTD
     class BinaryFormatWriter : public FileWriter
     {
     public:
-        BinaryFormatWriter(HANDLE handle, bool doCompression, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose);
+        BinaryFormatWriter(JsTTDStreamHandle handle, bool doCompression, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose);
         virtual ~BinaryFormatWriter();
 
         ////
@@ -359,7 +359,7 @@ namespace TTD
     class FileReader
     {
     private:
-        HANDLE m_hfile;
+        JsTTDStreamHandle m_hfile;
         TTDReadBytesFromStreamCallback m_pfRead;
         TTDFlushAndCloseStreamCallback m_pfClose;
 
@@ -500,7 +500,7 @@ namespace TTD
         void FileReadAssert(bool ok);
 
     public:
-        FileReader(HANDLE handle, bool doDecompress, TTDReadBytesFromStreamCallback pfRead, TTDFlushAndCloseStreamCallback pfClose);
+        FileReader(JsTTDStreamHandle handle, bool doDecompress, TTDReadBytesFromStreamCallback pfRead, TTDFlushAndCloseStreamCallback pfClose);
         virtual ~FileReader();
 
         virtual void ReadSeperator(bool readSeparator) = 0;
@@ -614,7 +614,7 @@ namespace TTD
         double ReadDoubleFromCharArray(const char16* buff);
 
     public:
-        TextFormatReader(HANDLE handle, bool doDecompress, TTDReadBytesFromStreamCallback pfRead, TTDFlushAndCloseStreamCallback pfClose);
+        TextFormatReader(JsTTDStreamHandle handle, bool doDecompress, TTDReadBytesFromStreamCallback pfRead, TTDFlushAndCloseStreamCallback pfClose);
         virtual ~TextFormatReader();
 
         virtual void ReadSeperator(bool readSeparator) override;
@@ -656,7 +656,7 @@ namespace TTD
     class BinaryFormatReader : public FileReader
     {
     public:
-        BinaryFormatReader(HANDLE handle, bool doDecompress, TTDReadBytesFromStreamCallback pfRead, TTDFlushAndCloseStreamCallback pfClose);
+        BinaryFormatReader(JsTTDStreamHandle handle, bool doDecompress, TTDReadBytesFromStreamCallback pfRead, TTDFlushAndCloseStreamCallback pfClose);
         virtual ~BinaryFormatReader();
 
         virtual void ReadSeperator(bool readSeparator) override;

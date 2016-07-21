@@ -45,13 +45,13 @@ namespace TTD
     void FileWriter::WriteBlock(const byte* buff, size_t bufflen)
     {
         AssertMsg(bufflen != 0, "Shouldn't be writing empty blocks");
-        AssertMsg(this->m_hfile != INVALID_HANDLE_VALUE, "Trying to write to closed file.");
+        AssertMsg(this->m_hfile != nullptr, "Trying to write to closed file.");
 
         size_t bwp = 0;
         this->m_pfWrite(this->m_hfile, (byte*)this->m_buffer, (DWORD)this->m_cursor, &bwp);
     }
 
-    FileWriter::FileWriter(HANDLE handle, bool doCompression, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose)
+    FileWriter::FileWriter(JsTTDStreamHandle handle, bool doCompression, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose)
         : m_hfile(handle), m_pfWrite(pfWrite), m_pfClose(pfClose), m_doCompression(doCompression), m_cursor(0), m_buffer(nullptr)
     {
         this->m_buffer = TT_HEAP_ALLOC_ARRAY(byte, TTD_SERIALIZATION_BUFFER_SIZE);
@@ -64,7 +64,7 @@ namespace TTD
 
     void FileWriter::FlushAndClose()
     {
-        if(this->m_hfile != INVALID_HANDLE_VALUE)
+        if(this->m_hfile != nullptr)
         {
             if(this->m_cursor != 0)
             {
@@ -73,7 +73,7 @@ namespace TTD
             }
 
             this->m_pfClose(this->m_hfile, false, true);
-            this->m_hfile = INVALID_HANDLE_VALUE;
+            this->m_hfile = nullptr;
         }
 
         if(this->m_buffer != nullptr)
@@ -165,7 +165,7 @@ namespace TTD
 
     //////////////////
 
-    TextFormatWriter::TextFormatWriter(HANDLE handle, bool doCompression, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose)
+    TextFormatWriter::TextFormatWriter(JsTTDStreamHandle handle, bool doCompression, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose)
         : FileWriter(handle, doCompression, pfWrite, pfClose), m_keyNameArray(nullptr), m_keyNameLengthArray(nullptr), m_indentSize(0)
     {
         byte byteOrderMarker[2] = { 0xFF, 0xFE };
@@ -415,7 +415,7 @@ namespace TTD
         this->WriteRawChar('\"');
     }
 
-    BinaryFormatWriter::BinaryFormatWriter(HANDLE handle, bool doCompression, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose)
+    BinaryFormatWriter::BinaryFormatWriter(JsTTDStreamHandle handle, bool doCompression, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose)
         : FileWriter(handle, doCompression, pfWrite, pfClose)
     {
         ;
@@ -576,7 +576,7 @@ namespace TTD
 
     void FileReader::ReadBlock(byte* buff, size_t* readSize)
     {
-        AssertMsg(this->m_hfile != INVALID_HANDLE_VALUE, "Trying to read a invalid file.");
+        AssertMsg(this->m_hfile != nullptr, "Trying to read a invalid file.");
 
         size_t bwp = 0;
         this->m_pfRead(this->m_hfile, buff, TTD_SERIALIZATION_BUFFER_SIZE, &bwp);
@@ -592,7 +592,7 @@ namespace TTD
         AssertMsg(ok, "Unexpected event in file reading!");
     }
 
-    FileReader::FileReader(HANDLE handle, bool doDecompress, TTDReadBytesFromStreamCallback pfRead, TTDFlushAndCloseStreamCallback pfClose)
+    FileReader::FileReader(JsTTDStreamHandle handle, bool doDecompress, TTDReadBytesFromStreamCallback pfRead, TTDFlushAndCloseStreamCallback pfClose)
         : m_hfile(handle), m_pfRead(pfRead), m_pfClose(pfClose), m_peekChar(-1), m_doDecompress(doDecompress), m_cursor(0), m_buffCount(0), m_buffer(nullptr)
     {
         this->m_buffer = TT_HEAP_ALLOC_ARRAY(byte, TTD_SERIALIZATION_BUFFER_SIZE);
@@ -600,10 +600,10 @@ namespace TTD
 
     FileReader::~FileReader()
     {
-        if(this->m_hfile != INVALID_HANDLE_VALUE)
+        if(this->m_hfile != nullptr)
         {
             this->m_pfClose(this->m_hfile, true, false);
-            this->m_hfile = INVALID_HANDLE_VALUE;
+            this->m_hfile = nullptr;
         }
 
         if(this->m_buffer != nullptr)
@@ -1148,7 +1148,7 @@ namespace TTD
         return val;
     }
 
-    TextFormatReader::TextFormatReader(HANDLE handle, bool doDecompress, TTDReadBytesFromStreamCallback pfRead, TTDFlushAndCloseStreamCallback pfClose)
+    TextFormatReader::TextFormatReader(JsTTDStreamHandle handle, bool doDecompress, TTDReadBytesFromStreamCallback pfRead, TTDFlushAndCloseStreamCallback pfClose)
         : FileReader(handle, doDecompress, pfRead, pfClose), m_charListPrimary(&HeapAllocator::Instance), m_charListOpt(&HeapAllocator::Instance), m_charListDiscard(&HeapAllocator::Instance), m_keyNameArray(nullptr), m_keyNameLengthArray(nullptr)
     {
         byte byteOrderMarker[2] = { 0x0, 0x0 };
@@ -1448,7 +1448,7 @@ namespace TTD
         js_memcpy_s(code, length * sizeof(char16), this->m_charListOpt.GetBuffer(), this->m_charListOpt.Count() * sizeof(char16));
     }
 
-    BinaryFormatReader::BinaryFormatReader(HANDLE handle, bool doDecompress, TTDReadBytesFromStreamCallback pfRead, TTDFlushAndCloseStreamCallback pfClose)
+    BinaryFormatReader::BinaryFormatReader(JsTTDStreamHandle handle, bool doDecompress, TTDReadBytesFromStreamCallback pfRead, TTDFlushAndCloseStreamCallback pfClose)
         : FileReader(handle, doDecompress, pfRead, pfClose)
     {
         ;
