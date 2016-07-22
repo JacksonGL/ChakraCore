@@ -339,7 +339,7 @@
 #define ENABLE_TTD_DEBUGGING 1
 
 //A VSCode & node getting angry about SIMD objects
-#define TTD_VSCODE_WORK_AROUNDS 0
+#define TTD_VSCODE_WORK_AROUNDS 1
 #define TTD_VSCODE_HIJACK_OUT_FOR_REVERSE_CONTINUE 0
 
 //A workaround for some unimplemented code parse features (force debug mode)
