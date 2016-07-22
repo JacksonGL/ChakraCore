@@ -13,7 +13,7 @@ public :
 
     static void TTReportLastIOErrorAsNeeded(BOOL ok, const char* msg);
     static void CreateDirectoryIfNeeded(size_t uriByteLength, const byte* uriBytes);
-    static void DeleteDirectory(size_t uriByteLength, const byte* uriBytes);
+    static void CleanDirectory(size_t uriByteLength, const byte* uriBytes);
 
     static void GetTTDDirectory(const char16* curi, size_t* uriByteLength, byte** uriBytes);
 

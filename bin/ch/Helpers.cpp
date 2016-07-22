@@ -6,18 +6,166 @@
 
 //TODO: x-plat definitions
 #ifdef _WIN32
+typedef char16 TTDHostCharType;
+typedef struct _wfinddata_t TTDHostFileInfo;
 
-//TODO: #include <string> gets angry about this being redefined in yvals.h?
-//      As a workaround we undef it for this file where we include string.
-//      Also strange that string is already included in Linux build but not in Windows?????
-#ifdef _STRINGIZE
-#undef _STRINGIZE
-#endif
-#include <string>
+#define TTDHostPathSeparator _u("\\")
 
-#define TTDPathSeparator _u("\\")
+size_t TTDHostStringLength(const char16* str)
+{
+    return wcslen(str);
+}
+
+void TTDHostInitEmpty(TTDHostCharType* dst)
+{
+    dst[0] = _u('\0');
+}
+
+void TTDHostInitFromUriBytes(TTDHostCharType* dst, const byte* uriBytes, size_t uriBytesLength)
+{
+    memcpy_s(dst, MAX_PATH * sizeof(TTDHostCharType), uriBytes, uriBytesLength);
+    dst[uriBytesLength / sizeof(TTDHostCharType)] = _u('\0');
+
+    AssertMsg(wcslen(dst) == (uriBytesLength / sizeof(TTDHostCharType)), "We have an null in the uri or our math is wrong somewhere.");
+}
+
+void TTDHostAppend(TTDHostCharType* dst, const TTDHostCharType* src)
+{
+    size_t dpos = wcslen(dst);
+    size_t srcLength = wcslen(src);
+    size_t srcByteLength = srcLength * sizeof(TTDHostCharType);
+
+    memcpy_s(dst + dpos, srcByteLength, src, srcByteLength);
+    dst[dpos + srcLength] = _u('\0');
+}
+
+void TTDHostAppendChar16(TTDHostCharType* dst, const char16* src)
+{
+    size_t dpos = wcslen(dst);
+    size_t srcLength = wcslen(src);
+    size_t srcByteLength = srcLength * sizeof(char16);
+
+    memcpy_s(dst + dpos, srcByteLength, src, srcByteLength);
+    dst[dpos + srcLength] = _u('\0');
+}
+
+void TTDHostAppendAscii(TTDHostCharType* dst, const char* src)
+{
+    size_t dpos = wcslen(dst);
+    size_t srcLength = strlen(src);
+    for(size_t i = 0; i < srcLength; ++i)
+    {
+        dst[dpos + i] = (char16)src[i];
+    }
+    dst[dpos + srcLength] = _u('\0');
+}
+
+void TTDHostBuildCurrentExeDirectory(TTDHostCharType* path, size_t pathBufferLength)
+{
+    TTDHostCharType exePath[MAX_PATH];
+    GetModuleFileName(NULL, exePath, MAX_PATH);
+
+    TTDHostCharType drive[_MAX_DRIVE];
+    TTDHostCharType dir[_MAX_DIR];
+    TTDHostCharType name[_MAX_FNAME];
+    TTDHostCharType ext[_MAX_EXT];
+    _wsplitpath_s(exePath, drive, dir, name, ext);
+
+    _wmakepath_s(path, pathBufferLength, drive, dir, nullptr, nullptr);
+}
+
+JsTTDStreamHandle TTDHostOpen(const TTDHostCharType* path, bool isWrite)
+{
+    JsTTDStreamHandle res = nullptr;
+    _wfopen_s(&res, path, isWrite ? _u("w+b") : _u("r+b"));
+
+    return res;
+}
+
+#define TTDHostFullPath(dst, src, dstLength) _wfullpath(dst, src, dstLength)
+#define TTDHostTok(opath, TTDHostPathSeparator, context) wcstok_s(opath, TTDHostPathSeparator, context)
+#define TTDHostStat(cpath, statVal) _wstat(cpath, statVal)
+
+#define TTDHostMKDir(cpath) _wmkdir(cpath)
+#define TTDHostCHMod(cpath, flags) _wchmod(cpath, flags)
+#define TTDHostRMFile(cpath) _wremove(cpath)
+
+#define TTDHostFindFirst(strPattern, FileInformation) _wfindfirst(strPattern, FileInformation)
+#define TTDHostFindNext(hFile, FileInformation) _wfindnext(hFile, FileInformation)
+#define TTDHostFindClose(hFile) _findclose(hFile)
 #else
-#define TTDPathSeparator "/"
+typedef char TTDHostCharType;
+
+#define TTDHostPathSeparator "/"
+
+void TTDHostInitEmpty(TTDHostCharType* dst)
+{
+    dst[0] = '\0';
+}
+
+void TTDHostInitFromUriBytes(TTDHostCharType* dst, const byte* uriBytes, size_t uriBytesLength)
+{
+    memcpy_s(dst, MAX_PATH * sizeof(TTDHostCharType), uriBytes, uriBytesLength);
+    dst[uriBytesLength / sizeof(TTDHostCharType)] = '\0';
+
+    AssertMsg(strlen(dst) == (uriBytesLength / sizeof(TTDHostCharType)), "We have an null in the uri or our math is wrong somewhere.");
+}
+
+size_t TTDHostStringLength(const char16* str)
+{
+    return strlen(str);
+}
+
+void TTDHostAppend(TTDHostCharType* dst, const TTDHostCharType* src)
+{
+    size_t dpos = strlen(dst);
+    size_t srcLength = strlen(src);
+    size_t srcByteLength = srcLength * sizeof(TTDHostCharType);
+
+    memcpy_s(dst + dpos, srcByteLength, src, srcByteLength);
+    dst[dpos + srcLength] = '\0';
+}
+
+void TTDHostAppendChar16(TTDHostCharType* dst, const char16* src)
+{
+    size_t dpos = strlen(dst);
+    utf8::EncodeIntoAndNullTerminate(dst + dpos, src, wcslen(src));
+}
+
+void TTDHostAppendAscii(TTDHostCharType* dst, const char* src)
+{
+    size_t dpos = strlen(dst);
+    size_t srcLength = strlen(src);
+    size_t srcByteLength = srcLength * sizeof(TTDHostCharType);
+
+    memcpy_s(dst + dpos, srcByteLength, src, srcByteLength);
+    dst[dpos + srcLength] = '\0';
+}
+
+void TTDHostBuildCurrentExeDirectory(TTDHostCharType* path, size_t pathBufferLength)
+{
+    asdf;
+}
+
+JsTTDStreamHandle TTDHostOpen(const TTDHostCharType* path, bool isWrite)
+{
+    JsTTDStreamHandle res = nullptr;
+    fopen_s(&res, path, isWrite ? "w+b" : "r+b");
+
+    return res;
+}
+
+#define TTDHostFullPath(dst, src, dstLength) _fullpath(dst, src, dstLength)
+#define TTDHostTok(opath, TTDHostPathSeparator, context) _stok_s(opath, TTDHostPathSeparator, context)
+#define TTDHostStat(cpath, statVal) _stat(cpath, statVal)
+
+#define TTDHostMKDir(cpath) _mkdir(cpath)
+#define TTDHostCHMod(cpath, flags) _chmod(cpath, flags)
+#define TTDHostRMFile(cpath) _remove(cpath)
+
+#define TTDHostFindFirst(strPattern, FileInformation) _findfirst(strPattern, FileInformation)
+#define TTDHostFindNext(hFile, FileInformation) _findnext(hFile, FileInformation)
+#define TTDHostFindClose(hFile) _findclose(hFile)
 #endif
 
 HRESULT Helpers::LoadScriptFromFile(LPCSTR filename, LPCSTR& contents, UINT* lengthBytesOut /*= nullptr*/)
@@ -246,132 +394,108 @@ void Helpers::TTReportLastIOErrorAsNeeded(BOOL ok, const char* msg)
 
 void Helpers::CreateDirectoryIfNeeded(size_t uriByteLength, const byte* uriBytes)
 {
-#ifdef _WIN32
-    char16 opath[MAX_PATH];
-    memcpy_s(opath, MAX_PATH * sizeof(char16), uriBytes, uriByteLength);
-    char16* context = nullptr;
+    TTDHostCharType opath[MAX_PATH];
+    TTDHostInitFromUriBytes(opath, uriBytes, uriByteLength);
+
+    TTDHostCharType cpath[MAX_PATH];
+    TTDHostInitEmpty(cpath);
 
     struct _stat statVal;
-    char16* token = wcstok_s(opath, TTDPathSeparator, &context);
-    std::wstring cpath(token);
+    TTDHostCharType* context = nullptr;
+    TTDHostCharType* token = TTDHostTok(opath, TTDHostPathSeparator, &context);
+    TTDHostAppend(cpath, token);
 
     //At least 1 part of the path must exist so iterate until we find it
-    while(_wstat(cpath.c_str(), &statVal) == -1)
+    while(TTDHostStat(cpath, &statVal) == -1)
     {
-        token = wcstok_s(nullptr, TTDPathSeparator, &context);
-        cpath.append(TTDPathSeparator);
-        cpath.append(token);
+        token = TTDHostTok(nullptr, TTDHostPathSeparator, &context);
+        TTDHostAppend(cpath, TTDHostPathSeparator);
+        TTDHostAppend(cpath, token);
     }
 
     //Now continue until we hit the part that doesn't exist (or the end of the path)
-    while(token != nullptr && _wstat(cpath.c_str(), &statVal) != -1)
+    while(token != nullptr && TTDHostStat(cpath, &statVal) != -1)
     {
-        token = wcstok_s(nullptr, TTDPathSeparator, &context);
+        token = TTDHostTok(nullptr, TTDHostPathSeparator, &context);
         if(token != nullptr)
         {
-            cpath.append(TTDPathSeparator);
-            cpath.append(token);
+            TTDHostAppend(cpath, TTDHostPathSeparator);
+            TTDHostAppend(cpath, token);
         }
     }
 
     //Now if there is path left then continue build up the directory tree as we go
     while(token != nullptr)
     {
-        _wmkdir(cpath.c_str());
+        TTDHostMKDir(cpath);
 
-        token = wcstok_s(nullptr, TTDPathSeparator, &context);
+        token = TTDHostTok(nullptr, TTDHostPathSeparator, &context);
         if(token != nullptr)
         {
-            cpath.append(TTDPathSeparator);
-            cpath.append(token);
+            TTDHostAppend(cpath, TTDHostPathSeparator);
+            TTDHostAppend(cpath, token);
         }
     }
-#else
-    AssertMsg(false, "Not x-plat yet!!!");
-#endif
 }
 
-void Helpers::DeleteDirectory(size_t uriByteLength, const byte* uriBytes)
+void Helpers::CleanDirectory(size_t uriByteLength, const byte* uriBytes)
 {
-#ifdef _WIN32
     intptr_t hFile;
-    struct _wfinddata_t FileInformation;
+    TTDHostFileInfo FileInformation;
 
-    std::wstring strPattern((const char16*)uriBytes, uriByteLength / sizeof(char16));
-    strPattern.append(_u("*.*"));
+    TTDHostCharType strPattern[MAX_PATH];
+    TTDHostInitFromUriBytes(strPattern, uriBytes, uriByteLength);
+    TTDHostAppendAscii(strPattern, "*.*");
 
-    hFile = _wfindfirst(strPattern.c_str(), &FileInformation);
+    hFile = TTDHostFindFirst(strPattern, &FileInformation);
     if(hFile != -1)
     {
         do
         {
             if(FileInformation.name[0] != '.')
             {
-                std::wstring strFilePath((const char16*)uriBytes, uriByteLength / sizeof(char16));
+                TTDHostCharType strFilePath[MAX_PATH];
+                TTDHostInitFromUriBytes(strFilePath, uriBytes, uriByteLength);
+                TTDHostAppend(strFilePath, FileInformation.name);
 
-                if(FileInformation.attrib & FILE_ATTRIBUTE_DIRECTORY)
-                {
-                    DeleteDirectory(strFilePath.length() * sizeof(char16), (const byte*)strFilePath.c_str());
-                    _wrmdir(strFilePath.c_str());
-                }
-                else
-                {
-                    // Set file attributes
-                    _wchmod(strFilePath.c_str(), S_IREAD | _S_IWRITE);
-                    _wremove(strFilePath.c_str());
-                }
+                AssertMsg(!(FileInformation.attrib & FILE_ATTRIBUTE_DIRECTORY), "Should not have subdirs in ttd directory.");
+
+                // Set file attributes
+                TTDHostCHMod(strFilePath, S_IREAD | _S_IWRITE);
+                TTDHostRMFile(strFilePath);
             }
-        } while(_wfindnext(hFile, &FileInformation) == TRUE);
+        } while(TTDHostFindNext(hFile, &FileInformation) != -1);
 
         // Close handle
-        _findclose(hFile);
+        TTDHostFindClose(hFile);
     }
-#else
-    AssertMsg(false, "Not x-plat yet!!!");
-#endif
 }
 
 void Helpers::GetTTDDirectory(const char16* curi, size_t* uriByteLength, byte** uriBytes)
 {
-#ifdef _WIN32
-    std::wstring turi;
+    TTDHostCharType turi[MAX_PATH];
     if(curi[0] != _u('!'))
     {
-        turi.append(curi);
-        turi.append(TTDPathSeparator);
+        TTDHostAppendChar16(turi, curi);
+        TTDHostAppend(turi, TTDHostPathSeparator);
     }
     else
     {
-        char16 cexeLocation[MAX_PATH];
-        GetModuleFileName(NULL, cexeLocation, MAX_PATH);
+        TTDHostBuildCurrentExeDirectory(turi, MAX_PATH);
 
-        char16 drive[_MAX_DRIVE];
-        char16 dir[_MAX_DIR];
-        char16 name[_MAX_FNAME];
-        char16 ext[_MAX_EXT];
-        _wsplitpath_s(cexeLocation, drive, dir, name, ext);
+        TTDHostAppendAscii(turi, "_ttdlog");
+        TTDHostAppend(turi, TTDHostPathSeparator);
 
-        char16 rootPath[MAX_PATH];
-        _wmakepath_s(rootPath, drive, dir, nullptr, nullptr);
-
-        turi.append(rootPath);
-
-        turi.append(_u("_ttdlog"));
-        turi.append(TTDPathSeparator);
-
-        turi.append(curi + 1);
-        turi.append(TTDPathSeparator);
+        TTDHostAppendChar16(turi, curi + 1);
+        TTDHostAppend(turi, TTDHostPathSeparator);
     }
 
-    *uriBytes = (byte*)CoTaskMemAlloc(MAX_PATH * sizeof(char16));
-    memset(*uriBytes, 0, MAX_PATH * sizeof(char16));
-    char16* nuri = (char16*)(*uriBytes);
+    *uriBytes = (byte*)CoTaskMemAlloc(MAX_PATH * sizeof(TTDHostCharType));
+    memset(*uriBytes, 0, MAX_PATH * sizeof(TTDHostCharType));
+    TTDHostCharType* nuri = (TTDHostCharType*)(*uriBytes);
 
-    _wfullpath(nuri, turi.c_str(), MAX_PATH);
-    *uriByteLength = wcslen(nuri) * sizeof(char16); //include null terminator in size computation
-#else
-    AssertMsg(false, "Not x-plat yet!!!");
-#endif
+    TTDHostFullPath(nuri, turi, MAX_PATH);
+    *uriByteLength = TTDHostStringLength(nuri) * sizeof(TTDHostCharType);
 }
 
 void CALLBACK Helpers::TTInitializeForWriteLogStreamCallback(size_t uriByteLength, const byte* uriBytes)
@@ -380,7 +504,7 @@ void CALLBACK Helpers::TTInitializeForWriteLogStreamCallback(size_t uriByteLengt
     Helpers::CreateDirectoryIfNeeded(uriByteLength, uriBytes);
 
     //Clear the logging directory so it is ready for us to write into
-    Helpers::DeleteDirectory(uriByteLength, uriBytes);
+    Helpers::CleanDirectory(uriByteLength, uriBytes);
 }
 
 JsTTDStreamHandle Helpers::TTCreateStreamCallback(size_t uriByteLength, const byte* uriBytes, const char* asciiResourceName, bool read, bool write)
@@ -388,20 +512,11 @@ JsTTDStreamHandle Helpers::TTCreateStreamCallback(size_t uriByteLength, const by
     AssertMsg((read | write) & (!read | !write), "Read/Write streams not supported yet -- defaulting to read only");
 
     FILE* res = nullptr;
-#ifdef _WIN32
-    std::wstring path((const char16*)uriBytes, uriByteLength / sizeof(char16));
+    TTDHostCharType path[MAX_PATH];
+    TTDHostInitFromUriBytes(path, uriBytes, uriByteLength);
+    TTDHostAppendAscii(path, asciiResourceName);
 
-    size_t slen = strlen(asciiResourceName);
-    for(size_t i = 0; i < slen; ++i)
-    {
-        char16 c = asciiResourceName[i];
-        path.push_back(c);
-    }
-
-    _wfopen_s(&res, path.c_str(), read ? _u("r+b") : _u("w+b"));
-#else
-    AssertMsg(false, "Not x-plat yet!!!");
-#endif
+    res = TTDHostOpen(path, write);
 
     Helpers::TTReportLastIOErrorAsNeeded(res != nullptr, "Failed File Open");
     return res;
@@ -419,12 +534,8 @@ bool CALLBACK Helpers::TTReadBytesFromStreamCallback(JsTTDStreamHandle handle, b
 
     BOOL ok = FALSE;
 
-#ifdef _WIN32
     *readCount = fread_s(buff, size, 1, size, (FILE*)handle);
     ok = (*readCount != 0);
-#else
-    AssertMsg(false, "Not x-plat yet!!!");
-#endif
 
     Helpers::TTReportLastIOErrorAsNeeded(ok, "Failed Read!!!");
 
@@ -443,12 +554,8 @@ bool CALLBACK Helpers::TTWriteBytesToStreamCallback(JsTTDStreamHandle handle, by
 
     BOOL ok = FALSE;
 
-#ifdef _WIN32
     *writtenCount = fwrite(buff, 1, size, (FILE*)handle);
     ok = (*writtenCount == size);
-#else
-    AssertMsg(false, "Not x-plat yet!!!");
-#endif
 
     Helpers::TTReportLastIOErrorAsNeeded(ok, "Failed Read!!!");
 
