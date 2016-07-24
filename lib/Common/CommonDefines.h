@@ -338,9 +338,12 @@
 //Enable debugging specific aspects of TTD
 #define ENABLE_TTD_DEBUGGING 1
 
-//A VSCode & node getting angry about SIMD objects
-#define TTD_VSCODE_WORK_AROUNDS 1
+//Temp code needed to run VSCode but slows down execution (later will fix + implement high perf. version)
+//The ifndef check allows us to override this in build from Node in TTD version (where we want to have this on by default)
+#ifndef TTD_VSCODE_WORK_AROUNDS
+#define TTD_VSCODE_WORK_AROUNDS 0
 #define TTD_VSCODE_HIJACK_OUT_FOR_REVERSE_CONTINUE 0
+#endif
 
 //A workaround for some unimplemented code parse features (force debug mode)
 //Enable to turn these features off for good performance measurements.
