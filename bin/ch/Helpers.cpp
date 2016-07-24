@@ -114,7 +114,7 @@ JsTTDStreamHandle TTDHostOpen(const TTDHostCharType* path, bool isWrite)
 
 #include <sys/stat.h>
 
-typedef char TTDHostCharType;
+typedef uft8char_t TTDHostCharType;
 typedef struct dirent* TTDHostFileInfo;
 typedef DIR* TTDHostFindHandle;
 typedef struct stat TTDHostStatType;
@@ -151,11 +151,11 @@ void TTDHostAppend(TTDHostCharType* dst, const TTDHostCharType* src)
     dst[dpos + srcLength] = '\0';
 }
 
-void TTDHostAppendChar16(TTDHostCharType* dst, const wchar* src)
+void TTDHostAppendWChar(TTDHostCharType* dst, const wchar* src)
 {
     size_t dpos = TTDHostStringLength(dst);
     size_t srcLength = wcslen(src);
-    utf8::EncodeIntoAndNullTerminate((utf8char_t*)(dst + dpos), src, srcLength);
+    utf8::EncodeIntoAndNullTerminate(dst + dpos, src, srcLength);
 }
 
 void TTDHostAppendAscii(TTDHostCharType* dst, const char* src)
@@ -185,19 +185,19 @@ void TTDHostBuildCurrentExeDirectory(TTDHostCharType* path, size_t pathBufferLen
 
 JsTTDStreamHandle TTDHostOpen(const TTDHostCharType* path, bool isWrite)
 {
-    return (JsTTDStreamHandle)fopen(path, isWrite ? "w+b" : "r+b");
+    return (JsTTDStreamHandle)fopen((const char*)path, isWrite ? "w+b" : "r+b");
 }
 
-#define TTDHostCWD(dst) getcwd(dst, MAX_PATH)
-#define TTDDoPathInit(dst) TTDHostAppend(dst, TTDHostPathSeparator)
-#define TTDHostTok(opath, TTDHostPathSeparator, context) strtok(opath, TTDHostPathSeparator)
-#define TTDHostStat(cpath, statVal) stat(cpath, statVal)
+#define TTDHostCWD(dst) getcwd((const char*)dst, MAX_PATH)
+#define TTDDoPathInit(dst) TTDHostAppend((const char*)dst, TTDHostPathSeparator)
+#define TTDHostTok(opath, TTDHostPathSeparator, context) strtok((const char*)opath, TTDHostPathSeparator)
+#define TTDHostStat(cpath, statVal) stat((const char*)cpath, statVal)
 
-#define TTDHostMKDir(cpath) mkdir(cpath, 0777)
-#define TTDHostCHMod(cpath, flags) chmod(cpath, flags)
-#define TTDHostRMFile(cpath) remove(cpath)
+#define TTDHostMKDir(cpath) mkdir((const char*)cpath, 0777)
+#define TTDHostCHMod(cpath, flags) chmod((const char*)cpath, flags)
+#define TTDHostRMFile(cpath) remove((const char*)cpath)
 
-#define TTDHostFindFirst(strPattern, FileInformation) opendir(strPattern)
+#define TTDHostFindFirst(strPattern, FileInformation) opendir((const char*)strPattern)
 #define TTDHostFindNext(hFile, FileInformation) (*FileInformation = readdir(hFile))
 #define TTDHostFindClose(hFile) closedir(hFile)
 
