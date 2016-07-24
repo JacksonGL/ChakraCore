@@ -43,13 +43,15 @@ void TTDHostAppend(TTDHostCharType* dst, const TTDHostCharType* src)
     dst[dpos + srcLength] = _u('\0');
 }
 
-void TTDHostAppendChar16(TTDHostCharType* dst, const char16* src)
+void TTDHostAppendWChar(TTDHostCharType* dst, const wchar* src)
 {
     size_t dpos = TTDHostStringLength(dst);
     size_t srcLength = wcslen(src);
-    size_t srcByteLength = srcLength * sizeof(char16);
 
-    memcpy_s(dst + dpos, srcByteLength, src, srcByteLength);
+    for(size_t i = 0; i < srcLength; ++i)
+    {
+        dst[dpos + i] = (char16)src[i];
+    }
     dst[dpos + srcLength] = _u('\0');
 }
 
@@ -149,7 +151,7 @@ void TTDHostAppend(TTDHostCharType* dst, const TTDHostCharType* src)
     dst[dpos + srcLength] = '\0';
 }
 
-void TTDHostAppendChar16(TTDHostCharType* dst, const char16* src)
+void TTDHostAppendChar16(TTDHostCharType* dst, const wchar* src)
 {
     size_t dpos = TTDHostStringLength(dst);
     size_t srcLength = wcslen(src);
@@ -519,7 +521,7 @@ void Helpers::GetTTDDirectory(const wchar* curi, size_t* uriByteLength, byte** u
         TTDHostCWD(turi);
         TTDHostAppend(turi, TTDHostPathSeparator);
 
-        TTDHostAppendChar16(turi, curi);
+        TTDHostAppendWChar(turi, curi);
     }
     else
     {
@@ -528,7 +530,7 @@ void Helpers::GetTTDDirectory(const wchar* curi, size_t* uriByteLength, byte** u
         TTDHostAppendAscii(turi, "_ttdlog");
         TTDHostAppend(turi, TTDHostPathSeparator);
 
-        TTDHostAppendChar16(turi, curi + 1);
+        TTDHostAppendWChar(turi, curi + 1);
     }
 
     //add a path separator if one is not already present

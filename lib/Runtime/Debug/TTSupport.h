@@ -220,7 +220,7 @@ namespace TTD
     };
 
     //Function pointer definitions and a struct for writing data out of memory (presumably to stable storage)
-    typedef FILE* JsTTDStreamHandle;
+    typedef void* JsTTDStreamHandle;
 
     typedef void(CALLBACK *TTDInitializeForWriteLogStreamCallback)(size_t uriByteLength, const byte* uriBytes);
     typedef JsTTDStreamHandle(CALLBACK *TTDOpenResourceStreamCallback)(size_t uriByteLength, const byte* uriBytes, const char* asciiNameString, bool read, bool write);
