@@ -123,7 +123,7 @@ typedef struct stat TTDHostStatType;
 #define TTDHostPathSeparatorChar ((TTDHostCharType)'/')
 #define TTDHostFindInvalid nullptr
 
-#define TTDHostCharConvert(X) ((const char*)X)
+#define TTDHostCharConvert(X) ((char*)X)
 #define TTDHostUtf8CharConvert(X) ((TTDHostCharType*)X)
 
 size_t TTDHostStringLength(const TTDHostCharType* str)
@@ -174,9 +174,9 @@ void TTDHostAppendAscii(TTDHostCharType* dst, const char* src)
 void TTDHostBuildCurrentExeDirectory(TTDHostCharType* path, size_t pathBufferLength)
 {
     TTDHostCharType exePath[MAX_PATH];
-    readlink("/proc/self/exe", TTDHostCharConvert(exePath), MAX_PATH);
+    size_t len = readlink("/proc/self/exe", TTDHostCharConvert(exePath), MAX_PATH);
 
-    size_t i = strlen(exePath) - 1;
+    size_t i = len - 1;
     while(exePath[i] != TTDHostPathSeparatorChar)
     {
         --i;
@@ -192,8 +192,8 @@ JsTTDStreamHandle TTDHostOpen(const TTDHostCharType* path, bool isWrite)
 }
 
 #define TTDHostCWD(dst) TTDHostUtf8CharConvert(getcwd(TTDHostCharConvert(dst), MAX_PATH))
-#define TTDDoPathInit(dst) TTDHostAppend(TTDHostCharConvert(dst), TTDHostPathSeparator)
-#define TTDHostTok(opath, TTDHostPathSeparator, context) TTDHostUtf8CharConvert(strtok(TTDHostCharConvert(opath), TTDHostPathSeparator))
+#define TTDDoPathInit(dst) TTDHostAppend(dst, TTDHostPathSeparator)
+#define TTDHostTok(opath, TTDHostPathSeparator, context) TTDHostUtf8CharConvert(strtok(TTDHostCharConvert(opath), TTDHostCharConvert(TTDHostPathSeparator)))
 #define TTDHostStat(cpath, statVal) stat(TTDHostCharConvert(cpath), statVal)
 
 #define TTDHostMKDir(cpath) mkdir(TTDHostCharConvert(cpath), 0777)
