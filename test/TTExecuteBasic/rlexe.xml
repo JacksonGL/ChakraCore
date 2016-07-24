@@ -3,7 +3,7 @@
   <test>
     <default>
       <files>callbackSingle.js</files>
-      <compile-flags>-TTRecord:!callbackSingleTest -TTSnapInterval:0</compile-flags>
+      <compile-flags>-TTRecord=~callbackSingleTest -TTSnapInterval=0</compile-flags>
       <baseline>callbackSingleRecord.baseline</baseline>
       <tags>exclude_dynapogo,exclude_jshost,exclude_snap,exclude_serialized</tags>
     </default>
@@ -11,7 +11,7 @@
   <test>
     <default>
       <files>ttdSentinal.js</files>
-      <compile-flags>-TTDebug:!callbackSingleTest</compile-flags>
+      <compile-flags>-TTDebug=~callbackSingleTest</compile-flags>
       <baseline>callbackSingleReplay.baseline</baseline>
       <tags>exclude_dynapogo,exclude_jshost,exclude_snap,exclude_serialized</tags>
     </default>
@@ -19,7 +19,7 @@
   <test>
     <default>
       <files>callbackSpread.js</files>
-      <compile-flags>-TTRecord:!callbackSpreadTest -TTSnapInterval:0</compile-flags>
+      <compile-flags>-TTRecord=~callbackSpreadTest -TTSnapInterval=0</compile-flags>
       <baseline>callbackSpreadRecord.baseline</baseline>
       <tags>exclude_dynapogo,exclude_jshost,exclude_snap,exclude_serialized</tags>
     </default>
@@ -27,7 +27,7 @@
   <test>
     <default>
       <files>ttdSentinal.js</files>
-      <compile-flags>-TTDebug:!callbackSpreadTest</compile-flags>
+      <compile-flags>-TTDebug=~callbackSpreadTest</compile-flags>
       <baseline>callbackSpreadReplay.baseline</baseline>
       <tags>exclude_dynapogo,exclude_jshost,exclude_snap,exclude_serialized</tags>
     </default>
@@ -35,7 +35,7 @@
   <test>
     <default>
       <files>callbackSequence.js</files>
-      <compile-flags>-TTRecord:!callbackSequenceTest -TTSnapInterval:0</compile-flags>
+      <compile-flags>-TTRecord=~callbackSequenceTest -TTSnapInterval=0</compile-flags>
       <baseline>callbackSequenceRecord.baseline</baseline>
       <tags>exclude_dynapogo,exclude_jshost,exclude_snap,exclude_serialized</tags>
     </default>
@@ -43,7 +43,7 @@
   <test>
     <default>
       <files>ttdSentinal.js</files>
-      <compile-flags>-TTDebug:!callbackSequenceTest</compile-flags>
+      <compile-flags>-TTDebug=~callbackSequenceTest</compile-flags>
       <baseline>callbackSequenceReplay.baseline</baseline>
       <tags>exclude_dynapogo,exclude_jshost,exclude_snap,exclude_serialized</tags>
     </default>
@@ -51,7 +51,7 @@
   <test>
     <default>
       <files>callbackClear.js</files>
-      <compile-flags>-TTRecord:!callbackClearTest -TTSnapInterval:0</compile-flags>
+      <compile-flags>-TTRecord=~callbackClearTest -TTSnapInterval=0</compile-flags>
       <baseline>callbackClearRecord.baseline</baseline>
       <tags>exclude_dynapogo,exclude_jshost,exclude_snap,exclude_serialized</tags>
     </default>
@@ -59,7 +59,7 @@
   <test>
     <default>
       <files>ttdSentinal.js</files>
-      <compile-flags>-TTDebug:!callbackClearTest</compile-flags>
+      <compile-flags>-TTDebug=~callbackClearTest</compile-flags>
       <baseline>callbackClearReplay.baseline</baseline>
       <tags>exclude_dynapogo,exclude_jshost,exclude_snap,exclude_serialized</tags>
     </default>

@@ -689,31 +689,31 @@ int _cdecl wmain(int argc, __in_ecount(argc) LPWSTR argv[])
     int cpos = 0;
     for(int i = 0; i < argc; ++i)
     {
-        if(wcsstr(argv[i], _u("-TTRecord:")) == argv[i])
+        if(wcsstr(argv[i], _u("-TTRecord=")) == argv[i])
         {
             doTTRecord = true;
-            char16* ruri = argv[i] + wcslen(_u("-TTRecord:"));
+            char16* ruri = argv[i] + wcslen(_u("-TTRecord="));
             Helpers::GetTTDDirectory(ruri, &ttUriByteLength, &ttUri);
         }
-        else if(wcsstr(argv[i], _u("-TTDebug:")) == argv[i])
+        else if(wcsstr(argv[i], _u("-TTDebug=")) == argv[i])
         {
             doTTDebug = true;
-            char16* ruri = argv[i] + wcslen(_u("-TTDebug:"));
+            char16* ruri = argv[i] + wcslen(_u("-TTDebug="));
             Helpers::GetTTDDirectory(ruri, &ttUriByteLength, &ttUri);
         }
-        else if(wcsstr(argv[i], _u("-TTSnapInterval:")) == argv[i])
+        else if(wcsstr(argv[i], _u("-TTSnapInterval=")) == argv[i])
         {
-            LPCWSTR intervalStr = argv[i] + wcslen(_u("-TTSnapInterval:"));
+            LPCWSTR intervalStr = argv[i] + wcslen(_u("-TTSnapInterval="));
             snapInterval = (UINT32)_wtoi(intervalStr);
         }
-        else if(wcsstr(argv[i], _u("-TTHistoryLength:")) == argv[i])
+        else if(wcsstr(argv[i], _u("-TTHistoryLength=")) == argv[i])
         {
-            LPCWSTR historyStr = argv[i] + wcslen(_u("-TTHistoryLength:"));
+            LPCWSTR historyStr = argv[i] + wcslen(_u("-TTHistoryLength="));
             snapHistoryLength = (UINT32)_wtoi(historyStr);
         }
-        else if(wcsstr(argv[i], _u("-TTDStartEvent:")) == argv[i])
+        else if(wcsstr(argv[i], _u("-TTDStartEvent=")) == argv[i])
         {
-            LPCWSTR startEventStr = argv[i] + wcslen(_u("-TTDStartEvent:"));
+            LPCWSTR startEventStr = argv[i] + wcslen(_u("-TTDStartEvent="));
             startEventCount = (UINT32)_wtoi(startEventStr);
         }
         else

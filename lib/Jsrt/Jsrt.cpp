@@ -267,7 +267,14 @@ JsErrorCode CreateContextCore(_In_ JsRuntimeHandle runtimeHandle, _In_ bool crea
                 //TODO: We currently force this into debug mode in record as well to make sure parsing/bytecode generation is same as during replay.
                 //      Later we will want to be clever during inflate and not do this.
                 //
+#ifdef _WIN32
                 context->GetScriptContext()->InitializeDebugging();
+#else
+                //
+                //TODO: x-plat does not like some parts of initiallize debugging so just set the flag we need 
+                //
+                context->GetScriptContext()->GetDebugContext()->SetDebuggerMode(Js::DebuggerMode::Debugging);
+#endif
             }
 #endif
 

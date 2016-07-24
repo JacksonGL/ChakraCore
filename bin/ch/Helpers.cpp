@@ -8,10 +8,14 @@
 #ifdef _WIN32
 typedef char16 TTDHostCharType;
 typedef struct _wfinddata_t TTDHostFileInfo;
+typedef intptr_t TTDHostFindHandle;
+typedef struct _stat TTDHostStatType;
 
 #define TTDHostPathSeparator _u("\\")
+#define TTDHostPathSeparatorChar _u('\\')
+#define TTDHostFindInvalid -1
 
-size_t TTDHostStringLength(const char16* str)
+size_t TTDHostStringLength(const TTDHostCharType* str)
 {
     return wcslen(str);
 }
@@ -31,8 +35,8 @@ void TTDHostInitFromUriBytes(TTDHostCharType* dst, const byte* uriBytes, size_t 
 
 void TTDHostAppend(TTDHostCharType* dst, const TTDHostCharType* src)
 {
-    size_t dpos = wcslen(dst);
-    size_t srcLength = wcslen(src);
+    size_t dpos = TTDHostStringLength(dst);
+    size_t srcLength = TTDHostStringLength(src);
     size_t srcByteLength = srcLength * sizeof(TTDHostCharType);
 
     memcpy_s(dst + dpos, srcByteLength, src, srcByteLength);
@@ -41,7 +45,7 @@ void TTDHostAppend(TTDHostCharType* dst, const TTDHostCharType* src)
 
 void TTDHostAppendChar16(TTDHostCharType* dst, const char16* src)
 {
-    size_t dpos = wcslen(dst);
+    size_t dpos = TTDHostStringLength(dst);
     size_t srcLength = wcslen(src);
     size_t srcByteLength = srcLength * sizeof(char16);
 
@@ -51,7 +55,7 @@ void TTDHostAppendChar16(TTDHostCharType* dst, const char16* src)
 
 void TTDHostAppendAscii(TTDHostCharType* dst, const char* src)
 {
-    size_t dpos = wcslen(dst);
+    size_t dpos = TTDHostStringLength(dst);
     size_t srcLength = strlen(src);
     for(size_t i = 0; i < srcLength; ++i)
     {
@@ -65,13 +69,14 @@ void TTDHostBuildCurrentExeDirectory(TTDHostCharType* path, size_t pathBufferLen
     TTDHostCharType exePath[MAX_PATH];
     GetModuleFileName(NULL, exePath, MAX_PATH);
 
-    TTDHostCharType drive[_MAX_DRIVE];
-    TTDHostCharType dir[_MAX_DIR];
-    TTDHostCharType name[_MAX_FNAME];
-    TTDHostCharType ext[_MAX_EXT];
-    _wsplitpath_s(exePath, drive, dir, name, ext);
+    size_t i = TTDHostStringLength(exePath) - 1;
+    while(exePath[i] != TTDHostPathSeparatorChar)
+    {
+        --i;
+    }
 
-    _wmakepath_s(path, pathBufferLength, drive, dir, nullptr, nullptr);
+    memcpy_s(path, MAX_PATH, exePath, (i + 1) * sizeof(TTDHostCharType));
+    path[i + 1] = _u('\0');
 }
 
 JsTTDStreamHandle TTDHostOpen(const TTDHostCharType* path, bool isWrite)
@@ -82,7 +87,8 @@ JsTTDStreamHandle TTDHostOpen(const TTDHostCharType* path, bool isWrite)
     return res;
 }
 
-#define TTDHostFullPath(dst, src, dstLength) _wfullpath(dst, src, dstLength)
+#define TTDHostCWD(dst) _wgetcwd(dst, MAX_PATH)
+#define TTDDoPathInit(dst)
 #define TTDHostTok(opath, TTDHostPathSeparator, context) wcstok_s(opath, TTDHostPathSeparator, context)
 #define TTDHostStat(cpath, statVal) _wstat(cpath, statVal)
 
@@ -93,10 +99,32 @@ JsTTDStreamHandle TTDHostOpen(const TTDHostCharType* path, bool isWrite)
 #define TTDHostFindFirst(strPattern, FileInformation) _wfindfirst(strPattern, FileInformation)
 #define TTDHostFindNext(hFile, FileInformation) _wfindnext(hFile, FileInformation)
 #define TTDHostFindClose(hFile) _findclose(hFile)
+
+#define TTDHostDirInfoName(FileInformation) FileInformation.name
+
+#define TTDHostRead(buff, size, handle) fread_s(buff, size, 1, size, (FILE*)handle);
+#define TTDHostWrite(buff, size, handle) fwrite(buff, 1, size, (FILE*)handle)
 #else
+#include <unistd.h>
+#include <cstring>
+#include <libgen.h>
+#include <dirent.h>
+
+#include <sys/stat.h>
+
 typedef char TTDHostCharType;
+typedef struct dirent* TTDHostFileInfo;
+typedef DIR* TTDHostFindHandle;
+typedef struct stat TTDHostStatType;
 
 #define TTDHostPathSeparator "/"
+#define TTDHostPathSeparatorChar '/'
+#define TTDHostFindInvalid nullptr
+
+size_t TTDHostStringLength(const TTDHostCharType* str)
+{
+    return strlen(str);
+}
 
 void TTDHostInitEmpty(TTDHostCharType* dst)
 {
@@ -108,18 +136,13 @@ void TTDHostInitFromUriBytes(TTDHostCharType* dst, const byte* uriBytes, size_t 
     memcpy_s(dst, MAX_PATH * sizeof(TTDHostCharType), uriBytes, uriBytesLength);
     dst[uriBytesLength / sizeof(TTDHostCharType)] = '\0';
 
-    AssertMsg(strlen(dst) == (uriBytesLength / sizeof(TTDHostCharType)), "We have an null in the uri or our math is wrong somewhere.");
-}
-
-size_t TTDHostStringLength(const char16* str)
-{
-    return strlen(str);
+    AssertMsg(TTDHostStringLength(dst) == (uriBytesLength / sizeof(TTDHostCharType)), "We have an null in the uri or our math is wrong somewhere.");
 }
 
 void TTDHostAppend(TTDHostCharType* dst, const TTDHostCharType* src)
 {
-    size_t dpos = strlen(dst);
-    size_t srcLength = strlen(src);
+    size_t dpos = TTDHostStringLength(dst);
+    size_t srcLength = TTDHostStringLength(src);
     size_t srcByteLength = srcLength * sizeof(TTDHostCharType);
 
     memcpy_s(dst + dpos, srcByteLength, src, srcByteLength);
@@ -128,13 +151,14 @@ void TTDHostAppend(TTDHostCharType* dst, const TTDHostCharType* src)
 
 void TTDHostAppendChar16(TTDHostCharType* dst, const char16* src)
 {
-    size_t dpos = strlen(dst);
-    utf8::EncodeIntoAndNullTerminate(dst + dpos, src, wcslen(src));
+    size_t dpos = TTDHostStringLength(dst);
+    size_t srcLength = wcslen(src);
+    utf8::EncodeIntoAndNullTerminate((utf8char_t*)(dst + dpos), src, srcLength);
 }
 
 void TTDHostAppendAscii(TTDHostCharType* dst, const char* src)
 {
-    size_t dpos = strlen(dst);
+    size_t dpos = TTDHostStringLength(dst);
     size_t srcLength = strlen(src);
     size_t srcByteLength = srcLength * sizeof(TTDHostCharType);
 
@@ -144,28 +168,41 @@ void TTDHostAppendAscii(TTDHostCharType* dst, const char* src)
 
 void TTDHostBuildCurrentExeDirectory(TTDHostCharType* path, size_t pathBufferLength)
 {
-    asdf;
+    TTDHostCharType exePath[MAX_PATH];
+    readlink("/proc/self/exe", exePath, MAX_PATH);
+
+    size_t i = TTDHostStringLength(exePath) - 1;
+    while(exePath[i] != TTDHostPathSeparatorChar)
+    {
+        --i;
+    }
+
+    memcpy_s(path, MAX_PATH, exePath, (i + 1) * sizeof(TTDHostCharType));
+    path[i + 1] = '\0';
 }
 
 JsTTDStreamHandle TTDHostOpen(const TTDHostCharType* path, bool isWrite)
 {
-    JsTTDStreamHandle res = nullptr;
-    fopen_s(&res, path, isWrite ? "w+b" : "r+b");
-
-    return res;
+    return fopen(path, isWrite ? "w+b" : "r+b");
 }
 
-#define TTDHostFullPath(dst, src, dstLength) _fullpath(dst, src, dstLength)
-#define TTDHostTok(opath, TTDHostPathSeparator, context) _stok_s(opath, TTDHostPathSeparator, context)
-#define TTDHostStat(cpath, statVal) _stat(cpath, statVal)
+#define TTDHostCWD(dst) getcwd(dst, MAX_PATH)
+#define TTDDoPathInit(dst) TTDHostAppend(dst, TTDHostPathSeparator)
+#define TTDHostTok(opath, TTDHostPathSeparator, context) strtok(opath, TTDHostPathSeparator)
+#define TTDHostStat(cpath, statVal) stat(cpath, statVal)
 
-#define TTDHostMKDir(cpath) _mkdir(cpath)
-#define TTDHostCHMod(cpath, flags) _chmod(cpath, flags)
-#define TTDHostRMFile(cpath) _remove(cpath)
+#define TTDHostMKDir(cpath) mkdir(cpath, 0777)
+#define TTDHostCHMod(cpath, flags) chmod(cpath, flags)
+#define TTDHostRMFile(cpath) remove(cpath)
 
-#define TTDHostFindFirst(strPattern, FileInformation) _findfirst(strPattern, FileInformation)
-#define TTDHostFindNext(hFile, FileInformation) _findnext(hFile, FileInformation)
-#define TTDHostFindClose(hFile) _findclose(hFile)
+#define TTDHostFindFirst(strPattern, FileInformation) opendir(strPattern)
+#define TTDHostFindNext(hFile, FileInformation) (*FileInformation = readdir(hFile))
+#define TTDHostFindClose(hFile) closedir(hFile)
+
+#define TTDHostDirInfoName(FileInformation) FileInformation->d_name
+
+#define TTDHostRead(buff, size, handle) fread(buff, 1, size, (FILE*)handle)
+#define TTDHostWrite(buff, size, handle) fwrite(buff, 1, size, (FILE*)handle)
 #endif
 
 HRESULT Helpers::LoadScriptFromFile(LPCSTR filename, LPCSTR& contents, UINT* lengthBytesOut /*= nullptr*/)
@@ -384,9 +421,11 @@ void Helpers::TTReportLastIOErrorAsNeeded(BOOL ok, const char* msg)
         DWORD lastError = GetLastError();
         LPTSTR pTemp = NULL;
         FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ARGUMENT_ARRAY, NULL, lastError, 0, (LPTSTR)&pTemp, 0, NULL);
-        fwprintf(stderr, _u(": %s"), pTemp);
+        fwprintf(stderr, _u("Error is: %s\n"), pTemp);
+#else
+        fprintf(stderr, "Error is: %i %s\n", errno, strerror(errno));
 #endif
-        fprintf(stderr, "msg is: %s", msg);
+        fprintf(stderr, "Message is: %s\n", msg);
 
         AssertMsg(false, "IO Error!!!");
     }
@@ -399,8 +438,9 @@ void Helpers::CreateDirectoryIfNeeded(size_t uriByteLength, const byte* uriBytes
 
     TTDHostCharType cpath[MAX_PATH];
     TTDHostInitEmpty(cpath);
+    TTDDoPathInit(cpath);
 
-    struct _stat statVal;
+    TTDHostStatType statVal;
     TTDHostCharType* context = nullptr;
     TTDHostCharType* token = TTDHostTok(opath, TTDHostPathSeparator, &context);
     TTDHostAppend(cpath, token);
@@ -440,7 +480,7 @@ void Helpers::CreateDirectoryIfNeeded(size_t uriByteLength, const byte* uriBytes
 
 void Helpers::CleanDirectory(size_t uriByteLength, const byte* uriBytes)
 {
-    intptr_t hFile;
+    TTDHostFindHandle hFile;
     TTDHostFileInfo FileInformation;
 
     TTDHostCharType strPattern[MAX_PATH];
@@ -448,23 +488,21 @@ void Helpers::CleanDirectory(size_t uriByteLength, const byte* uriBytes)
     TTDHostAppendAscii(strPattern, "*.*");
 
     hFile = TTDHostFindFirst(strPattern, &FileInformation);
-    if(hFile != -1)
+    if(hFile != TTDHostFindInvalid)
     {
         do
         {
-            if(FileInformation.name[0] != '.')
+            if(TTDHostDirInfoName(FileInformation)[0] != '.')
             {
                 TTDHostCharType strFilePath[MAX_PATH];
                 TTDHostInitFromUriBytes(strFilePath, uriBytes, uriByteLength);
-                TTDHostAppend(strFilePath, FileInformation.name);
-
-                AssertMsg(!(FileInformation.attrib & FILE_ATTRIBUTE_DIRECTORY), "Should not have subdirs in ttd directory.");
+                TTDHostAppend(strFilePath, TTDHostDirInfoName(FileInformation));
 
                 // Set file attributes
-                TTDHostCHMod(strFilePath, S_IREAD | _S_IWRITE);
+                TTDHostCHMod(strFilePath, S_IREAD | S_IWRITE);
                 TTDHostRMFile(strFilePath);
             }
-        } while(TTDHostFindNext(hFile, &FileInformation) != -1);
+        } while(TTDHostFindNext(hFile, &FileInformation) != TTDHostFindInvalid);
 
         // Close handle
         TTDHostFindClose(hFile);
@@ -474,10 +512,14 @@ void Helpers::CleanDirectory(size_t uriByteLength, const byte* uriBytes)
 void Helpers::GetTTDDirectory(const char16* curi, size_t* uriByteLength, byte** uriBytes)
 {
     TTDHostCharType turi[MAX_PATH];
-    if(curi[0] != _u('!'))
+    TTDHostInitEmpty(turi);
+
+    if(curi[0] != _u('~'))
     {
-        TTDHostAppendChar16(turi, curi);
+        TTDHostCWD(turi);
         TTDHostAppend(turi, TTDHostPathSeparator);
+
+        TTDHostAppendChar16(turi, curi);
     }
     else
     {
@@ -487,15 +529,21 @@ void Helpers::GetTTDDirectory(const char16* curi, size_t* uriByteLength, byte** 
         TTDHostAppend(turi, TTDHostPathSeparator);
 
         TTDHostAppendChar16(turi, curi + 1);
+    }
+
+    //add a path separator if one is not already present
+    if(curi[wcslen(curi) - 1] != (wchar)TTDHostPathSeparator[0])
+    {
         TTDHostAppend(turi, TTDHostPathSeparator);
     }
 
-    *uriBytes = (byte*)CoTaskMemAlloc(MAX_PATH * sizeof(TTDHostCharType));
-    memset(*uriBytes, 0, MAX_PATH * sizeof(TTDHostCharType));
-    TTDHostCharType* nuri = (TTDHostCharType*)(*uriBytes);
+    size_t turiLength = TTDHostStringLength(turi);
 
-    TTDHostFullPath(nuri, turi, MAX_PATH);
-    *uriByteLength = TTDHostStringLength(nuri) * sizeof(TTDHostCharType);
+    size_t byteLengthWNull = (turiLength + 1) * sizeof(TTDHostCharType);
+    *uriBytes = (byte*)CoTaskMemAlloc(byteLengthWNull);
+    memcpy_s(*uriBytes, byteLengthWNull, turi, byteLengthWNull);
+
+    *uriByteLength = turiLength * sizeof(TTDHostCharType);
 }
 
 void CALLBACK Helpers::TTInitializeForWriteLogStreamCallback(size_t uriByteLength, const byte* uriBytes)
@@ -534,7 +582,7 @@ bool CALLBACK Helpers::TTReadBytesFromStreamCallback(JsTTDStreamHandle handle, b
 
     BOOL ok = FALSE;
 
-    *readCount = fread_s(buff, size, 1, size, (FILE*)handle);
+    *readCount = TTDHostRead(buff, size, handle);
     ok = (*readCount != 0);
 
     Helpers::TTReportLastIOErrorAsNeeded(ok, "Failed Read!!!");
@@ -554,7 +602,7 @@ bool CALLBACK Helpers::TTWriteBytesToStreamCallback(JsTTDStreamHandle handle, by
 
     BOOL ok = FALSE;
 
-    *writtenCount = fwrite(buff, 1, size, (FILE*)handle);
+    *writtenCount = TTDHostWrite(buff, size, (FILE*)handle);
     ok = (*writtenCount == size);
 
     Helpers::TTReportLastIOErrorAsNeeded(ok, "Failed Read!!!");
