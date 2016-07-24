@@ -68,17 +68,17 @@ void TTDHostAppendAscii(TTDHostCharType* dst, const char* src)
 
 void TTDHostBuildCurrentExeDirectory(TTDHostCharType* path, size_t pathBufferLength)
 {
-    TTDHostCharType exePath[MAX_PATH];
+    wchar exePath[MAX_PATH];
     GetModuleFileName(NULL, exePath, MAX_PATH);
 
-    size_t i = TTDHostStringLength(exePath) - 1;
+    size_t i = wcslen(exePath) - 1;
     while(exePath[i] != TTDHostPathSeparatorChar)
     {
         --i;
     }
+    exePath[i + 1] = _u('\0');
 
-    memcpy_s(path, MAX_PATH, exePath, (i + 1) * sizeof(TTDHostCharType));
-    path[i + 1] = _u('\0');
+    TTDHostAppendWChar(path, exePath);
 }
 
 JsTTDStreamHandle TTDHostOpen(const TTDHostCharType* path, bool isWrite)
@@ -114,18 +114,21 @@ JsTTDStreamHandle TTDHostOpen(const TTDHostCharType* path, bool isWrite)
 
 #include <sys/stat.h>
 
-typedef uft8char_t TTDHostCharType;
+typedef utf8char_t TTDHostCharType;
 typedef struct dirent* TTDHostFileInfo;
 typedef DIR* TTDHostFindHandle;
 typedef struct stat TTDHostStatType;
 
-#define TTDHostPathSeparator "/"
-#define TTDHostPathSeparatorChar '/'
+#define TTDHostPathSeparator ((TTDHostCharType*)"/")
+#define TTDHostPathSeparatorChar ((TTDHostCharType)'/')
 #define TTDHostFindInvalid nullptr
+
+#define TTDHostCharConvert(X) ((const char*)X)
+#define TTDHostUtf8CharConvert(X) ((TTDHostCharType*)X)
 
 size_t TTDHostStringLength(const TTDHostCharType* str)
 {
-    return strlen(str);
+    return strlen(TTDHostCharConvert(str));
 }
 
 void TTDHostInitEmpty(TTDHostCharType* dst)
@@ -171,37 +174,37 @@ void TTDHostAppendAscii(TTDHostCharType* dst, const char* src)
 void TTDHostBuildCurrentExeDirectory(TTDHostCharType* path, size_t pathBufferLength)
 {
     TTDHostCharType exePath[MAX_PATH];
-    readlink("/proc/self/exe", exePath, MAX_PATH);
+    readlink("/proc/self/exe", TTDHostCharConvert(exePath), MAX_PATH);
 
-    size_t i = TTDHostStringLength(exePath) - 1;
+    size_t i = strlen(exePath) - 1;
     while(exePath[i] != TTDHostPathSeparatorChar)
     {
         --i;
     }
+    exePath[i + 1] = '\0';
 
-    memcpy_s(path, MAX_PATH, exePath, (i + 1) * sizeof(TTDHostCharType));
-    path[i + 1] = '\0';
+    TTDHostAppend(path, exePath);
 }
 
 JsTTDStreamHandle TTDHostOpen(const TTDHostCharType* path, bool isWrite)
 {
-    return (JsTTDStreamHandle)fopen((const char*)path, isWrite ? "w+b" : "r+b");
+    return (JsTTDStreamHandle)fopen(TTDHostCharConvert(path), isWrite ? "w+b" : "r+b");
 }
 
-#define TTDHostCWD(dst) getcwd((const char*)dst, MAX_PATH)
-#define TTDDoPathInit(dst) TTDHostAppend((const char*)dst, TTDHostPathSeparator)
-#define TTDHostTok(opath, TTDHostPathSeparator, context) strtok((const char*)opath, TTDHostPathSeparator)
-#define TTDHostStat(cpath, statVal) stat((const char*)cpath, statVal)
+#define TTDHostCWD(dst) TTDHostUtf8CharConvert(getcwd(TTDHostCharConvert(dst), MAX_PATH))
+#define TTDDoPathInit(dst) TTDHostAppend(TTDHostCharConvert(dst), TTDHostPathSeparator)
+#define TTDHostTok(opath, TTDHostPathSeparator, context) TTDHostUtf8CharConvert(strtok(TTDHostCharConvert(opath), TTDHostPathSeparator))
+#define TTDHostStat(cpath, statVal) stat(TTDHostCharConvert(cpath), statVal)
 
-#define TTDHostMKDir(cpath) mkdir((const char*)cpath, 0777)
-#define TTDHostCHMod(cpath, flags) chmod((const char*)cpath, flags)
-#define TTDHostRMFile(cpath) remove((const char*)cpath)
+#define TTDHostMKDir(cpath) mkdir(TTDHostCharConvert(cpath), 0777)
+#define TTDHostCHMod(cpath, flags) chmod(TTDHostCharConvert(cpath), flags)
+#define TTDHostRMFile(cpath) remove(TTDHostCharConvert(cpath))
 
-#define TTDHostFindFirst(strPattern, FileInformation) opendir((const char*)strPattern)
+#define TTDHostFindFirst(strPattern, FileInformation) opendir(TTDHostCharConvert(strPattern))
 #define TTDHostFindNext(hFile, FileInformation) (*FileInformation = readdir(hFile))
 #define TTDHostFindClose(hFile) closedir(hFile)
 
-#define TTDHostDirInfoName(FileInformation) FileInformation->d_name
+#define TTDHostDirInfoName(FileInformation) TTDHostUtf8CharConvert(FileInformation->d_name)
 
 #define TTDHostRead(buff, size, handle) fread(buff, 1, size, (FILE*)handle)
 #define TTDHostWrite(buff, size, handle) fwrite(buff, 1, size, (FILE*)handle)
