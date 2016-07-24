@@ -668,13 +668,13 @@ int _cdecl wmain(int argc, __in_ecount(argc) LPWSTR argv[])
         if(wcsstr(argv[i], _u("-TTRecord=")) == argv[i])
         {
             doTTRecord = true;
-            char16* ruri = argv[i] + wcslen(_u("-TTRecord="));
+            wchar* ruri = argv[i] + wcslen(_u("-TTRecord="));
             Helpers::GetTTDDirectory(ruri, &ttUriByteLength, &ttUri);
         }
         else if(wcsstr(argv[i], _u("-TTDebug=")) == argv[i])
         {
             doTTDebug = true;
-            char16* ruri = argv[i] + wcslen(_u("-TTDebug="));
+            wchar* ruri = argv[i] + wcslen(_u("-TTDebug="));
             Helpers::GetTTDDirectory(ruri, &ttUriByteLength, &ttUri);
         }
         else if(wcsstr(argv[i], _u("-TTSnapInterval=")) == argv[i])

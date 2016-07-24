@@ -81,10 +81,10 @@ void TTDHostBuildCurrentExeDirectory(TTDHostCharType* path, size_t pathBufferLen
 
 JsTTDStreamHandle TTDHostOpen(const TTDHostCharType* path, bool isWrite)
 {
-    JsTTDStreamHandle res = nullptr;
+    FILE* res = nullptr;
     _wfopen_s(&res, path, isWrite ? _u("w+b") : _u("r+b"));
 
-    return res;
+    return (JsTTDStreamHandle)res;
 }
 
 #define TTDHostCWD(dst) _wgetcwd(dst, MAX_PATH)
@@ -183,7 +183,7 @@ void TTDHostBuildCurrentExeDirectory(TTDHostCharType* path, size_t pathBufferLen
 
 JsTTDStreamHandle TTDHostOpen(const TTDHostCharType* path, bool isWrite)
 {
-    return fopen(path, isWrite ? "w+b" : "r+b");
+    return (JsTTDStreamHandle)fopen(path, isWrite ? "w+b" : "r+b");
 }
 
 #define TTDHostCWD(dst) getcwd(dst, MAX_PATH)
@@ -509,7 +509,7 @@ void Helpers::CleanDirectory(size_t uriByteLength, const byte* uriBytes)
     }
 }
 
-void Helpers::GetTTDDirectory(const char16* curi, size_t* uriByteLength, byte** uriBytes)
+void Helpers::GetTTDDirectory(const wchar* curi, size_t* uriByteLength, byte** uriBytes)
 {
     TTDHostCharType turi[MAX_PATH];
     TTDHostInitEmpty(turi);
@@ -555,11 +555,11 @@ void CALLBACK Helpers::TTInitializeForWriteLogStreamCallback(size_t uriByteLengt
     Helpers::CleanDirectory(uriByteLength, uriBytes);
 }
 
-JsTTDStreamHandle Helpers::TTCreateStreamCallback(size_t uriByteLength, const byte* uriBytes, const char* asciiResourceName, bool read, bool write)
+JsTTDStreamHandle CALLBACK Helpers::TTCreateStreamCallback(size_t uriByteLength, const byte* uriBytes, const char* asciiResourceName, bool read, bool write)
 {
     AssertMsg((read | write) & (!read | !write), "Read/Write streams not supported yet -- defaulting to read only");
 
-    FILE* res = nullptr;
+    void* res = nullptr;
     TTDHostCharType path[MAX_PATH];
     TTDHostInitFromUriBytes(path, uriBytes, uriByteLength);
     TTDHostAppendAscii(path, asciiResourceName);
@@ -589,8 +589,7 @@ bool CALLBACK Helpers::TTReadBytesFromStreamCallback(JsTTDStreamHandle handle, b
     }
 
     BOOL ok = FALSE;
-
-    *readCount = TTDHostRead(buff, size, handle);
+    *readCount = TTDHostRead(buff, size, (FILE*)handle);
     ok = (*readCount != 0);
 
     Helpers::TTReportLastIOErrorAsNeeded(ok, "Failed Read!!!");
@@ -609,7 +608,6 @@ bool CALLBACK Helpers::TTWriteBytesToStreamCallback(JsTTDStreamHandle handle, by
     }
 
     BOOL ok = FALSE;
-
     *writtenCount = TTDHostWrite(buff, size, (FILE*)handle);
     ok = (*writtenCount == size);
 

@@ -15,7 +15,7 @@ public :
     static void CreateDirectoryIfNeeded(size_t uriByteLength, const byte* uriBytes);
     static void CleanDirectory(size_t uriByteLength, const byte* uriBytes);
 
-    static void GetTTDDirectory(const char16* curi, size_t* uriByteLength, byte** uriBytes);
+    static void GetTTDDirectory(const wchar* curi, size_t* uriByteLength, byte** uriBytes);
 
     static void CALLBACK TTInitializeForWriteLogStreamCallback(size_t uriByteLength, const byte* uriBytes);
     static JsTTDStreamHandle CALLBACK TTCreateStreamCallback(size_t uriByteLength, const byte* uriBytes, const char* asciiResourceName, bool read, bool write);

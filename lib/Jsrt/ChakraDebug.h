@@ -676,10 +676,10 @@ typedef UINT32 DWORD;
         JsTTDMoveBreakOnEntry = 0x100
     } JsTTDMoveMode;
 
-    //
-    //TODO: Move this into the appropriate x-plat definition file
-    //
-    typedef FILE* JsTTDStreamHandle;
+    /// <summary>
+    ///     A handle for URI's that TTD information is written to/read from.
+    /// </summary>
+    typedef void* JsTTDStreamHandle;
 
     /// <summary>
     ///     TTD API -- may change in future versions:
