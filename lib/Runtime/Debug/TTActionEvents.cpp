@@ -345,7 +345,7 @@ namespace TTD
             const JsRTVarsArgumentAction* action = GetInlineEventDataAs<JsRTVarsArgumentAction, EventKind::GetOwnPropertyNamesInfoActionTag>(evt);
             Js::Var var = InflateVarInReplay(ctx, action->Var1);
 
-            Js::Var res = Js::JavascriptOperators::GetOwnPropertyNames(var, ctx);
+            Js::JavascriptArray* res = Js::JavascriptOperators::GetOwnPropertyNames(var, ctx);
 
             JsRTActionHandleResultForReplay<JsRTVarsArgumentAction, EventKind::GetOwnPropertyNamesInfoActionTag>(ctx, evt, res);
         }
@@ -355,7 +355,7 @@ namespace TTD
             const JsRTVarsArgumentAction* action = GetInlineEventDataAs<JsRTVarsArgumentAction, EventKind::GetOwnPropertySymbolsInfoActionTag>(evt);
             Js::Var var = InflateVarInReplay(ctx, action->Var1);
 
-            Js::Var res = Js::JavascriptOperators::GetOwnPropertySymbols(var, ctx);
+            Js::JavascriptArray* res = Js::JavascriptOperators::GetOwnPropertySymbols(var, ctx);
 
             JsRTActionHandleResultForReplay<JsRTVarsArgumentAction, EventKind::GetOwnPropertySymbolsInfoActionTag>(ctx, evt, res);
         }

@@ -41,3 +41,9 @@ JsTTDPrepContextsForTopLevelEventMove
 JsTTDPreExecuteSnapShotInterval
 JsTTDMoveToTopLevelEvent
 JsTTDReplayExecution
+
+JsInitializeModuleRecord
+JsParseModuleSource
+JsModuleEvaluation
+JsSetModuleHostInfo
+JsGetModuleHostInfo

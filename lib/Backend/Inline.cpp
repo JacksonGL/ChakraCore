@@ -1907,7 +1907,7 @@ Inline::InlineBuiltInFunction(IR::Instr *callInstr, Js::FunctionInfo *funcInfo, 
 
 #if defined(ENABLE_DEBUG_CONFIG_OPTIONS)
     InliningDecider::TraceInlining(inlinerData->GetFunctionBody(), Js::JavascriptLibrary::GetNameForBuiltIn(builtInId),
-        nullptr, 0, this->topFunc->m_workItem->GetFunctionBody(), 0, nullptr, profileId, builtInId);
+        nullptr, 0, this->topFunc->m_workItem->GetFunctionBody(), 0, nullptr, profileId, callInstr->m_func->GetTopFunc()->IsLoopBody(), builtInId);
 #endif
 
     // From now on we are committed to inlining.
@@ -2261,7 +2261,7 @@ IR::Instr* Inline::InlineApply(IR::Instr *callInstr, Js::FunctionInfo *funcInfo,
 
 #if defined(ENABLE_DEBUG_CONFIG_OPTIONS)
     InliningDecider::TraceInlining(inlinerData->GetFunctionBody(), Js::JavascriptLibrary::GetNameForBuiltIn(builtInId),
-        nullptr, 0, this->topFunc->m_workItem->GetFunctionBody(), 0, nullptr, callSiteId, builtInId);
+        nullptr, 0, this->topFunc->m_workItem->GetFunctionBody(), 0, nullptr, callSiteId, callInstr->m_func->GetTopFunc()->IsLoopBody(), builtInId);
     char16 debugStringBuffer[MAX_FUNCTION_BODY_DEBUG_STRING_SIZE];
 #endif
 
@@ -2724,7 +2724,7 @@ Inline::InlineCall(IR::Instr *callInstr, Js::FunctionInfo *funcInfo, const Js::F
 
 #if defined(ENABLE_DEBUG_CONFIG_OPTIONS)
     InliningDecider::TraceInlining(inlinerData->GetFunctionBody(), Js::JavascriptLibrary::GetNameForBuiltIn(builtInId),
-        nullptr, 0, this->topFunc->m_workItem->GetFunctionBody(), 0, nullptr, callSiteId, builtInId);
+        nullptr, 0, this->topFunc->m_workItem->GetFunctionBody(), 0, nullptr, callSiteId, callInstr->m_func->GetTopFunc()->IsLoopBody(), builtInId);
 #endif
 
     uint actualCount = 0;
@@ -3624,6 +3624,16 @@ Inline::InlineScriptFunction(IR::Instr *callInstr, const Js::FunctionCodeGenJitT
     Js::FunctionBody *funcCaller = callInstr->m_func->GetJnFunction();
     Js::FunctionBody *funcBody = inlineeData->GetFunctionBody();
 
+    // We don't do stack args optimization in jitted loop body (because of lack of information about the code before and after the loop) 
+    // and we turn off stack arg optimization for the whole inline chain if we can't do it for one of the functionss.
+    // Inlining a function that uses arguments object could potentially hurt perf because we'll have to create arguments object on the 
+    // heap for that function (versus otherwise the function will be jitted and have its arguments object creation optimized).
+    // TODO: Allow arguments object creation to be optimized on a function level instead of an all-or-nothing approach.
+    if (callInstr->m_func->IsLoopBody() && funcBody->GetUsesArgumentsObject())
+    {
+        return instrNext;
+    }
+
     if (callInstr->GetSrc2() &&
         callInstr->GetSrc2()->IsSymOpnd() &&
         callInstr->GetSrc2()->AsSymOpnd()->m_sym->AsStackSym()->GetArgSlotNum() > Js::InlineeCallInfo::MaxInlineeArgoutCount)
@@ -3720,7 +3730,7 @@ Inline::InlineScriptFunction(IR::Instr *callInstr, const Js::FunctionCodeGenJitT
                          this->topFunc->GetCodeGenProfiler(),
                          this->topFunc->IsBackgroundJIT(),
                          callInstr->m_func,
-                         callInstr->m_next->GetByteCodeOffset(),
+                         callInstr->GetNextRealInstr()->GetByteCodeOffset(),
                          returnRegSlot,
                          isCtor,
                          callSiteId,
@@ -5060,7 +5070,7 @@ Inline::HasArgumentsAccess(IR::Instr * instr, SymID argumentsSymId)
 bool
 Inline::GetInlineeHasArgumentObject(Func * inlinee)
 {
-    if (!inlinee->GetHasArgumentObject())
+    if (!inlinee->GetJnFunction()->GetUsesArgumentsObject())
     {
         // If inlinee has no arguments access return false
         return false;
