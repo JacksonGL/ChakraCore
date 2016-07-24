@@ -565,6 +565,14 @@ JsTTDStreamHandle Helpers::TTCreateStreamCallback(size_t uriByteLength, const by
     TTDHostAppendAscii(path, asciiResourceName);
 
     res = TTDHostOpen(path, write);
+    if(res == nullptr)
+    {
+#if _WIN32
+        fwprintf(stderr, _u("Filename: %ls\n"), (char16*)path);
+#else
+        fprintf(stderr, "Filename: %s\n", (char*)path);
+#endif
+    }
 
     Helpers::TTReportLastIOErrorAsNeeded(res != nullptr, "Failed File Open");
     return res;
