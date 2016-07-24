@@ -436,8 +436,8 @@ class TestVariant(object):
         tests = [x for x in tests if self._should_test(x)]
         self.test_count = len(tests)
 
-        # run tests in parallel -- TODO: forcing this to single threaded until we have support for sequential tag
-        result = pool.map(run_one, [(self,test) for test in tests])
+        # run tests in parallel
+        result = pool.map_async(run_one, [(self,test) for test in tests])
         while self.test_result.total_count() != self.test_count:
             self._process_one_msg()
 
