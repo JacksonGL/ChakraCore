@@ -1955,7 +1955,7 @@ namespace TTD
         Js::JavascriptString* displayName = function->GetDisplayName();
 
         this->AppendIndent();
-        char16* nameStr = displayName->GetSz();
+        const char16* nameStr = displayName->GetSz();
         uint32 nameLength = displayName->GetLength();
         this->AppendText(nameStr, nameLength);
 

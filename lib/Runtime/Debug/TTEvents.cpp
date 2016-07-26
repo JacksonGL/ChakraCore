@@ -31,7 +31,7 @@ namespace TTD
 
     TTDebuggerAbortException TTDebuggerAbortException::CreateUncaughtExceptionAbortRequest(int64 targetEventTime, const char16* staticMessage)
     {
-        return TTDebuggerAbortException(3, targetEventTime, 0, staticMessage);;
+        return TTDebuggerAbortException(3, targetEventTime, 0, staticMessage);
     }
 
     bool TTDebuggerAbortException::IsEndOfLog() const

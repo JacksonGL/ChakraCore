@@ -514,7 +514,9 @@ namespace Js
             for(uint32 i = 0; i < bfi->ArgCount; ++i)
             {
                 bfi->ArgArray[i] = this->boundArgs[i];
-                if(TTD::JsSupport::IsVarPtrValued(this->boundArgs[i]))
+
+                //Primitive kinds always inflated first so we only need to deal with complex kinds as depends on
+                if(TTD::JsSupport::IsVarComplexKind(this->boundArgs[i]))
                 {
                     depArray[depCount] = TTD_CONVERT_VAR_TO_PTR_ID(this->boundArgs[i]);
                     depCount++;

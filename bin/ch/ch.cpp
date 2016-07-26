@@ -18,7 +18,7 @@ JsRuntimeHandle chRuntime = JS_INVALID_RUNTIME_HANDLE;
 
 BOOL doTTRecord = false;
 BOOL doTTDebug = false;
-byte* ttUri = nullptr;
+byte ttUri[MAX_PATH * sizeof(wchar_t)];
 size_t ttUriByteLength = 0;
 UINT32 snapInterval = MAXUINT32;
 UINT32 snapHistoryLength = MAXUINT32;
@@ -669,13 +669,13 @@ int _cdecl wmain(int argc, __in_ecount(argc) LPWSTR argv[])
         {
             doTTRecord = true;
             wchar* ruri = argv[i] + wcslen(_u("-TTRecord="));
-            Helpers::GetTTDDirectory(ruri, &ttUriByteLength, &ttUri);
+            Helpers::GetTTDDirectory(ruri, &ttUriByteLength, ttUri);
         }
         else if(wcsstr(argv[i], _u("-TTDebug=")) == argv[i])
         {
             doTTDebug = true;
             wchar* ruri = argv[i] + wcslen(_u("-TTDebug="));
-            Helpers::GetTTDDirectory(ruri, &ttUriByteLength, &ttUri);
+            Helpers::GetTTDDirectory(ruri, &ttUriByteLength, ttUri);
         }
         else if(wcsstr(argv[i], _u("-TTSnapInterval=")) == argv[i])
         {
@@ -754,11 +754,6 @@ int _cdecl wmain(int argc, __in_ecount(argc) LPWSTR argv[])
         ExecuteTestWithMemoryCheck(argInfo.filename);
 #endif
         ChakraRTInterface::UnloadChakraDll(chakraLibrary);
-    }
-
-    if (ttUri != nullptr)
-    {
-        CoTaskMemFree(ttUri);
     }
 
     PAL_Shutdown();

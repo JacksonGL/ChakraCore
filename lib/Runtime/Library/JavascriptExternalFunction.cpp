@@ -217,14 +217,22 @@ namespace Js
         }
         else
         {
-            AssertMsg(externalFunction->nativeMethod != nullptr, "We should suppress the eval of getters/setters instead to avoid any statefullness.");
-
-            BEGIN_LEAVE_SCRIPT_WITH_EXCEPTION(scriptContext)
+            if(externalFunction->nativeMethod == nullptr)
             {
-                // Don't do stack probe since BEGIN_LEAVE_SCRIPT_WITH_EXCEPTION does that for us already
-                result = externalFunction->nativeMethod(function, callInfo, args.Values);
+                //The only way this should happen is if the debugger is requesting a value to display that is an external accessor 
+                //or the debugger is running something that can fail (and it is ok with that).
+
+                result = function->GetScriptContext()->GetLibrary()->GetUndefined();
             }
-            END_LEAVE_SCRIPT_WITH_EXCEPTION(scriptContext);
+            else
+            {
+                BEGIN_LEAVE_SCRIPT_WITH_EXCEPTION(scriptContext)
+                {
+                    // Don't do stack probe since BEGIN_LEAVE_SCRIPT_WITH_EXCEPTION does that for us already
+                    result = externalFunction->nativeMethod(function, callInfo, args.Values);
+                }
+                END_LEAVE_SCRIPT_WITH_EXCEPTION(scriptContext);
+            }
         }
 #else
         Var result = nullptr;

@@ -514,7 +514,7 @@ void Helpers::CleanDirectory(size_t uriByteLength, const byte* uriBytes)
     }
 }
 
-void Helpers::GetTTDDirectory(const wchar* curi, size_t* uriByteLength, byte** uriBytes)
+void Helpers::GetTTDDirectory(const wchar* curi, size_t* uriByteLength, byte* uriBytes)
 {
     TTDHostCharType turi[MAX_PATH];
     TTDHostInitEmpty(turi);
@@ -537,7 +537,7 @@ void Helpers::GetTTDDirectory(const wchar* curi, size_t* uriByteLength, byte** u
     }
 
     //add a path separator if one is not already present
-    if(curi[wcslen(curi) - 1] != (wchar)TTDHostPathSeparator[0])
+    if(curi[wcslen(curi) - 1] != (wchar)TTDHostPathSeparatorChar)
     {
         TTDHostAppend(turi, TTDHostPathSeparator);
     }
@@ -545,8 +545,7 @@ void Helpers::GetTTDDirectory(const wchar* curi, size_t* uriByteLength, byte** u
     size_t turiLength = TTDHostStringLength(turi);
 
     size_t byteLengthWNull = (turiLength + 1) * sizeof(TTDHostCharType);
-    *uriBytes = (byte*)CoTaskMemAlloc(byteLengthWNull);
-    memcpy_s(*uriBytes, byteLengthWNull, turi, byteLengthWNull);
+    memcpy_s(uriBytes, byteLengthWNull, turi, byteLengthWNull);
 
     *uriByteLength = turiLength * sizeof(TTDHostCharType);
 }
