@@ -28,6 +28,7 @@ BUILTIN(GlobalObject, CollectGarbage, EntryCollectGarbage, FunctionInfo::ErrorOn
 
 #if ENABLE_TTD && ENABLE_DEBUG_CONFIG_OPTIONS
 BUILTIN(GlobalObject, TelemetryLog, EntryTelemetryLog, FunctionInfo::ErrorOnNew)
+BUILTIN(GlobalObject, TTDRegisterCallback, EntryTTDRegisterCallback, FunctionInfo::ErrorOnNew)
 #endif
 
 #ifdef IR_VIEWER

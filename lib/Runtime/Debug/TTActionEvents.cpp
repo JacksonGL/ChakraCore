@@ -623,6 +623,7 @@ namespace TTD
 
             writer->WriteBool(NSTokens::Key::boolVal, cbAction->IsCreate, NSTokens::Separator::CommaSeparator);
             writer->WriteBool(NSTokens::Key::boolVal, cbAction->IsCancel, NSTokens::Separator::CommaSeparator);
+			writer->WriteBool(NSTokens::Key::boolVal, cbAction->IsCalling, NSTokens::Separator::CommaSeparator);
             writer->WriteBool(NSTokens::Key::boolVal, cbAction->IsRepeating, NSTokens::Separator::CommaSeparator);
 
             writer->WriteInt64(NSTokens::Key::hostCallbackId, cbAction->CurrentCallbackId, NSTokens::Separator::CommaSeparator);
@@ -635,6 +636,7 @@ namespace TTD
 
             cbAction->IsCreate = reader->ReadBool(NSTokens::Key::boolVal, true);
             cbAction->IsCancel = reader->ReadBool(NSTokens::Key::boolVal, true);
+			cbAction->IsCalling = reader->ReadBool(NSTokens::Key::boolVal, true);
             cbAction->IsRepeating = reader->ReadBool(NSTokens::Key::boolVal, true);
 
             cbAction->CurrentCallbackId = reader->ReadInt64(NSTokens::Key::hostCallbackId, true);

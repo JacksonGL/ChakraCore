@@ -2425,20 +2425,44 @@ namespace TTD
         js_memcpy_s(ccAction->ArgArray + 1, (ccAction->ArgCount - 1) * sizeof(TTDVar), args, argCount * sizeof(Js::Var));
     }
 
-    void EventLog::RecordJsRTCallbackOperation(Js::ScriptContext* ctx, bool isCreate, bool isCancel, bool isRepeating, Js::JavascriptFunction* func, int64 callbackId)
+    void EventLog::RecordJsRTCallbackOperation(Js::ScriptContext* ctx, bool isCreate, bool isCancel, bool isRepeate, bool isCall, int64 callbackId, int64 parentCallbackId)
     {
         NSLogEvents::JsRTCallbackAction* cbrAction = this->RecordGetInitializedEvent_Helper<NSLogEvents::JsRTCallbackAction, NSLogEvents::EventKind::CallbackOpActionTag>();
-        cbrAction->CurrentCallbackId = this->m_hostCallbackId;
+
+		// this->m_hostCallbackId = parentCallbackId;
+        cbrAction->CurrentCallbackId = parentCallbackId;
         cbrAction->NewCallbackId = callbackId;
 
         //Register location is blank in record -- we only fill it in during debug replay
 
         cbrAction->IsCreate = isCreate;
         cbrAction->IsCancel = isCancel;
-        cbrAction->IsRepeating = isRepeating;
+		cbrAction->IsCalling = isCall;
+		cbrAction->IsRepeating = isRepeate;
 
         cbrAction->RegisterLocation = nullptr;
     }
+
+	void EventLog::ReplayJsRtCallbackOperation(Js::ScriptContext* ctx, bool isCreate, bool isCancel, bool isRepeating, bool isCalling, int64 callbackId, int64 parentCallbackId, Js::Var ret)
+	{
+		const NSLogEvents::JsRTCallbackAction* cbrAction = this->ReplayGetReplayEvent_Helper<NSLogEvents::JsRTCallbackAction, NSLogEvents::EventKind::CallbackOpActionTag>();
+
+#if !ENABLE_TTD_INTERNAL_DIAGNOSTICS
+		this->AdvanceTimeAndPositionForReplay(); //just eat the telemetry event
+#else
+		// AssertMsg(this->m_hostCallbackId == parentCallbackId, "current callback ID mismatch");
+		AssertMsg(cbrAction->CurrentCallbackId == parentCallbackId, "current callback ID mismatch");
+		AssertMsg(cbrAction->NewCallbackId == callbackId, "callback ID mismatch");
+		AssertMsg(cbrAction->IsCreate == isCreate, "IsCreate mismatch");
+		AssertMsg(cbrAction->IsCancel == isCancel, "isCancel mismatch");
+		AssertMsg(cbrAction->IsCalling == isCalling, "IsCalling mismatch");
+		AssertMsg(cbrAction->IsRepeating == isRepeating, "IsRepeating mismatch");
+#endif
+
+#if ENABLE_BASIC_TRACE || ENABLE_FULL_BC_TRACE
+		this->m_diagnosticLogger.ForceFlush();
+#endif
+	}
 
     void EventLog::RecordJsRTCodeParse(Js::ScriptContext* ctx, uint64 bodyCtrId, LoadScriptFlag loadFlag, Js::JavascriptFunction* func, bool isUft8, const byte* script, uint32 scriptByteLength, const char16* sourceUri, Js::JavascriptFunction* resultFunction)
     {

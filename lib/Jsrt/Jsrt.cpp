@@ -3651,6 +3651,26 @@ CHAKRA_API JsTTDReStartTimeTravelAfterRuntimeOperation()
 #endif
 }
 
+CHAKRA_API JsTTDNotifyHostCallbackCreatedOrCanceled(_In_ bool isCreated, _In_ bool isCancel, _In_ bool isRepeating, 
+    _In_ JsValueRef function, _In_ INT64 callbackId, _In_ INT64 parentCallbackId)
+{
+#if !ENABLE_TTD
+    return JsErrorCategoryUsage;
+#else
+    JsrtContext *currentContext = JsrtContext::GetCurrent();
+    Js::ScriptContext* scriptContext = currentContext->GetScriptContext();
+
+    VALIDATE_INCOMING_FUNCTION(function, scriptContext);
+
+    if (PERFORM_JSRT_TTD_RECORD_ACTION_CHECK(scriptContext))
+    {
+        scriptContext->GetThreadContext()->TTDLog->RecordJsRTCallbackOperation(scriptContext, isCreated, isCancel, isRepeating, false, callbackId, parentCallbackId);
+    }
+
+    return JsNoError;
+#endif
+}
+
 CHAKRA_API JsTTDNotifyYield()
 {
 #if !ENABLE_TTD

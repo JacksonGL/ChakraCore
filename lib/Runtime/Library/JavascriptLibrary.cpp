@@ -1270,6 +1270,7 @@ namespace Js
 
 #if ENABLE_TTD && ENABLE_DEBUG_CONFIG_OPTIONS
         AddFunctionToLibraryObjectWithPropertyName(globalObject, _u("telemetryLog"), &GlobalObject::EntryInfo::TelemetryLog, 3);
+		AddFunctionToLibraryObjectWithPropertyName(globalObject, _u("TTDRegisterCallback"), &GlobalObject::EntryInfo::TTDRegisterCallback, 2);
 #endif
 
 #ifdef IR_VIEWER

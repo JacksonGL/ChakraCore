@@ -428,8 +428,9 @@ namespace TTD
             TTDebuggerSourceLocation* RegisterLocation;
 
             //true if this is a cancelation/repeating action -- otherwise this is a 
-            bool IsCreate;
-            bool IsCancel;
+			bool IsCreate;
+			bool IsCancel;
+			bool IsCalling;
             bool IsRepeating;
         };
 

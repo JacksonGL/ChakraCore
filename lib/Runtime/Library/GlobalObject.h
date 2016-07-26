@@ -53,6 +53,7 @@ namespace Js
 
 #if ENABLE_TTD && ENABLE_DEBUG_CONFIG_OPTIONS
             static FunctionInfo TelemetryLog;
+			static FunctionInfo TTDRegisterCallback;
 #endif
 
 #ifdef IR_VIEWER
@@ -64,7 +65,7 @@ namespace Js
 
         static Var EntryEval(RecyclableObject* function, CallInfo callInfo, ...);
         static Var EntryEvalRestrictedMode(RecyclableObject* function, CallInfo callInfo, ...);
-        static Var EntryParseInt(RecyclableObject* function, CallInfo callInfo, ...);
+		static Var EntryParseInt(RecyclableObject* function, CallInfo callInfo, ...);
         static Var EntryParseFloat(RecyclableObject* function, CallInfo callInfo, ...);
         static Var EntryIsNaN(RecyclableObject* function, CallInfo callInfo, ...);
         static Var EntryIsFinite(RecyclableObject* function, CallInfo callInfo, ...);
@@ -79,6 +80,7 @@ namespace Js
 
 #if ENABLE_TTD && ENABLE_DEBUG_CONFIG_OPTIONS
         static Var EntryTelemetryLog(RecyclableObject* function, CallInfo callInfo, ...);
+		static Var EntryTTDRegisterCallback(RecyclableObject * function, CallInfo callInfo, ...);
 #endif
 
 #ifdef IR_VIEWER

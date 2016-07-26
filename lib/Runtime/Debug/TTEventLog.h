@@ -686,8 +686,11 @@ namespace TTD
         //Record a constructor call from JsRT
         void RecordJsRTConstructCall(Js::ScriptContext* ctx, Js::JavascriptFunction* func, uint32 argCount, Js::Var* args, TTDVar** resultVarPtr);
 
-        //Record callback registration/cancelation
-        void RecordJsRTCallbackOperation(Js::ScriptContext* ctx, bool isCreate, bool isCancel, bool isRepeating, Js::JavascriptFunction* func, int64 callbackId);
+        //Record callback registration/cancelation/invocation
+        void RecordJsRTCallbackOperation(Js::ScriptContext* ctx, bool isCreate, bool isCancel, bool isRepeating, bool isCalling, int64 callbackId, int64 parentCallbackId);
+
+		//Record callback registration/cancelation/Invocation
+		void ReplayJsRtCallbackOperation(Js::ScriptContext* ctx, bool isCreate, bool isCancel, bool isRepeating, bool isCalling, int64 callbackId, int64 parentCallbackId, Js::Var ret);
 
         //Record code parse
         void RecordJsRTCodeParse(Js::ScriptContext* ctx, uint64 bodyCtrId, LoadScriptFlag loadFlag, Js::JavascriptFunction* func, bool isUft8, const byte* script, uint32 scriptByteLength, const char16* sourceUri, Js::JavascriptFunction* resultFunction);

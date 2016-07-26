@@ -1163,7 +1163,6 @@ namespace Js
         }
     }
 #endif /* IR_VIEWER */
-
     Var GlobalObject::EntryParseInt(RecyclableObject* function, CallInfo callInfo, ...)
     {
         PROBE_STACK(function->GetScriptContext(), Js::Constants::MinStackDefault);
@@ -1621,6 +1620,38 @@ LHexError:
     }
 
 #if ENABLE_TTD && ENABLE_DEBUG_CONFIG_OPTIONS
+	Var GlobalObject::EntryTTDRegisterCallback(RecyclableObject* function, CallInfo callInfo, ...)
+	{
+		PROBE_STACK(function->GetScriptContext(), Js::Constants::MinStackDefault);
+		ARGUMENTS(args, callInfo);
+
+		Js::ScriptContext* scriptContext = function->GetScriptContext();
+		int64 ttdId = -1, pTtdId = -1, opType = 0;
+		if ((args.Info.Count == 4) && (TaggedInt::Is(args[1])) && 
+			(TaggedInt::Is(args[2])) && (TaggedInt::Is(args[3])))
+		{
+			ttdId = TaggedInt::ToInt64(args[1]);
+			pTtdId = TaggedInt::ToInt64(args[2]);
+			opType = TaggedInt::ToInt64(args[3]);
+		}
+		Var ret = JavascriptNumber::ToVar(ttdId, scriptContext);
+
+		bool isCreated = (opType == 0);
+		bool isCancel = (opType == 1);
+		bool isCalling = (opType == 2);
+		bool isRepeated = (opType == 3);
+
+		if (function->GetScriptContext()->ShouldPerformDebugAction())
+		{
+			scriptContext->GetThreadContext()->TTDLog->ReplayJsRtCallbackOperation(scriptContext, isCreated, isCancel, isRepeated, isCalling, ttdId, pTtdId, ret);
+		} 
+		else if (function->GetScriptContext()->ShouldPerformRecordAction())
+		{
+			scriptContext->GetThreadContext()->TTDLog->RecordJsRTCallbackOperation(scriptContext, isCreated, isCancel, isRepeated, isCalling, ttdId, pTtdId);
+		}
+		return ret;
+	}
+
     //Log a string in the telemetry system (and print to the console)
     Var GlobalObject::EntryTelemetryLog(RecyclableObject* function, CallInfo callInfo, ...)
     {
