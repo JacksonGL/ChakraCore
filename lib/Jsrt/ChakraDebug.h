@@ -22,13 +22,10 @@
 
 #include "ChakraCommon.h"
 
-#if (!defined(_WIN32) || !defined(_MSC_VER)) && !defined(__MSTYPES_DEFINED)
-typedef uint32_t UINT32;
-typedef int64_t INT64;
-typedef void* HANDLE;
-typedef unsigned char BYTE;
-typedef UINT32 DWORD;
+#ifdef _WIN32
+typedef __int64 int64_t;
 #endif
+//Other platforms should include <stdint.h> and have this defined automatically
 
     /// <summary>
     ///     Debug events reported from ChakraCore engine.
