@@ -418,6 +418,8 @@
 #define TTD_SNAP_READER TextFormatReader
 #define TTD_SNAP_WRITER TextFormatWriter
 
+#define ENABLE_ALLOC_TRACING 1
+
 //#if ENABLE_TTD_INTERNAL_DIAGNOSTICS
 //#define TTD_SNAP_READER TextFormatReader
 //#define TTD_SNAP_WRITER TextFormatWriter

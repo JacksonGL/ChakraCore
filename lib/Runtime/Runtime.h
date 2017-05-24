@@ -60,6 +60,8 @@ class JITJavascriptString;
 #include "Debug/TTSupport.h"
 #include "Debug/TTSerialize.h"
 
+#include "Debug/TTAllocTracing.h"
+
 ////////
 
 namespace Js
