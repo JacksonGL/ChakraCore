@@ -8,49 +8,81 @@
 
 namespace AllocTracing
 {
+    void AllocDataWriter::WriteChar_Internal(char16 c)
+    {
+        putchar((char)c);
+    }
+
+    void AllocDataWriter::WriteChars_Internal(const char* data, size_t length)
+    {
+        for(size_t i = 0; i < length; ++i)
+        {
+            putchar(data[i]);
+        }
+    }
+
+    void AllocDataWriter::WriteChar16s_Internal(const char16* data, size_t length)
+    {
+        for(size_t i = 0; i < length; ++i)
+        {
+            putchar((char)data[i]);
+        }
+    }
+
     void AllocDataWriter::WriteObjectId(Js::RecyclableObject* value)
     {
-        asdf;
+        char trgtBuff[64];
+        int writtenChars = sprintf_s(trgtBuff, "*%I64u", reinterpret_cast<uint64>(value));
+        TTDAssert(writtenChars != -1 && writtenChars < 64, "Formatting failed or result is too big.");
+
+        this->WriteChars_Internal(trgtBuff, writtenChars);
     }
 
     void AllocDataWriter::WriteInt(int64 value)
     {
-        asdf;
+        char trgtBuff[64];
+        int writtenChars = sprintf_s(trgtBuff, "%I64", value);
+        TTDAssert(writtenChars != -1 && writtenChars < 64, "Formatting failed or result is too big.");
+
+        this->WriteChars_Internal(trgtBuff, writtenChars);
     }
 
     void AllocDataWriter::WriteChar(char16 c)
     {
-        asdf;
+        this->WriteChar_Internal(c);
     }
 
     void AllocDataWriter::WriteLiteralString(const char* str)
     {
-        asdf;
+        this->WriteChars_Internal(str, strlen(str));
     }
 
     void AllocDataWriter::WriteString(const char16* str, size_t length)
     {
-        asdf;
+        this->WriteChar16s_Internal(str, wcslen(str));
     }
 
-    SourceLocation::SourceLocation(Js::JavascriptFunction* function, uint32 line, uint32 column)
+    SourceLocation::SourceLocation(Js::FunctionBody* function, uint32 line, uint32 column)
         : m_function(function), m_line(line), m_column(column)
     {
         ;
     }
 
-    bool SourceLocation::SameAsOtherLocation(Js::JavascriptFunction* function, uint32 line, uint32 column) const
+    bool SourceLocation::IsInternalLocation() const
+    {
+        return (this->m_function == nullptr);
+    }
+
+    bool SourceLocation::SameAsOtherLocation(const Js::FunctionBody* function, uint32 line, uint32 column) const
     {
         return (this->m_function == function) & (this->m_line == line) & (this->m_column == column);
     }
 
     void SourceLocation::JSONWriteLocationData(AllocDataWriter& writer) const
     {
-        Js::JavascriptString* name = this->m_function->GetDisplayName();
-
         writer.WriteLiteralString("src: { ");
         writer.WriteLiteralString("file: '");
-        writer.WriteString(name->GetSz(), name->GetLength());
+        writer.WriteString(this->m_function->GetDisplayName(), this->m_function->GetDisplayNameLength());
         writer.WriteLiteralString("', line: ");
         writer.WriteInt(this->m_line + 1);
         writer.WriteLiteralString(", column: ");
@@ -106,35 +138,351 @@ namespace AllocTracing
         });
     }
 
-    bool AllocSiteStats::IsInterestingSite(size_t countLimit, size_t sizeLimit) const
-    {
-        size_t liveCount = 0;
-        size_t liveSize = 0;
-        this->EstimateMemoryUseInfo(liveCount, liveSize);
-
-        return (liveCount >= countLimit) | (liveSize >= sizeLimit);
-    }
-
     void AllocSiteStats::JSONWriteSiteData(AllocDataWriter& writer) const
     {
-        const uint32 sampleMax = 20;
-        uint32 sampleControl = sampleMax;
+        bool first = true;
+        writer.WriteLiteralString("objectIds: [ ");
+        this->m_allocationLiveSet->Map([&](Js::RecyclableObject* key, bool, const RecyclerWeakReference<Js::RecyclableObject>*)
+        {
+            if(!first)
+            {
+                writer.WriteLiteralString(", ");
+            }
+            first = false;
+            writer.WriteObjectId(key);
+        });
+        writer.WriteChar(' ]');
+    }
+
+    void AllocTracer::ExtractLineColumn(const AllocCallStackEntry& sentry, uint32* line, uint32* column)
+    {
+        *line = 0;
+        *column = 0;
+
+        if(sentry.Function->GetUtf8SourceInfo()->GetSourceContextInfo()->url != nullptr)
+        {
+            ULONG sline = 0;
+            LONG scolumn = 0;
+
+            int32 cIndex = sentry.Function->GetEnclosingStatementIndexFromByteCode(sentry.BytecodeIndex);
+            uint32 startOffset = sentry.Function->GetStatementStartOffset(cIndex);
+            sentry.Function->GetLineCharOffsetFromStartChar(startOffset, &sline, &scolumn);
+
+            *line = (uint32)sline;
+            *column = (uint32)scolumn;
+        }
+    }
+
+    void AllocTracer::InitAllocStackEntrySourceLocation(const AllocCallStackEntry& sentry, AllocPathEntry* pentry)
+    {
+        uint32 line = 0;
+        uint32 column = 0;
+        AllocTracer::ExtractLineColumn(sentry, &line, &column);
+
+        pentry->Location = HeapNew(SourceLocation, sentry.Function, line, column);
+    }
+
+    AllocTracer::AllocPathEntry* AllocTracer::CreateTerminalAllocPathEntry(const AllocCallStackEntry& entry, ThreadContext* threadContext)
+    {
+        AllocPathEntry* res = HeapNewStruct(AllocPathEntry);
+        AllocTracer::InitAllocStackEntrySourceLocation(entry, res);
+
+        res->LiveCount = 0;
+        res->LiveSizeEstimate = 0;
+        res->IsInterestingSite = FALSE; 
+
+        res->IsTerminalStatsEntry = TRUE;
+        res->TerminalStats = HeapNew(AllocSiteStats, threadContext);
+
+        return res;
+    }
+
+    AllocTracer::AllocPathEntry* AllocTracer::CreateNodeAllocPathEntry(const AllocCallStackEntry& entry)
+    {
+        AllocPathEntry* res = HeapNewStruct(AllocPathEntry);
+        AllocTracer::InitAllocStackEntrySourceLocation(entry, res);
+
+        res->LiveCount = 0;
+        res->LiveSizeEstimate = 0;
+        res->IsInterestingSite = FALSE;
+
+        res->IsTerminalStatsEntry = FALSE;
+        res->CallerPaths = HeapNew(CallerPathList, &HeapAllocator::Instance);
+
+        return res;
+    }
+
+    void AllocTracer::FreeAllocPathEntry(AllocPathEntry* entry)
+    {
+        HeapDelete(entry->Location);
+
+        if(entry->IsTerminalStatsEntry)
+        {
+            HeapDelete(entry->TerminalStats);
+        }
+        else
+        {
+            HeapDelete(entry->CallerPaths);
+        }
+
+        HeapDelete(entry);
+    }
+
+    bool AllocTracer::IsPathInternalCode(const AllocPathEntry* root)
+    {
+        return root->Location->IsInternalLocation();
+    }
+
+    AllocTracer::AllocPathEntry* AllocTracer::ExtendPathTreeForAllocation(const JsUtil::List<AllocCallStackEntry, HeapAllocator>& callStack, int32 position, CallerPathList* currentPaths, ThreadContext* threadContext)
+    {
+        const AllocCallStackEntry& currStack = callStack.Item(position);
+        const Js::FunctionBody* cbody = currStack.Function;
+
+        uint32 line = 0;
+        uint32 column = 0;
+        AllocTracer::ExtractLineColumn(currStack, &line, &column);
+
+        //If we are at the top of the call stack (bottom of the allocation path tree) get the stats entry
+        if(position == 0)
+        {
+            for(int32 i = 0; i < currentPaths->Count(); ++i)
+            {
+                AllocPathEntry* currPath = currentPaths->Item(i);
+                if(currPath->IsTerminalStatsEntry && currPath->Location->SameAsOtherLocation(cbody, line, column))
+                {
+                    return currPath;
+                }
+            }
+
+            //no suitable entry found so create a new one
+            AllocPathEntry* tentry = AllocTracer::CreateTerminalAllocPathEntry(currStack, threadContext);
+            currentPaths->Add(tentry);
+            return tentry;
+        }
+        else
+        {
+            //find (or create) the path node and continue expanding the tree
+            AllocPathEntry* eentry = nullptr;
+
+            for(int32 i = 0; i < currentPaths->Count(); ++i)
+            {
+                AllocPathEntry* currPath = currentPaths->Item(i);
+                if(!currPath->IsTerminalStatsEntry && currPath->Location->SameAsOtherLocation(cbody, line, column))
+                {
+                    eentry = currPath;
+                    break;
+                }
+            }
+
+            if(eentry == nullptr)
+            {
+                eentry = AllocTracer::CreateNodeAllocPathEntry(currStack);
+                currentPaths->Add(eentry);
+            }
+
+            //make resucrsive call
+            return AllocTracer::ExtendPathTreeForAllocation(callStack, position - 1, eentry->CallerPaths, threadContext);
+        }
+    }
+
+    void AllocTracer::FreeAllocPathTree(AllocPathEntry* root)
+    {
+        if(!root->IsTerminalStatsEntry)
+        {
+            for(int32 i = 0; i < root->CallerPaths->Count(); ++i)
+            {
+                AllocTracer::FreeAllocPathTree(root->CallerPaths->Item(i));
+            }
+            root->CallerPaths->Clear();
+        }
+
+        AllocTracer::FreeAllocPathEntry(root);
+    }
+
+    void AllocTracer::EstimateMemoryUseInfo(AllocPathEntry* root)
+    {
+        if(root->IsTerminalStatsEntry)
+        {
+            root->TerminalStats->EstimateMemoryUseInfo(root->LiveCount, root->LiveSizeEstimate);
+        }
+        else
+        {
+            for(int32 i = 0; i < root->CallerPaths->Count(); ++i)
+            {
+                AllocPathEntry* cpe = root->CallerPaths->Item(i);
+                AllocTracer::EstimateMemoryUseInfo(cpe);
+
+                root->LiveCount += cpe->LiveCount;
+                root->LiveSizeEstimate += cpe->LiveSizeEstimate;
+            }
+        }
+    }
+
+    void AllocTracer::FlagInterestingSites(AllocPathEntry* root, size_t countThreshold, size_t estimatedSizeThreshold)
+    {
+        if(root->IsTerminalStatsEntry)
+        {
+            root->IsInterestingSite = (root->LiveCount >= countThreshold) | (root->LiveSizeEstimate >= estimatedSizeThreshold);
+        }
+        else
+        {
+            for(int32 i = 0; i < root->CallerPaths->Count(); ++i)
+            {
+                AllocPathEntry* cpe = root->CallerPaths->Item(i);
+                AllocTracer::FlagInterestingSites(cpe, countThreshold, estimatedSizeThreshold);
+
+                root->IsInterestingSite |= cpe->IsInterestingSite;
+            }
+        }
+    }
+
+    void AllocTracer::JSONWriteDataIndent(AllocDataWriter& writer, uint32 depth)
+    {
+        for(uint32 i = 0; i < depth; ++i)
+        {
+            writer.WriteChar(' ');
+            writer.WriteChar(' ');
+        }
+    }
+
+    void AllocTracer::JSONWriteDataPathEntry(AllocDataWriter& writer, const AllocPathEntry* root, uint32 depth)
+    {
+        AssertMsg(root->IsInterestingSite, "Check this before trying to write!!!");
+        uint32 localdepth = depth + 1;
+
+        AllocTracer::JSONWriteDataIndent(writer, depth);
+        writer.WriteLiteralString("{\n");
+
+        AllocTracer::JSONWriteDataIndent(writer, localdepth);
+        root->Location->JSONWriteLocationData(writer);
+        writer.WriteLiteralString(",\n");
+
+        AllocTracer::JSONWriteDataIndent(writer, localdepth);
+        writer.WriteLiteralString("allocInfo: { Count: ");
+        writer.WriteInt(root->LiveCount);
+        writer.WriteLiteralString(", estimatedSize: ");
+        writer.WriteInt(root->LiveSizeEstimate);
+        writer.WriteLiteralString(" },\n");
+
+        AllocTracer::JSONWriteDataIndent(writer, localdepth);
+        if(root->IsTerminalStatsEntry)
+        {
+            root->TerminalStats->JSONWriteSiteData(writer);
+        }
+        else
+        {
+            AllocTracer::JSONWriteDataIndent(writer, localdepth);
+            writer.WriteChar('[');
+
+            bool first = true;
+            uint32 nesteddepth = localdepth + 1;
+            for(int32 i = 0; i < root->CallerPaths->Count(); ++i)
+            {
+                AllocPathEntry* cpe = root->CallerPaths->Item(i);
+                if(cpe->IsInterestingSite)
+                {
+                    if(first)
+                    {
+                        writer.WriteChar(',');
+                    }
+                    first = false;
+
+                    writer.WriteChar('\n');
+                    AllocTracer::JSONWriteDataPathEntry(writer, cpe, nesteddepth);
+                }
+            }
+
+            writer.WriteChar('\n');
+            AllocTracer::JSONWriteDataIndent(writer, localdepth);
+            writer.WriteChar(']');
+        }
+        writer.WriteChar('\n');
+        AllocTracer::JSONWriteDataIndent(writer, depth);
+        writer.WriteLiteralString("}");
+    }
+
+    AllocTracer::AllocTracer()
+        : m_callStack(&HeapAllocator::Instance), m_allocPathRoots(&HeapAllocator::Instance)
+    {
+        ;
+    }
+
+    AllocTracer::~AllocTracer()
+    {
+        for(int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
+        {
+            AllocTracer::FreeAllocPathTree(this->m_allocPathRoots.Item(i));
+        }
+        this->m_allocPathRoots.Clear();
+    }
+
+    void AllocTracer::PushCallStackEntry(Js::FunctionBody* body)
+    {
+        AllocCallStackEntry entry{ body, 0 };
+        this->m_callStack.Add(entry);
+    }
+
+    void AllocTracer::PopCallStackEntry()
+    {
+        AssertMsg(this->m_callStack.Count() != 0, "Underflow");
+
+        this->m_callStack.RemoveAtEnd();
+    }
+
+    void AllocTracer::UpdateBytecodeIndex(uint32 index)
+    {
+        AssertMsg(this->m_callStack.Count() != 0, "Underflow");
+
+        this->m_callStack.Last().BytecodeIndex = index;
+    }
+
+    void AllocTracer::AddAllocation(Js::RecyclableObject* obj)
+    {
+        AllocPathEntry* tentry = AllocTracer::ExtendPathTreeForAllocation(this->m_callStack, this->m_callStack.Count() - 1, &this->m_allocPathRoots, obj->GetScriptContext()->GetThreadContext());
+        AssertMsg(tentry->IsTerminalStatsEntry, "Something went wrong in the tree expansion");
+
+        tentry->TerminalStats->AddAllocation(obj);
+    }
+
+    void AllocTracer::JSONWriteData(AllocDataWriter& writer) const
+    {
+        size_t totalLive = 0;
+        size_t totalSizeEstimate = 0;
+        for(int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
+        {
+            AllocPathEntry* cpe = this->m_allocPathRoots.Item(i);
+            AllocTracer::EstimateMemoryUseInfo(cpe);
+
+            totalLive += cpe->LiveCount;
+            totalSizeEstimate += cpe->LiveSizeEstimate;
+        }
+
+        size_t countThreshold = (size_t)(totalLive * ALLOC_TRACING_INTERESTING_LOCATION_COUNT_THRESHOLD);
+        size_t estimatedSizeThreshold = (size_t)(totalSizeEstimate * ALLOC_TRACING_INTERESTING_LOCATION_SIZE_THRESHOLD);
+        for(int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
+        {
+            AllocPathEntry* cpe = this->m_allocPathRoots.Item(i);
+            AllocTracer::FlagInterestingSites(cpe, countThreshold, estimatedSizeThreshold);
+        }
 
         bool first = true;
         writer.WriteChar('[');
-        this->m_allocationLiveSet->Map([&](Js::RecyclableObject* key, bool, const RecyclerWeakReference<Js::RecyclableObject>*)
+        for(int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
         {
-            if(sampleControl != 0 && (rand() % sampleMax) < sampleControl)
+            AllocPathEntry* cpe = this->m_allocPathRoots.Item(i);
+            if(cpe->IsInterestingSite)
             {
-                sampleControl--;
-
-                if(!first)
+                if(first)
                 {
-                    writer.WriteLiteralString(", ");
+                    writer.WriteChar(',');
                 }
-                writer.WriteObjectId(key);
+                first = false;
+
+                writer.WriteChar('\n');
+                AllocTracer::JSONWriteDataPathEntry(writer, cpe, 1);
             }
-        });
+        }
+        writer.WriteChar('\n');
         writer.WriteChar(']');
     }
 }

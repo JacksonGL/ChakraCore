@@ -10,11 +10,19 @@
 #define ALLOC_TRACING_DYNAMIC_SIZE_DEFAULT 32
 #define ALLOC_TRACING_DYNAMIC_ENTRY_SIZE sizeof(Js::Var)
 
+#define ALLOC_TRACING_INTERESTING_LOCATION_COUNT_THRESHOLD 0.05
+#define ALLOC_TRACING_INTERESTING_LOCATION_SIZE_THRESHOLD 0.05
+
 namespace AllocTracing
 {
     //A class for JSON emitting our alloc tracing data
     class AllocDataWriter
     {
+    private:
+        void WriteChar_Internal(char16 c);
+        void WriteChars_Internal(const char* data, size_t length);
+        void WriteChar16s_Internal(const char16* data, size_t length);
+
     public:
         void WriteObjectId(Js::RecyclableObject* value);
         void WriteInt(int64 value);
@@ -29,14 +37,16 @@ namespace AllocTracing
     class SourceLocation
     {
     private:
-        Js::JavascriptFunction* m_function;
+        Js::FunctionBody* m_function;
         uint32 m_line;
         uint32 m_column;
 
     public:
-        SourceLocation(Js::JavascriptFunction* function, uint32 line, uint32 column);
+        SourceLocation(Js::FunctionBody* function, uint32 line, uint32 column);
 
-        bool SameAsOtherLocation(Js::JavascriptFunction* function, uint32 line, uint32 column) const;
+        bool IsInternalLocation() const;
+
+        bool SameAsOtherLocation(const Js::FunctionBody* function, uint32 line, uint32 column) const;
 
         void JSONWriteLocationData(AllocDataWriter& writer) const;
     };
@@ -55,7 +65,6 @@ namespace AllocTracing
 
         void AddAllocation(Js::RecyclableObject* obj);
         void EstimateMemoryUseInfo(size_t& liveCount, size_t& liveSize) const;
-        bool IsInterestingSite(size_t countLimit, size_t sizeLimit) const;
 
         void JSONWriteSiteData(AllocDataWriter& writer) const;
     };
@@ -81,6 +90,10 @@ namespace AllocTracing
             BOOL IsTerminalStatsEntry;
             SourceLocation* Location;
 
+            size_t LiveCount;
+            size_t LiveSizeEstimate;
+            BOOL IsInterestingSite;
+
             union
             {
                 AllocSiteStats* TerminalStats;
@@ -88,7 +101,7 @@ namespace AllocTracing
             };
         };
 
-        static void ConvertCallStackEntryToFileLineColumn(const AllocCallStackEntry& sentry, const char16** file, uint32* line, uint32* column);
+        static void ExtractLineColumn(const AllocCallStackEntry& sentry, uint32* line, uint32* column);
 
         static void InitAllocStackEntrySourceLocation(const AllocCallStackEntry& sentry, AllocPathEntry* pentry);
 
@@ -103,6 +116,9 @@ namespace AllocTracing
 
         static AllocPathEntry* ExtendPathTreeForAllocation(const JsUtil::List<AllocCallStackEntry, HeapAllocator>& callStack, int32 position, CallerPathList* currentPaths, ThreadContext* threadContext);
         static void FreeAllocPathTree(AllocPathEntry* root);
+
+        static void EstimateMemoryUseInfo(AllocPathEntry* root);
+        static void FlagInterestingSites(AllocPathEntry* root, size_t countThreshold, size_t estimatedSizeThreshold);
 
         static void JSONWriteDataIndent(AllocDataWriter& writer, uint32 depth);
         static void JSONWriteDataPathEntry(AllocDataWriter& writer, const AllocPathEntry* root, uint32 depth);
