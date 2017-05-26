@@ -938,6 +938,14 @@
 #else
 #define SHOULD_DO_TTD_STACK_STMT_OP(CTX) ((CTX)->ShouldPerformDebuggerAction())
 #endif
+
+//TODO: can probably combine all of this for a fast check InReplay and then a slow check inside (InDebug || Alloc)
+
+#if ENABLE_ALLOC_TRACING
+#define SHOULD_DO_TTD_ALLOC_TRACING(CTX) ((CTX)->ShouldPerformReplayAction() & ((CTX)->GetThreadContext()->AllocSiteTracer != nullptr))
+#else
+#define SHOULD_DO_TTD_ALLOC_TRACING(CTX) false
+#endif
 #endif
 
 namespace Js
@@ -2018,6 +2026,14 @@ namespace Js
             threadContext->TTDExecutionInfo->PushCallEvent(function, args.Info.Count, args.Values, isInFinally);
             exceptionFramePopper.PushInfo(threadContext->TTDExecutionInfo, function);
         }
+
+#if ENABLE_ALLOC_TRACING
+        AllocTracing::AllocSiteExceptionFramePopper();
+        if(SHOULD_DO_TTD_ALLOC_TRACING(functionScriptContext))
+        {
+            functionScriptContext->GetThreadContext()->AllocSiteTracer->PushCallStackEntry(function->GetFunctionBody());
+        }
+#endif
 #endif
 
         Var aReturn = nullptr;
@@ -2051,6 +2067,13 @@ namespace Js
             exceptionFramePopper.PopInfo();
             threadContext->TTDExecutionInfo->PopCallEvent(function, aReturn);
         }
+
+#if ENABLE_ALLOC_TRACING
+        if(SHOULD_DO_TTD_ALLOC_TRACING(functionScriptContext))
+        {
+            functionScriptContext->GetThreadContext()->AllocSiteTracer->PopCallStackEntry();
+        }
+#endif
 #endif
 
         if (fReleaseAlloc)
@@ -2417,7 +2440,7 @@ namespace Js
             try
             {
 #if ENABLE_TTD
-                if(SHOULD_DO_TTD_STACK_STMT_OP(this->scriptContext))
+                if(SHOULD_DO_TTD_STACK_STMT_OP(this->scriptContext) | SHOULD_DO_TTD_ALLOC_TRACING(this->scriptContext))
                 {
                     return this->ProcessWithDebugging_PreviousStmtTracking();
                 }
@@ -2529,6 +2552,13 @@ namespace Js
         {
             this->scriptContext->GetThreadContext()->TTDExecutionInfo->UpdateCurrentStatementInfo(m_reader.GetCurrentOffset());
         }
+
+#if ENABLE_ALLOC_TRACING
+        if(SHOULD_DO_TTD_ALLOC_TRACING(this->scriptContext))
+        {
+            this->scriptContext->GetThreadContext()->AllocSiteTracer->UpdateBytecodeIndex(m_reader.GetCurrentOffset());
+        }
+#endif
 
         OpCodeType op = (OpCodeType)ReadOpFunc(ip);
 
@@ -6546,7 +6576,7 @@ const byte * InterpreterStackFrame::OP_ProfiledLoopBodyStart(const byte * ip)
             if (this->IsInDebugMode())
             {
 #if ENABLE_TTD
-                if(SHOULD_DO_TTD_STACK_STMT_OP(this->scriptContext))
+                if(SHOULD_DO_TTD_STACK_STMT_OP(this->scriptContext) | SHOULD_DO_TTD_ALLOC_TRACING(this->scriptContext))
                 {
                     this->ProcessWithDebugging_PreviousStmtTracking();
                 }
@@ -6688,7 +6718,7 @@ const byte * InterpreterStackFrame::OP_ProfiledLoopBodyStart(const byte * ip)
                 if (this->IsInDebugMode())
                 {
 #if ENABLE_TTD
-                    if(SHOULD_DO_TTD_STACK_STMT_OP(this->scriptContext))
+                    if(SHOULD_DO_TTD_STACK_STMT_OP(this->scriptContext) | SHOULD_DO_TTD_ALLOC_TRACING(this->scriptContext))
                     {
                         this->ProcessWithDebugging_PreviousStmtTracking();
                     }
@@ -6989,7 +7019,7 @@ const byte * InterpreterStackFrame::OP_ProfiledLoopBodyStart(const byte * ip)
             if (this->IsInDebugMode())
             {
 #if ENABLE_TTD
-                if(SHOULD_DO_TTD_STACK_STMT_OP(this->scriptContext))
+                if(SHOULD_DO_TTD_STACK_STMT_OP(this->scriptContext) | SHOULD_DO_TTD_ALLOC_TRACING(this->scriptContext))
                 {
                     result = this->ProcessWithDebugging_PreviousStmtTracking();
                 }

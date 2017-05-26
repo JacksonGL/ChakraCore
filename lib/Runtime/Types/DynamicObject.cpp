@@ -27,6 +27,8 @@ namespace Js
 #if ENABLE_OBJECT_SOURCE_TRACKING
         TTD::InitializeDiagnosticOriginInformation(this->TTDDiagOriginInfo);
 #endif
+
+        DO_REPLAY_ALLOC_TRACE(type->GetScriptContext(), this);
     }
 
     DynamicObject::DynamicObject(DynamicType * type, ScriptContext * scriptContext) :
@@ -44,6 +46,8 @@ namespace Js
 #if ENABLE_OBJECT_SOURCE_TRACKING
         TTD::InitializeDiagnosticOriginInformation(this->TTDDiagOriginInfo);
 #endif
+
+        DO_REPLAY_ALLOC_TRACE(scriptContext, this);
     }
 
     DynamicObject::DynamicObject(DynamicObject * instance) :
@@ -92,6 +96,8 @@ namespace Js
 #if ENABLE_OBJECT_SOURCE_TRACKING
         TTD::InitializeDiagnosticOriginInformation(this->TTDDiagOriginInfo);
 #endif
+
+        DO_REPLAY_ALLOC_TRACE(type->GetScriptContext(), this);
     }
 
     DynamicObject * DynamicObject::New(Recycler * recycler, DynamicType * type)

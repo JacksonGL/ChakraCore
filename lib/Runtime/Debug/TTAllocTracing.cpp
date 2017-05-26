@@ -29,6 +29,16 @@ namespace AllocTracing
         }
     }
 
+    AllocDataWriter::AllocDataWriter()
+    {
+        ;
+    }
+
+    AllocDataWriter::~AllocDataWriter()
+    {
+        ;
+    }
+
     void AllocDataWriter::WriteObjectId(Js::RecyclableObject* value)
     {
         char trgtBuff[64];
@@ -41,7 +51,7 @@ namespace AllocTracing
     void AllocDataWriter::WriteInt(int64 value)
     {
         char trgtBuff[64];
-        int writtenChars = sprintf_s(trgtBuff, "%I64", value);
+        int writtenChars = sprintf_s(trgtBuff, "%I64i", value);
         TTDAssert(writtenChars != -1 && writtenChars < 64, "Formatting failed or result is too big.");
 
         this->WriteChars_Internal(trgtBuff, writtenChars);
@@ -111,9 +121,20 @@ namespace AllocTracing
         this->m_allocationLiveSet->Add(obj, true);
     }
 
+    void AllocSiteStats::ForceData()
+    {
+        this->m_allocationLiveSet->Map([&](Js::RecyclableObject* key, bool, const RecyclerWeakReference<Js::RecyclableObject>*)
+        {
+            if(Js::JavascriptString::Is(key))
+            {
+                //Force the string to serialize to a flat representation so we can easily measure how much memory it uses.
+                Js::JavascriptString::FromVar(key)->GetSz();
+            }
+        });
+    }
+
     void AllocSiteStats::EstimateMemoryUseInfo(size_t& liveCount, size_t& liveSize) const
     {
-        size_t regSize = 0;
         this->m_allocationLiveSet->Map([&](Js::RecyclableObject* key, bool, const RecyclerWeakReference<Js::RecyclableObject>*)
         {
             size_t osize = 0;
@@ -299,6 +320,22 @@ namespace AllocTracing
         AllocTracer::FreeAllocPathEntry(root);
     }
 
+    void AllocTracer::ForceAllData(AllocPathEntry* root)
+    {
+        if(root->IsTerminalStatsEntry)
+        {
+            root->TerminalStats->ForceData();
+        }
+        else
+        {
+            for(int32 i = 0; i < root->CallerPaths->Count(); ++i)
+            {
+                AllocPathEntry* cpe = root->CallerPaths->Item(i);
+                AllocTracer::ForceAllData(cpe);
+            }
+        }
+    }
+
     void AllocTracer::EstimateMemoryUseInfo(AllocPathEntry* root)
     {
         if(root->IsTerminalStatsEntry)
@@ -438,10 +475,25 @@ namespace AllocTracing
 
     void AllocTracer::AddAllocation(Js::RecyclableObject* obj)
     {
+        //For now we skip Host driven allocations
+        if(this->m_callStack.Count() == 0)
+        {
+            return;
+        }
+
         AllocPathEntry* tentry = AllocTracer::ExtendPathTreeForAllocation(this->m_callStack, this->m_callStack.Count() - 1, &this->m_allocPathRoots, obj->GetScriptContext()->GetThreadContext());
         AssertMsg(tentry->IsTerminalStatsEntry, "Something went wrong in the tree expansion");
 
         tentry->TerminalStats->AddAllocation(obj);
+    }
+
+    void AllocTracer::ForceAllData()
+    {
+        for(int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
+        {
+            AllocPathEntry* cpe = this->m_allocPathRoots.Item(i);
+            AllocTracer::ForceAllData(cpe);
+        }
     }
 
     void AllocTracer::JSONWriteData(AllocDataWriter& writer) const

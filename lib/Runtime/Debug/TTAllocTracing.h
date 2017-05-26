@@ -5,6 +5,16 @@
 #pragma once
 
 #if ENABLE_ALLOC_TRACING
+#define DO_REPLAY_ALLOC_TRACE(CTX, ALLOC) \
+if((CTX)->ShouldPerformReplayAction() && (CTX)->GetThreadContext()->AllocSiteTracer != nullptr) \
+{\
+    (CTX)->GetThreadContext()->AllocSiteTracer->AddAllocation(ALLOC);\
+}
+#else
+#define DO_REPLAY_ALLOC_TRACE(CTX, ALLOC)
+#endif
+
+#if ENABLE_ALLOC_TRACING
 
 #define ALLOC_TRACING_STATIC_SIZE_DEFAULT 8
 #define ALLOC_TRACING_DYNAMIC_SIZE_DEFAULT 32
@@ -24,6 +34,9 @@ namespace AllocTracing
         void WriteChar16s_Internal(const char16* data, size_t length);
 
     public:
+        AllocDataWriter();
+        ~AllocDataWriter();
+
         void WriteObjectId(Js::RecyclableObject* value);
         void WriteInt(int64 value);
         void WriteChar(char16 c);
@@ -64,6 +77,8 @@ namespace AllocTracing
         ~AllocSiteStats();
 
         void AddAllocation(Js::RecyclableObject* obj);
+
+        void ForceData();
         void EstimateMemoryUseInfo(size_t& liveCount, size_t& liveSize) const;
 
         void JSONWriteSiteData(AllocDataWriter& writer) const;
@@ -117,6 +132,7 @@ namespace AllocTracing
         static AllocPathEntry* ExtendPathTreeForAllocation(const JsUtil::List<AllocCallStackEntry, HeapAllocator>& callStack, int32 position, CallerPathList* currentPaths, ThreadContext* threadContext);
         static void FreeAllocPathTree(AllocPathEntry* root);
 
+        static void ForceAllData(AllocPathEntry* root);
         static void EstimateMemoryUseInfo(AllocPathEntry* root);
         static void FlagInterestingSites(AllocPathEntry* root, size_t countThreshold, size_t estimatedSizeThreshold);
 
@@ -134,6 +150,7 @@ namespace AllocTracing
 
         void AddAllocation(Js::RecyclableObject* obj);
 
+        void ForceAllData();
         void JSONWriteData(AllocDataWriter& writer) const;
     };
 

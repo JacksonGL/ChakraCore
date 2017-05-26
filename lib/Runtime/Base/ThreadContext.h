@@ -1006,6 +1006,10 @@ public:
         TTD::TTDWriteBytesToStreamCallback writeBytesToStreamfp, TTD::TTDFlushAndCloseStreamCallback flushAndCloseStreamfp,
         TTD::TTDCreateExternalObjectCallback createExternalObjectfp,
         TTD::TTDCreateJsRTContextCallback createJsRTContextCallbackfp, TTD::TTDReleaseJsRTContextCallback releaseJsRTContextCallbackfp, TTD::TTDSetActiveJsRTContext fpSetActiveJsRTContext);
+
+#if ENABLE_ALLOC_TRACING
+    AllocTracing::AllocTracer* AllocSiteTracer;
+#endif
 #endif
 
     BOOL ReserveStaticTypeIds(__in int first, __in int last);
