@@ -57,8 +57,6 @@ namespace AllocTracing
     public:
         SourceLocation(Js::FunctionBody* function, uint32 line, uint32 column);
 
-        bool IsInternalLocation() const;
-
         bool SameAsOtherLocation(const Js::FunctionBody* function, uint32 line, uint32 column) const;
 
         void JSONWriteLocationData(AllocDataWriter& writer) const;
@@ -94,7 +92,10 @@ namespace AllocTracing
             uint32 BytecodeIndex;
         };
 
+        static bool IsInternalLocation(const AllocCallStackEntry& callEntry);
+
         JsUtil::List<AllocCallStackEntry, HeapAllocator> m_callStack;
+        JsUtil::List<AllocCallStackEntry, HeapAllocator> m_prunedCallStack;
 
         //A struct that represents a Node in our allocation path tree
         struct AllocPathEntry;
@@ -126,8 +127,6 @@ namespace AllocTracing
 
         //The roots (starting at the line with the allocation) for the caller trees or each allocation
         JsUtil::List<AllocPathEntry*, HeapAllocator> m_allocPathRoots;
-
-        static bool IsPathInternalCode(const AllocPathEntry* root);
 
         static AllocPathEntry* ExtendPathTreeForAllocation(const JsUtil::List<AllocCallStackEntry, HeapAllocator>& callStack, int32 position, CallerPathList* currentPaths, ThreadContext* threadContext);
         static void FreeAllocPathTree(AllocPathEntry* root);
