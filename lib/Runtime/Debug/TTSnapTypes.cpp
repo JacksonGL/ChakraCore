@@ -80,6 +80,22 @@ namespace TTD
             writer->WriteRecordEnd();
         }
 
+		void EmitPropertyRecordAsSnapPropertyRecordTrimed(const Js::PropertyRecord* pRecord, FileWriter* writer, NSTokens::Separator separator)
+		{
+			writer->WriteRecordStart(separator);
+
+			writer->WriteUInt32(NSTokens::Key::propertyId, pRecord->GetPropertyId());
+
+			writer->WriteBool(NSTokens::Key::isNumeric, pRecord->IsNumeric(), NSTokens::Separator::CommaSeparator);
+			writer->WriteBool(NSTokens::Key::isBound, pRecord->IsBound(), NSTokens::Separator::CommaSeparator);
+			writer->WriteBool(NSTokens::Key::isSymbol, pRecord->IsSymbol(), NSTokens::Separator::CommaSeparator);
+
+			writer->WriteKey(NSTokens::Key::name, NSTokens::Separator::CommaSeparator);
+			writer->WriteInlinePropertyRecordNameTrimed(pRecord->GetBuffer(), pRecord->GetLength());
+
+			writer->WriteRecordEnd();
+		}
+
         void EmitSnapPropertyRecord(const SnapPropertyRecord* sRecord, FileWriter* writer, NSTokens::Separator separator)
         {
             writer->WriteRecordStart(separator);
@@ -158,6 +174,38 @@ namespace TTD
 
             writer->WriteRecordEnd();
         }
+
+		void EmitSnapHandlerTrimed(const SnapHandler* snapHandler, FileWriter* writer, NSTokens::Separator separator)
+		{
+			writer->WriteRecordStart(separator);
+
+			writer->WriteAddrAsInt64(NSTokens::Key::handlerId, snapHandler->HandlerId);
+
+			writer->WriteUInt32(NSTokens::Key::extensibleFlag, snapHandler->IsExtensibleFlag, NSTokens::Separator::CommaSeparator);
+
+			writer->WriteUInt32(NSTokens::Key::inlineSlotCapacity, snapHandler->InlineSlotCapacity, NSTokens::Separator::CommaSeparator);
+			writer->WriteUInt32(NSTokens::Key::totalSlotCapacity, snapHandler->TotalSlotCapacity, NSTokens::Separator::CommaSeparator);
+
+			// writer->WriteLengthValue(snapHandler->MaxPropertyIndex, NSTokens::Separator::CommaSeparator);
+
+			if (snapHandler->MaxPropertyIndex >= 0)
+			{
+				writer->WriteSequenceStartWithKey(NSTokens::Key::properties, NSTokens::Separator::CommaSeparator);
+				writer->AdjustIndent(1);
+				for (uint32 i = 0; i < snapHandler->MaxPropertyIndex; ++i)
+				{
+					writer->WriteRecordStart(i != 0 ? NSTokens::Separator::CommaAndBigSpaceSeparator : NSTokens::Separator::BigSpaceSeparator);
+					writer->WriteUInt32(NSTokens::Key::propertyId, snapHandler->PropertyInfoArray[i].PropertyRecordId);
+					writer->WriteTagAsUInt32<SnapEntryDataKindTag>(NSTokens::Key::dataKindTag, snapHandler->PropertyInfoArray[i].DataKind, NSTokens::Separator::CommaSeparator);
+					writer->WriteTagAsUInt32<SnapAttributeTag>(NSTokens::Key::attributeTag, snapHandler->PropertyInfoArray[i].AttributeInfo, NSTokens::Separator::CommaSeparator);
+					writer->WriteRecordEnd();
+				}
+				writer->AdjustIndent(-1);
+				writer->WriteSequenceEnd(NSTokens::Separator::BigSpaceSeparator);
+			}
+
+			writer->WriteRecordEnd();
+		}
 
         void ParseSnapHandler(SnapHandler* snapHandler, bool readSeperator, FileReader* reader, SlabAllocator& alloc)
         {
@@ -263,6 +311,26 @@ namespace TTD
 
             writer->WriteRecordEnd();
         }
+
+		void EmitSnapTypeTrimed(const SnapType* sType, FileWriter* writer, NSTokens::Separator separator)
+		{
+			writer->WriteRecordStart(separator);
+
+			writer->WriteAddrAsInt64(NSTokens::Key::typeId, sType->TypePtrId);
+
+			writer->WriteTagAsUInt32<Js::TypeId>(NSTokens::Key::jsTypeId, sType->JsTypeId, NSTokens::Separator::CommaSeparator);
+			writer->WriteLogTagAsInt64(NSTokens::Key::ctxTag, sType->ScriptContextLogId, NSTokens::Separator::CommaSeparator);
+
+			writer->WriteKey(NSTokens::Key::prototypeVar, NSTokens::Separator::CommaSeparator);
+			NSSnapValues::EmitTTDVarTrimed(sType->PrototypeVar, writer, NSTokens::Separator::NoSeparator);
+
+			TTD_PTR_ID handlerId = (sType->TypeHandlerInfo != nullptr) ? sType->TypeHandlerInfo->HandlerId : TTD_INVALID_PTR_ID;
+			writer->WriteAddrAsInt64(NSTokens::Key::handlerId, handlerId, NSTokens::Separator::CommaSeparator);
+
+			writer->WriteBool(NSTokens::Key::hasNoEnumProp, sType->HasNoEnumerableProperties, NSTokens::Separator::CommaSeparator);
+
+			writer->WriteRecordEnd();
+		}
 
         void ParseSnapType(SnapType* sType, bool readSeperator, FileReader* reader, SlabAllocator& alloc, const TTDIdentifierDictionary<TTD_PTR_ID, SnapHandler*>& typeHandlerMap)
         {

@@ -24,6 +24,7 @@ namespace TTD
 {
     namespace NSTokens
     {
+
         //Seperator tokens for records
         enum class Separator : byte
         {
@@ -87,6 +88,7 @@ namespace TTD
 
         size_t m_cursor;
         byte* m_buffer;
+		bool quotedKey = false;
 
         //flush the buffer contents to disk
         void WriteBlock(const byte* buff, size_t bufflen);
@@ -184,20 +186,27 @@ namespace TTD
         virtual ~FileWriter();
 
         void FlushAndClose();
+		void WriteRawChars(const char16* buff, size_t bufflen);
+		char16* escape(const char16* str);
 
         ////
+		bool setQuotedKey(bool flag);
+		bool getQuotedKey();
 
         virtual void WriteSeperator(NSTokens::Separator separator) = 0;
         virtual void WriteKey(NSTokens::Key key, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
+		virtual void WriteQuotedKey(NSTokens::Key key, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
 
         void WriteLengthValue(uint32 length, NSTokens::Separator separator = NSTokens::Separator::NoSeparator);
 
         void WriteSequenceStart_DefaultKey(NSTokens::Separator separator = NSTokens::Separator::NoSeparator);
+		void WriteSequenceStartWithKey(NSTokens::Key key, NSTokens::Separator separator);
         virtual void WriteSequenceStart(NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
         virtual void WriteSequenceEnd(NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
 
         void WriteRecordStart_DefaultKey(NSTokens::Separator separator = NSTokens::Separator::NoSeparator);
         virtual void WriteRecordStart(NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
+		virtual void WriteRecordStartWithKey(NSTokens::Key key, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
         virtual void WriteRecordEnd(NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
 
         virtual void AdjustIndent(int32 delta) = 0;
@@ -209,7 +218,7 @@ namespace TTD
         void WriteNull(NSTokens::Key key, NSTokens::Separator separator = NSTokens::Separator::NoSeparator);
 
         virtual void WriteNakedByte(byte val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
-        virtual void WriteBool(NSTokens::Key key, bool val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
+        virtual void WriteBool(NSTokens::Key key, bool val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator, bool quoteKey = false) = 0;
 
         virtual void WriteNakedInt32(int32 val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
         void WriteInt32(NSTokens::Key key, int32 val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator);
@@ -229,8 +238,13 @@ namespace TTD
         virtual void WriteNakedAddr(TTD_PTR_ID val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
         void WriteAddr(NSTokens::Key key, TTD_PTR_ID val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator);
 
+		virtual void WriteNakedAddrAsInt64(TTD_PTR_ID val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
+		void WriteAddrAsInt64(NSTokens::Key key, TTD_PTR_ID val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator);
+
         virtual void WriteNakedLogTag(TTD_LOG_PTR_ID val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
+		virtual void WriteNakedLogTagAsInt64(TTD_LOG_PTR_ID val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
         void WriteLogTag(NSTokens::Key key, TTD_LOG_PTR_ID val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator);
+		void WriteLogTagAsInt64(NSTokens::Key key, TTD_LOG_PTR_ID val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator);
 
         virtual void WriteNakedTag(uint32 tagvalue, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
 
@@ -241,16 +255,26 @@ namespace TTD
             this->WriteNakedTag((uint32)tag);
         }
 
+		template <typename T>
+		void WriteTagAsUInt32(NSTokens::Key key, T tag, NSTokens::Separator separator = NSTokens::Separator::NoSeparator)
+		{
+			this->WriteKey(key, separator);
+			this->WriteNakedUInt32((uint32)tag);
+		}
+
         ////
 
         virtual void WriteNakedString(const TTString& val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
+		virtual void WriteNakedStringWithoutLen(const TTString& val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
         void WriteString(NSTokens::Key key, const TTString& val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator);
+		void WriteStringWithoutLen(NSTokens::Key key, const TTString& val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator);
 
         virtual void WriteNakedWellKnownToken(TTD_WELLKNOWN_TOKEN val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
         void WriteWellKnownToken(NSTokens::Key key, TTD_WELLKNOWN_TOKEN val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator);
 
         virtual void WriteInlineCode(_In_reads_(length) const char16* code, uint32 length, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
         virtual void WriteInlinePropertyRecordName(_In_reads_(length) const char16* pname, uint32 length, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
+		virtual void WriteInlinePropertyRecordNameTrimed(_In_reads_(length) const char16* pname, uint32 length, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
     };
 
     //A implements the writer for verbose text formatted output
@@ -260,22 +284,21 @@ namespace TTD
         //Array of key names and their lengths
         const char16** m_keyNameArray;
         size_t* m_keyNameLengthArray;
-
         //indent size for formatting
         uint32 m_indentSize;
-
     public:
         TextFormatWriter(JsTTDStreamHandle handle, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose);
         virtual ~TextFormatWriter();
 
         ////
-
         virtual void WriteSeperator(NSTokens::Separator separator) override;
         virtual void WriteKey(NSTokens::Key key, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
+		virtual void WriteQuotedKey(NSTokens::Key key, NSTokens::Separator separator) override;
 
         virtual void WriteSequenceStart(NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
         virtual void WriteSequenceEnd(NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
         virtual void WriteRecordStart(NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
+		virtual void WriteRecordStartWithKey(NSTokens::Key key, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
         virtual void WriteRecordEnd(NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
 
         virtual void AdjustIndent(int32 delta) override;
@@ -286,7 +309,7 @@ namespace TTD
         virtual void WriteNakedNull(NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
 
         virtual void WriteNakedByte(byte val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
-        virtual void WriteBool(NSTokens::Key key, bool val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
+        virtual void WriteBool(NSTokens::Key key, bool val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator, bool quoteKey = false) override;
 
         virtual void WriteNakedInt32(int32 val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
         virtual void WriteNakedUInt32(uint32 val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
@@ -294,18 +317,22 @@ namespace TTD
         virtual void WriteNakedUInt64(uint64 val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
         virtual void WriteNakedDouble(double val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
         virtual void WriteNakedAddr(TTD_PTR_ID val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
+		virtual void WriteNakedAddrAsInt64(TTD_PTR_ID val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
         virtual void WriteNakedLogTag(TTD_LOG_PTR_ID val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
+		virtual void WriteNakedLogTagAsInt64(TTD_LOG_PTR_ID val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
 
         virtual void WriteNakedTag(uint32 tagvalue, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
 
         ////
 
         virtual void WriteNakedString(const TTString& val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
+		virtual void WriteNakedStringWithoutLen(const TTString & val, NSTokens::Separator separator) override;
 
         virtual void WriteNakedWellKnownToken(TTD_WELLKNOWN_TOKEN val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
 
         virtual void WriteInlineCode(_In_reads_(length) const char16* code, uint32 length, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
         virtual void WriteInlinePropertyRecordName(_In_reads_(length) const char16* pname, uint32 length, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
+		virtual void WriteInlinePropertyRecordNameTrimed(_In_reads_(length) const char16* pname, uint32 length, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
     };
 
     //A implements the writer for a compact binary formatted output
@@ -323,6 +350,7 @@ namespace TTD
         virtual void WriteSequenceStart(NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
         virtual void WriteSequenceEnd(NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
         virtual void WriteRecordStart(NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
+		virtual void WriteRecordStartWithKey(NSTokens::Key key, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
         virtual void WriteRecordEnd(NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
 
         virtual void AdjustIndent(int32 delta) override;
@@ -333,7 +361,7 @@ namespace TTD
         virtual void WriteNakedNull(NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
 
         virtual void WriteNakedByte(byte val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
-        virtual void WriteBool(NSTokens::Key key, bool val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
+        virtual void WriteBool(NSTokens::Key key, bool val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator, bool quoteKey = false) override;
 
         virtual void WriteNakedInt32(int32 val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
         virtual void WriteNakedUInt32(uint32 val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
@@ -342,6 +370,7 @@ namespace TTD
         virtual void WriteNakedDouble(double val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
         virtual void WriteNakedAddr(TTD_PTR_ID val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
         virtual void WriteNakedLogTag(TTD_LOG_PTR_ID val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
+		virtual void WriteNakedLogTagAsInt64(TTD_LOG_PTR_ID val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
 
         virtual void WriteNakedTag(uint32 tagvalue, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
 
@@ -353,6 +382,7 @@ namespace TTD
 
         virtual void WriteInlineCode(_In_reads_(length) const char16* code, uint32 length, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
         virtual void WriteInlinePropertyRecordName(_In_reads_(length) const char16* pname, uint32 length, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
+		virtual void WriteInlinePropertyRecordNameTrimed(_In_reads_(length) const char16* pname, uint32 length, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) override;
     };
 
     //////////////////

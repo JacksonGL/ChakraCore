@@ -2584,9 +2584,38 @@ namespace TTD
         //emit the properties
         writer.WriteLengthValue(this->m_propertyRecordPinSet->Count(), NSTokens::Separator::CommaSeparator);
 
+#ifdef DUMP_PROP_NAME_IN_SNAPSHOT
+		const char* logfilename2 = "prop.json";
+		JsTTDStreamHandle logHandle2 = iofp.pfOpenResourceStream(iofp.ActiveTTUriLength, iofp.ActiveTTUri, strlen(logfilename2), logfilename2, false, true);
+		TTDAssert(logHandle2 != nullptr, "Failed to initialize strem for writing TTD Log.");
+
+		TTD_LOG_WRITER writer2(logHandle2, iofp.pfWriteBytesToStream, iofp.pfFlushAndCloseStream);
+
+		writer2.setQuotedKey(true);
+		writer2.WriteRecordStart();
+		writer2.AdjustIndent(1);
+
+		writer2.WriteSequenceStartWithKey(NSTokens::Key::properties, NSTokens::Separator::NoSeparator);
+		writer.AdjustIndent(1);
+		bool firstProperty = true;
+		for (auto iter = this->m_propertyRecordPinSet->GetIterator(); iter.IsValid(); iter.MoveNext())
+		{
+			NSTokens::Separator sep = (!firstProperty) ? NSTokens::Separator::CommaAndBigSpaceSeparator : NSTokens::Separator::BigSpaceSeparator;
+			NSSnapType::EmitPropertyRecordAsSnapPropertyRecordTrimed(iter.CurrentValue(), &writer2, sep);
+
+			firstProperty = false;
+		}
+		writer2.AdjustIndent(-1);
+		writer2.WriteSequenceEnd(NSTokens::Separator::BigSpaceSeparator);
+
+		writer2.AdjustIndent(-1);
+		writer2.WriteRecordEnd();
+		writer2.FlushAndClose();
+#endif
+
         writer.WriteSequenceStart_DefaultKey(NSTokens::Separator::CommaSeparator);
         writer.AdjustIndent(1);
-        bool firstProperty = true;
+        firstProperty = true;
         for(auto iter = this->m_propertyRecordPinSet->GetIterator(); iter.IsValid(); iter.MoveNext())
         {
             NSTokens::Separator sep = (!firstProperty) ? NSTokens::Separator::CommaAndBigSpaceSeparator : NSTokens::Separator::BigSpaceSeparator;

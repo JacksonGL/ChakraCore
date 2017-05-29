@@ -4,178 +4,253 @@
 //-------------------------------------------------------------------------------------------------------
 #include "RuntimeDebugPch.h"
 
+
 #if ENABLE_TTD
 
 namespace TTD
 {
-    namespace NSTokens
-    {
-        void InitKeyNamesArray(const char16*** names, size_t** lengths)
-        {
-            const char16** nameArray = TT_HEAP_ALLOC_ARRAY(const char16*, (uint32)Key::Count);
-            size_t* lengthArray = TT_HEAP_ALLOC_ARRAY(size_t, (uint32)Key::Count);
+	namespace NSTokens
+	{
+		void InitKeyNamesArray(const char16*** names, size_t** lengths)
+		{
+			const char16** nameArray = TT_HEAP_ALLOC_ARRAY(const char16*, (uint32)Key::Count);
+			size_t* lengthArray = TT_HEAP_ALLOC_ARRAY(size_t, (uint32)Key::Count);
 
 #define ENTRY_SERIALIZE_ENUM(K) { nameArray[(uint32)Key::##K] = _u(#K); lengthArray[(uint32)Key::##K] = wcslen(_u(#K)); }
 #include "TTSerializeEnum.h"
 
-            *names = nameArray;
-            *lengths = lengthArray;
-        }
+			*names = nameArray;
+			*lengths = lengthArray;
+		}
 
-        void CleanupKeyNamesArray(const char16*** names, size_t** lengths)
-        {
-            if(*names != nullptr)
-            {
-                TT_HEAP_FREE_ARRAY(char16*, *names, (uint32)NSTokens::Key::Count);
-                *names = nullptr;
-            }
+		void CleanupKeyNamesArray(const char16*** names, size_t** lengths)
+		{
+			if (*names != nullptr)
+			{
+				TT_HEAP_FREE_ARRAY(char16*, *names, (uint32)NSTokens::Key::Count);
+				*names = nullptr;
+			}
 
-            if(*lengths != nullptr)
-            {
-                TT_HEAP_FREE_ARRAY(size_t, *lengths, (uint32)NSTokens::Key::Count);
-                *lengths = nullptr;
-            }
-        }
-    }
+			if (*lengths != nullptr)
+			{
+				TT_HEAP_FREE_ARRAY(size_t, *lengths, (uint32)NSTokens::Key::Count);
+				*lengths = nullptr;
+			}
+		}
+	}
 
-    //////////////////
+	//////////////////
+	char16* FileWriter::escape(const char16* buffer) {
+		int i; size_t l = wcslen(buffer) + 1;
+		char16* dest = (char16*)calloc(l * 4 + 30, sizeof(char16));
+		char16* ptr = dest;
+		char const* const hexdig = "0123456789ABCDEF";
+		for (i = 0; i<l; i++) {
+			char16 c = buffer[i];
+			if (L' ' <= c && c <= L'~' && c != '\\' && c != '"') {
+				*ptr++ = c;
+			}
+			else if (c == '\0') {
+				*ptr++ = c;
+			}
+			else {
+				*ptr++ = '\\';
+				switch (c) {
+				case '"':  *ptr++ = '"';  break;
+				case '\\': *ptr++ = '\\'; break;
+				case '\t': *ptr++ = 't';  break;
+				case '\r': *ptr++ = 'r';  break;
+				case '\b': *ptr++ = 'b';  break;
+				case '\f': *ptr++ = 'f';  break;
+				case '\n': *ptr++ = 'n';  break;
+				default:
+					*ptr++ = 'u';
+					*ptr++ = hexdig[c & 0xF];
+					c >>= 4;
+					*ptr++ = hexdig[c & 0xF];
+					c >>= 4;
+					*ptr++ = hexdig[c & 0xF];
+					c >>= 4;
+					*ptr++ = hexdig[c & 0xF];
+				}
+			}
+		}
+		*ptr = '\0';
+		return dest;
+	}
 
-    void FileWriter::WriteBlock(const byte* buff, size_t bufflen)
-    {
-        TTDAssert(bufflen != 0, "Shouldn't be writing empty blocks");
-        TTDAssert(this->m_hfile != nullptr, "Trying to write to closed file.");
+	void FileWriter::WriteBlock(const byte* buff, size_t bufflen)
+	{
+		TTDAssert(bufflen != 0, "Shouldn't be writing empty blocks");
+		TTDAssert(this->m_hfile != nullptr, "Trying to write to closed file.");
 
-        size_t bwp = 0;
-        this->m_pfWrite(this->m_hfile, buff, bufflen, &bwp);
-    }
+		size_t bwp = 0;
+		this->m_pfWrite(this->m_hfile, buff, bufflen, &bwp);
+	}
 
-    FileWriter::FileWriter(JsTTDStreamHandle handle, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose)
-        : m_hfile(handle), m_pfWrite(pfWrite), m_pfClose(pfClose), m_cursor(0), m_buffer(nullptr)
-    {
-        this->m_buffer = TT_HEAP_ALLOC_ARRAY(byte, TTD_SERIALIZATION_BUFFER_SIZE);
-    }
+	FileWriter::FileWriter(JsTTDStreamHandle handle, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose)
+		: m_hfile(handle), m_pfWrite(pfWrite), m_pfClose(pfClose), m_cursor(0), m_buffer(nullptr)
+	{
+		this->m_buffer = TT_HEAP_ALLOC_ARRAY(byte, TTD_SERIALIZATION_BUFFER_SIZE);
+	}
 
-    FileWriter::~FileWriter()
-    {
-        this->FlushAndClose();
-    }
+	FileWriter::~FileWriter()
+	{
+		this->FlushAndClose();
+	}
 
-    void FileWriter::FlushAndClose()
-    {
-        if(this->m_hfile != nullptr)
-        {
-            if(this->m_cursor != 0)
-            {
-                this->WriteBlock(this->m_buffer, this->m_cursor);
-                this->m_cursor = 0;
-            }
+	bool FileWriter::setQuotedKey(bool flag) {
+		return this->quotedKey = flag;
+	}
 
-            this->m_pfClose(this->m_hfile, false, true);
-            this->m_hfile = nullptr;
-        }
+	bool FileWriter::getQuotedKey() {
+		return this->quotedKey;
+	}
 
-        if(this->m_buffer != nullptr)
-        {
-            TT_HEAP_FREE_ARRAY(byte, this->m_buffer, TTD_SERIALIZATION_BUFFER_SIZE);
-            this->m_buffer = nullptr;
-        }
-    }
+	void FileWriter::WriteRawChars(const char16* buff, size_t bufflen)
+	{
+		this->WriteRawByteBuff((const byte*)buff, bufflen * sizeof(char16));
+	}
 
-    void FileWriter::WriteLengthValue(uint32 length, NSTokens::Separator separator)
-    {
-        this->WriteKey(NSTokens::Key::count, separator);
-        this->WriteNakedUInt32(length);
-    }
+	void FileWriter::FlushAndClose()
+	{
+		if (this->m_hfile != nullptr)
+		{
+			if (this->m_cursor != 0)
+			{
+				this->WriteBlock(this->m_buffer, this->m_cursor);
+				this->m_cursor = 0;
+			}
 
-    void FileWriter::WriteSequenceStart_DefaultKey(NSTokens::Separator separator)
-    {
-        this->WriteKey(NSTokens::Key::values, separator);
-        this->WriteSequenceStart();
-    }
+			this->m_pfClose(this->m_hfile, false, true);
+			this->m_hfile = nullptr;
+		}
 
-    void FileWriter::WriteRecordStart_DefaultKey(NSTokens::Separator separator)
-    {
-        this->WriteKey(NSTokens::Key::entry, separator);
-        this->WriteRecordStart();
-    }
+		if (this->m_buffer != nullptr)
+		{
+			TT_HEAP_FREE_ARRAY(byte, this->m_buffer, TTD_SERIALIZATION_BUFFER_SIZE);
+			this->m_buffer = nullptr;
+		}
+	}
 
-    void FileWriter::WriteNull(NSTokens::Key key, NSTokens::Separator separator)
-    {
-        this->WriteKey(key, separator);
-        this->WriteNakedNull();
-    }
+	void FileWriter::WriteLengthValue(uint32 length, NSTokens::Separator separator)
+	{
+		this->WriteKey(NSTokens::Key::count, separator);
+		this->WriteNakedUInt32(length);
+	}
 
-    void FileWriter::WriteInt32(NSTokens::Key key, int32 val, NSTokens::Separator separator)
-    {
-        this->WriteKey(key, separator);
-        this->WriteNakedInt32(val);
-    }
+	void FileWriter::WriteSequenceStart_DefaultKey(NSTokens::Separator separator)
+	{
+		this->WriteKey(NSTokens::Key::values, separator);
+		this->WriteSequenceStart();
+	}
 
-    void FileWriter::WriteUInt32(NSTokens::Key key, uint32 val, NSTokens::Separator separator)
-    {
-        this->WriteKey(key, separator);
-        this->WriteNakedUInt32(val);
-    }
+	void FileWriter::WriteSequenceStartWithKey(NSTokens::Key key, NSTokens::Separator separator)
+	{
+		this->WriteKey(key, separator);
+		this->WriteSequenceStart();
+	}
 
-    void FileWriter::WriteInt64(NSTokens::Key key, int64 val, NSTokens::Separator separator)
-    {
-        this->WriteKey(key, separator);
-        this->WriteNakedInt64(val);
-    }
+	void FileWriter::WriteRecordStart_DefaultKey(NSTokens::Separator separator)
+	{
+		this->WriteKey(NSTokens::Key::entry, separator);
+		this->WriteRecordStart();
+	}
 
-    void FileWriter::WriteUInt64(NSTokens::Key key, uint64 val, NSTokens::Separator separator)
-    {
-        this->WriteKey(key, separator);
-        this->WriteNakedUInt64(val);
-    }
+	void FileWriter::WriteNull(NSTokens::Key key, NSTokens::Separator separator)
+	{
+		this->WriteKey(key, separator);
+		this->WriteNakedNull();
+	}
 
-    void FileWriter::WriteDouble(NSTokens::Key key, double val, NSTokens::Separator separator)
-    {
-        this->WriteKey(key, separator);
-        this->WriteNakedDouble(val);
-    }
+	void FileWriter::WriteInt32(NSTokens::Key key, int32 val, NSTokens::Separator separator)
+	{
+		this->WriteKey(key, separator);
+		this->WriteNakedInt32(val);
+	}
 
-    void FileWriter::WriteAddr(NSTokens::Key key, TTD_PTR_ID val, NSTokens::Separator separator)
-    {
-        this->WriteKey(key, separator);
-        this->WriteNakedAddr(val);
-    }
+	void FileWriter::WriteUInt32(NSTokens::Key key, uint32 val, NSTokens::Separator separator)
+	{
+		this->WriteKey(key, separator);
+		this->WriteNakedUInt32(val);
+	}
 
-    void FileWriter::WriteLogTag(NSTokens::Key key, TTD_LOG_PTR_ID val, NSTokens::Separator separator)
-    {
-        this->WriteKey(key, separator);
-        this->WriteNakedLogTag(val);
-    }
+	void FileWriter::WriteInt64(NSTokens::Key key, int64 val, NSTokens::Separator separator)
+	{
+		this->WriteKey(key, separator);
+		this->WriteNakedInt64(val);
+	}
 
-    ////
+	void FileWriter::WriteUInt64(NSTokens::Key key, uint64 val, NSTokens::Separator separator)
+	{
+		this->WriteKey(key, separator);
+		this->WriteNakedUInt64(val);
+	}
 
-    void FileWriter::WriteString(NSTokens::Key key, const TTString& val, NSTokens::Separator separator)
-    {
-        this->WriteKey(key, separator);
-        this->WriteNakedString(val);
-    }
+	void FileWriter::WriteDouble(NSTokens::Key key, double val, NSTokens::Separator separator)
+	{
+		this->WriteKey(key, separator);
+		this->WriteNakedDouble(val);
+	}
 
-    void FileWriter::WriteWellKnownToken(NSTokens::Key key, TTD_WELLKNOWN_TOKEN val, NSTokens::Separator separator)
-    {
-        this->WriteKey(key, separator);
-        this->WriteNakedWellKnownToken(val);
-    }
+	void FileWriter::WriteAddr(NSTokens::Key key, TTD_PTR_ID val, NSTokens::Separator separator)
+	{
+		this->WriteKey(key, separator);
+		this->WriteNakedAddr(val);
+	}
 
-    //////////////////
+	void FileWriter::WriteAddrAsInt64(NSTokens::Key key, TTD_PTR_ID val, NSTokens::Separator separator)
+	{
+		this->WriteKey(key, separator);
+		this->WriteNakedAddrAsInt64(val);
+	}
 
-    TextFormatWriter::TextFormatWriter(JsTTDStreamHandle handle, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose)
-        : FileWriter(handle, pfWrite, pfClose), m_keyNameArray(nullptr), m_keyNameLengthArray(nullptr), m_indentSize(0)
-    {
-        byte byteOrderMarker[2] = { 0xFF, 0xFE };
-        this->WriteRawByteBuff(byteOrderMarker, 2);
+	void FileWriter::WriteLogTag(NSTokens::Key key, TTD_LOG_PTR_ID val, NSTokens::Separator separator)
+	{
+		this->WriteKey(key, separator);
+		this->WriteNakedLogTag(val);
+	}
 
-        NSTokens::InitKeyNamesArray(&(this->m_keyNameArray), &(this->m_keyNameLengthArray));
-    }
+	void FileWriter::WriteLogTagAsInt64(NSTokens::Key key, TTD_LOG_PTR_ID val, NSTokens::Separator separator)
+	{
+		this->WriteKey(key, separator);
+		this->WriteNakedLogTagAsInt64(val);
+	}
 
-    TextFormatWriter::~TextFormatWriter()
-    {
-        NSTokens::CleanupKeyNamesArray(&(this->m_keyNameArray), &(this->m_keyNameLengthArray));
-    }
+	////
+
+	void FileWriter::WriteString(NSTokens::Key key, const TTString& val, NSTokens::Separator separator)
+	{
+		this->WriteKey(key, separator);
+		this->WriteNakedString(val);
+	}
+
+	void FileWriter::WriteStringWithoutLen(NSTokens::Key key, const TTString& val, NSTokens::Separator separator)
+	{
+		this->WriteKey(key, separator);
+		this->WriteNakedStringWithoutLen(val);
+	}
+
+	void FileWriter::WriteWellKnownToken(NSTokens::Key key, TTD_WELLKNOWN_TOKEN val, NSTokens::Separator separator)
+	{
+		this->WriteKey(key, separator);
+		this->WriteNakedWellKnownToken(val);
+	}
+
+	//////////////////
+	TextFormatWriter::TextFormatWriter(JsTTDStreamHandle handle, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose)
+		: FileWriter(handle, pfWrite, pfClose), m_keyNameArray(nullptr), m_keyNameLengthArray(nullptr), m_indentSize(0)
+	{
+		byte byteOrderMarker[2] = { 0xFF, 0xFE };
+		this->WriteRawByteBuff(byteOrderMarker, 2);
+
+		NSTokens::InitKeyNamesArray(&(this->m_keyNameArray), &(this->m_keyNameLengthArray));
+	}
+
+	TextFormatWriter::~TextFormatWriter()
+	{
+		NSTokens::CleanupKeyNamesArray(&(this->m_keyNameArray), &(this->m_keyNameLengthArray));
+	}
 
     void TextFormatWriter::WriteSeperator(NSTokens::Separator separator)
     {
@@ -217,9 +292,27 @@ namespace TTD
         const char16* kname = this->m_keyNameArray[(uint32)key];
         size_t ksize = this->m_keyNameLengthArray[(uint32)key];
 
+		if (this->getQuotedKey()) 
+			this->WriteRawChar(_u('"'));
         this->WriteRawCharBuff(kname, ksize);
+		if (this->getQuotedKey())
+			this->WriteRawChar(_u('"'));
         this->WriteRawChar(_u(':'));
     }
+
+	void TextFormatWriter::WriteQuotedKey(NSTokens::Key key, NSTokens::Separator separator)
+	{
+		this->WriteSeperator(separator);
+
+		TTDAssert(1 <= (uint32)key && (uint32)key < (uint32)NSTokens::Key::Count, "Key not in valid range!");
+		const char16* kname = this->m_keyNameArray[(uint32)key];
+		size_t ksize = this->m_keyNameLengthArray[(uint32)key];
+
+		this->WriteRawChar(_u('"'));
+		this->WriteRawCharBuff(kname, ksize);
+		this->WriteRawChar(_u('"'));
+		this->WriteRawChar(_u(':'));
+	}
 
     void TextFormatWriter::WriteSequenceStart(NSTokens::Separator separator)
     {
@@ -240,6 +333,13 @@ namespace TTD
         this->WriteSeperator(separator);
         this->WriteRawChar(_u('{'));
     }
+
+	void TextFormatWriter::WriteRecordStartWithKey(NSTokens::Key key, NSTokens::Separator separator)
+	{
+		this->WriteSeperator(separator);
+		this->WriteKey(key);
+		this->WriteRawChar(_u('{'));
+	}
 
     void TextFormatWriter::WriteRecordEnd(NSTokens::Separator separator)
     {
@@ -272,9 +372,9 @@ namespace TTD
         this->WriteFormattedCharData(_u("%I32u"), (uint32)val);
     }
 
-    void TextFormatWriter::WriteBool(NSTokens::Key key, bool val, NSTokens::Separator separator)
+    void TextFormatWriter::WriteBool(NSTokens::Key key, bool val, NSTokens::Separator separator, bool quoteKey)
     {
-        this->WriteKey(key, separator);
+		this->WriteKey(key, separator);
         if(val)
         {
             this->WriteRawCharBuff(_u("true"), 4);
@@ -309,50 +409,94 @@ namespace TTD
         this->WriteFormattedCharData(_u("%I64u"), val);
     }
 
-    void TextFormatWriter::WriteNakedDouble(double val, NSTokens::Separator separator)
-    {
-        this->WriteSeperator(separator);
+	void TextFormatWriter::WriteNakedDouble(double val, NSTokens::Separator separator)
+	{
+		this->WriteSeperator(separator);
 
-        if(Js::JavascriptNumber::IsNan(val))
-        {
-            this->WriteRawCharBuff(_u("#nan"), 4);
-        }
-        else if(Js::JavascriptNumber::IsPosInf(val))
-        {
-            this->WriteRawCharBuff(_u("#+inf"), 5);
-        }
-        else if(Js::JavascriptNumber::IsNegInf(val))
-        {
-            this->WriteRawCharBuff(_u("#-inf"), 5);
-        }
-        else if(Js::JavascriptNumber::MAX_VALUE == val)
-        {
-            this->WriteRawCharBuff(_u("#ub"), 3);
-        }
-        else if(Js::JavascriptNumber::MIN_VALUE == val)
-        {
-            this->WriteRawCharBuff(_u("#lb"), 3);
-        }
-        else if(Js::Math::EPSILON == val)
-        {
-            this->WriteRawCharBuff(_u("#ep"), 3);
-        }
-        else
-        {
-            if(INT32_MAX <= val && val <= INT32_MAX && floor(val) == val)
-            {
-                this->WriteFormattedCharData(_u("%I64i"), (int64)val);
-            }
-            else
-            {
-                //
-                //TODO: this is nice for visual debugging but we inherently lose precision
-                //      will want to change this to a dump of the bit representation of the number
-                //
+		if (this->getQuotedKey()) {
+			if (Js::JavascriptNumber::IsNan(val))
+			{
+				this->WriteRawCharBuff(_u("\"#nan\""), 6);
+			}
+			else if (Js::JavascriptNumber::IsPosInf(val))
+			{
+				this->WriteRawCharBuff(_u("\"#+inf\""), 7);
+			}
+			else if (Js::JavascriptNumber::IsNegInf(val))
+			{
+				this->WriteRawCharBuff(_u("\"#-inf\""), 7);
+			}
+			else if (Js::JavascriptNumber::MAX_VALUE == val)
+			{
+				this->WriteRawCharBuff(_u("\"#ub\""), 5);
+			}
+			else if (Js::JavascriptNumber::MIN_VALUE == val)
+			{
+				this->WriteRawCharBuff(_u("\"#lb\""), 5);
+			}
+			else if (Js::Math::EPSILON == val)
+			{
+				this->WriteRawCharBuff(_u("\"#ep\""), 5);
+			}
+			else
+			{
+				if (INT32_MAX <= val && val <= INT32_MAX && floor(val) == val)
+				{
+					this->WriteFormattedCharData(_u("%I64i"), (int64)val);
+				}
+				else
+				{
+					//
+					//TODO: this is nice for visual debugging but we inherently lose precision
+					//      will want to change this to a dump of the bit representation of the number
+					//
 
-                this->WriteFormattedCharData(_u("%.32f"), val);
-            }
-        }
+					this->WriteFormattedCharData(_u("%.32f"), val);
+				}
+			}
+		}
+		else {
+			if (Js::JavascriptNumber::IsNan(val))
+			{
+				this->WriteRawCharBuff(_u("#nan"), 4);
+			}
+			else if (Js::JavascriptNumber::IsPosInf(val))
+			{
+				this->WriteRawCharBuff(_u("#+inf"), 5);
+			}
+			else if (Js::JavascriptNumber::IsNegInf(val))
+			{
+				this->WriteRawCharBuff(_u("#-inf"), 5);
+			}
+			else if (Js::JavascriptNumber::MAX_VALUE == val)
+			{
+				this->WriteRawCharBuff(_u("#ub"), 3);
+			}
+			else if (Js::JavascriptNumber::MIN_VALUE == val)
+			{
+				this->WriteRawCharBuff(_u("#lb"), 3);
+			}
+			else if (Js::Math::EPSILON == val)
+			{
+				this->WriteRawCharBuff(_u("#ep"), 3);
+			}
+			else
+			{
+				if (INT32_MAX <= val && val <= INT32_MAX && floor(val) == val)
+				{
+					this->WriteFormattedCharData(_u("%I64i"), (int64)val);
+				}
+				else
+				{
+					//
+					//TODO: this is nice for visual debugging but we inherently lose precision
+					//      will want to change this to a dump of the bit representation of the number
+					//
+
+					this->WriteFormattedCharData(_u("%.32f"), val);
+				}
+			}
+		}
     }
 
     void TextFormatWriter::WriteNakedAddr(TTD_PTR_ID val, NSTokens::Separator separator)
@@ -361,11 +505,23 @@ namespace TTD
         this->WriteFormattedCharData(_u("*%I64u"), val);
     }
 
+	void TextFormatWriter::WriteNakedAddrAsInt64(TTD_PTR_ID val, NSTokens::Separator separator)
+	{
+		this->WriteSeperator(separator);
+		this->WriteFormattedCharData(_u("%I64u"), val);
+	}
+
     void TextFormatWriter::WriteNakedLogTag(TTD_LOG_PTR_ID val, NSTokens::Separator separator)
     {
         this->WriteSeperator(separator);
         this->WriteFormattedCharData(_u("!%I64i"), val);
     }
+
+	void TextFormatWriter::WriteNakedLogTagAsInt64(TTD_LOG_PTR_ID val, NSTokens::Separator separator)
+	{
+		this->WriteSeperator(separator);
+		this->WriteFormattedCharData(_u("%I64i"), val);
+	}
 
     void TextFormatWriter::WriteNakedTag(uint32 tagvalue, NSTokens::Separator separator)
     {
@@ -393,13 +549,40 @@ namespace TTD
         }
     }
 
+	void TextFormatWriter::WriteNakedStringWithoutLen(const TTString& val, NSTokens::Separator separator)
+	{
+		this->WriteSeperator(separator);
+
+		if (IsNullPtrTTString(val))
+		{
+			this->WriteNakedNull();
+		}
+		else
+		{
+			// this->WriteFormattedCharData(_u("@%I32u"), val.Length);
+			this->WriteRawChar(_u('\"'));
+			char16* contents = this->escape(val.Contents);
+			this->WriteRawCharBuff(contents, wcslen(contents));
+			delete[] contents;
+			this->WriteRawChar(_u('\"'));
+		}
+	}
+
+	
+
     void TextFormatWriter::WriteNakedWellKnownToken(TTD_WELLKNOWN_TOKEN val, NSTokens::Separator separator)
     {
         this->WriteSeperator(separator);
-
-        this->WriteRawChar(_u('~'));
+		bool isQuoted = this->getQuotedKey();
+		if (isQuoted)
+			this->WriteRawChar(_u('"'));
+		else
+			this->WriteRawChar(_u('~'));
         this->WriteRawCharBuff(val, wcslen(val));
-        this->WriteRawChar(_u('~'));
+		if (isQuoted)
+			this->WriteRawChar(_u('"'));
+		else
+			this->WriteRawChar(_u('~'));
     }
 
     void TextFormatWriter::WriteInlineCode(_In_reads_(length) const char16* code, uint32 length, NSTokens::Separator separator)
@@ -423,6 +606,18 @@ namespace TTD
         this->WriteRawCharBuff(pname, length);
         this->WriteRawChar(_u('\"'));
     }
+
+	void TextFormatWriter::WriteInlinePropertyRecordNameTrimed(_In_reads_(length) const char16* pname, uint32 length, NSTokens::Separator separator)
+	{
+		this->WriteSeperator(separator);
+		char16* contents = this->escape(pname);
+
+		this->WriteRawChar(_u('\"'));
+		this->WriteRawCharBuff(contents, wcslen(contents));
+		this->WriteRawChar(_u('\"'));
+
+		delete[] contents;
+	}
 
     BinaryFormatWriter::BinaryFormatWriter(JsTTDStreamHandle handle, TTDWriteBytesToStreamCallback pfWrite, TTDFlushAndCloseStreamCallback pfClose)
         : FileWriter(handle, pfWrite, pfClose)
@@ -467,6 +662,13 @@ namespace TTD
         this->WriteRawByteBuff_Fixed<byte>('{');
     }
 
+	void BinaryFormatWriter::WriteRecordStartWithKey(NSTokens::Key key, NSTokens::Separator separator)
+	{
+		this->WriteSeperator(separator);
+		this->WriteKey(key);
+		this->WriteRawByteBuff_Fixed<byte>('{');
+	}
+
     void BinaryFormatWriter::WriteRecordEnd(NSTokens::Separator separator)
     {
         this->WriteSeperator(separator);
@@ -495,7 +697,7 @@ namespace TTD
         this->WriteRawByteBuff_Fixed<byte>(val);
     }
 
-    void BinaryFormatWriter::WriteBool(NSTokens::Key key, bool val, NSTokens::Separator separator)
+    void BinaryFormatWriter::WriteBool(NSTokens::Key key, bool val, NSTokens::Separator separator, bool quoteKey)
     {
         this->WriteKey(key, separator);
         this->WriteRawByteBuff_Fixed<byte>(val ? (byte)1 : (byte)0);
@@ -543,6 +745,12 @@ namespace TTD
         this->WriteRawByteBuff_Fixed<TTD_LOG_PTR_ID>(val);
     }
 
+	void BinaryFormatWriter::WriteNakedLogTagAsInt64(TTD_LOG_PTR_ID val, NSTokens::Separator separator)
+	{
+		this->WriteSeperator(separator);
+		this->WriteRawByteBuff_Fixed<TTD_LOG_PTR_ID>(val);
+	}
+
     void BinaryFormatWriter::WriteNakedTag(uint32 tagvalue, NSTokens::Separator separator)
     {
         this->WriteSeperator(separator);
@@ -588,6 +796,13 @@ namespace TTD
         this->WriteRawByteBuff_Fixed<uint32>(length);
         this->WriteRawByteBuff((const byte*)pname, length * sizeof(char16));
     }
+
+	void BinaryFormatWriter::WriteInlinePropertyRecordNameTrimed(_In_reads_(length) const char16* pname, uint32 length, NSTokens::Separator separator)
+	{
+		this->WriteSeperator(separator);
+
+		this->WriteRawByteBuff((const byte*)pname, length * sizeof(char16));
+	}
 
     //////////////////
 

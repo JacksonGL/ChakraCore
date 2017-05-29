@@ -82,6 +82,7 @@
     <ClInclude Include="DiagObjectModel.h" />
     <ClInclude Include="DiagProbe.h" />
     <ClInclude Include="DiagStackFrame.h" />
+    <ClInclude Include="TTSnapshotJSONEmitter.h" />
     <ClInclude Include="MutationBreakpoint.h" />
     <ClInclude Include="ProbeContainer.h" />
     <ClInclude Include="RuntimeDebugPch.h" />

@@ -99,6 +99,116 @@ namespace TTD
         writer->WriteRecordEnd(NSTokens::Separator::BigSpaceSeparator);
     }
 
+	void SnapShot::EmitTrimedSnapshotToFile(FileWriter* writer, ThreadContext* threadContext) const
+	{
+		printf("start saving trimed snapshot to JSON");
+		TTDTimer timer;
+		double startWrite = timer.Now();
+		writer->setQuotedKey(true);
+		
+		writer->WriteRecordStart();
+		writer->AdjustIndent(1);
+		
+		uint64 usedSpace = 0;
+		uint64 reservedSpace = 0;
+		this->ComputeSnapshotMemory(&usedSpace, &reservedSpace);
+		
+		// emit the runtime statistics
+		writer->WriteRecordStartWithKey(NSTokens::Key::runtime);
+		writer->AdjustIndent(1);
+
+		writer->WriteDouble(NSTokens::Key::timeTotal, this->GCTime + this->MarkTime + this->ExtractTime);
+		writer->WriteUInt64(NSTokens::Key::usedMemory, usedSpace, NSTokens::Separator::CommaSeparator);
+		writer->WriteUInt64(NSTokens::Key::reservedMemory, reservedSpace, NSTokens::Separator::CommaSeparator);
+		writer->WriteDouble(NSTokens::Key::timeGC, this->GCTime, NSTokens::Separator::CommaSeparator);
+		writer->WriteDouble(NSTokens::Key::timeMark, this->MarkTime, NSTokens::Separator::CommaSeparator);
+		writer->WriteDouble(NSTokens::Key::timeExtract, this->ExtractTime, NSTokens::Separator::CommaSeparator);
+		
+		writer->AdjustIndent(-1);
+		writer->WriteRecordEnd();
+
+		// emit the context info
+		// writer->WriteLengthValue(this->m_ctxList.Count(), NSTokens::Separator::CommaAndBigSpaceSeparator);
+		/* */
+		writer->WriteSequenceStartWithKey(NSTokens::Key::contexts, NSTokens::Separator::CommaAndBigSpaceSeparator);
+		writer->AdjustIndent(1);
+		bool firstCtx = true;
+		for (auto iter = this->m_ctxList.GetIterator(); iter.IsValid(); iter.MoveNext())
+		{
+			NSSnapValues::EmitSnapContextTrimed(iter.Current(), writer, firstCtx ? NSTokens::Separator::BigSpaceSeparator : NSTokens::Separator::CommaAndBigSpaceSeparator);
+
+			firstCtx = false;
+		}
+		writer->AdjustIndent(-1);
+		writer->WriteSequenceEnd(NSTokens::Separator::BigSpaceSeparator);
+
+		// emit the symbols
+		// writer->WriteLengthValue(this->m_tcSymbolRegistrationMapContents.Count(), NSTokens::Separator::CommaAndBigSpaceSeparator);
+		writer->WriteSequenceStartWithKey(NSTokens::Key::symbolTable, NSTokens::Separator::CommaSeparator);
+		bool firstTCSymbol = true;
+		for (auto iter = this->m_tcSymbolRegistrationMapContents.GetIterator(); iter.IsValid(); iter.MoveNext())
+		{
+			writer->WriteNakedUInt32((uint32)*iter.Current(), firstTCSymbol ? NSTokens::Separator::NoSeparator : NSTokens::Separator::CommaSeparator);
+
+			firstTCSymbol = false;
+		}
+		writer->WriteSequenceEnd();
+		
+		writer->WriteLogTagAsInt64(NSTokens::Key::ctxTag, this->m_activeScriptContext, NSTokens::Separator::CommaAndBigSpaceSeparator);
+		
+
+		// emit the root list of entries
+		SnapShot::EmitListHelperTrimed(NSTokens::Key::rootList, &SnapShot::SnapRootPinEntryEmitTrimed, this->m_rootList, writer);
+		
+		////
+		SnapShot::EmitListHelperTrimed(NSTokens::Key::objectHandlers, &NSSnapType::EmitSnapHandlerTrimed, this->m_handlerList, writer);
+		SnapShot::EmitListHelperTrimed(NSTokens::Key::objectTypes, &NSSnapType::EmitSnapTypeTrimed, this->m_typeList, writer);
+		
+		
+		////
+		// writer->WriteLengthValue(this->m_functionBodyList.Count(), NSTokens::Separator::CommaAndBigSpaceSeparator);
+		writer->WriteSequenceStartWithKey(NSTokens::Key::funcBodies, NSTokens::Separator::CommaAndBigSpaceSeparator);
+		writer->AdjustIndent(1);
+		bool firstBody = true;
+		for (auto iter = this->m_functionBodyList.GetIterator(); iter.IsValid(); iter.MoveNext())
+		{
+			NSSnapValues::EmitFunctionBodyInfoTrimed(iter.Current(), writer, firstBody ? NSTokens::Separator::BigSpaceSeparator : NSTokens::Separator::CommaAndBigSpaceSeparator);
+
+			firstBody = false;
+		}
+		writer->AdjustIndent(-1);
+		writer->WriteSequenceEnd(NSTokens::Separator::BigSpaceSeparator);
+
+		
+		SnapShot::EmitListHelperTrimed(NSTokens::Key::primitives, &NSSnapValues::EmitSnapPrimitiveValueTrimed, this->m_primitiveObjectList, writer);
+		
+		// writer->WriteLengthValue(this->m_compoundObjectList.Count(), NSTokens::Separator::CommaAndBigSpaceSeparator);
+		writer->WriteSequenceStartWithKey(NSTokens::Key::objects, NSTokens::Separator::CommaAndBigSpaceSeparator);
+		writer->AdjustIndent(1);
+		bool firstObj = true;
+		for (auto iter = this->m_compoundObjectList.GetIterator(); iter.IsValid(); iter.MoveNext())
+		{
+			NSSnapObjects::EmitObjectTrimed(iter.Current(), writer, firstObj ? NSTokens::Separator::BigSpaceSeparator : NSTokens::Separator::CommaAndBigSpaceSeparator, this->m_snapObjectVTableArray, threadContext);
+
+			firstObj = false;
+		}
+		writer->AdjustIndent(-1);
+		writer->WriteSequenceEnd(NSTokens::Separator::BigSpaceSeparator);
+
+		
+		////
+		SnapShot::EmitListHelperTrimed(NSTokens::Key::scopes, &NSSnapValues::EmitScriptFunctionScopeInfoTrimed, this->m_scopeEntries, writer);
+		SnapShot::EmitListHelperTrimed(NSTokens::Key::slotArrays, &NSSnapValues::EmitSlotArrayInfoTrimed, this->m_slotArrayEntries, writer);
+
+		////
+		double almostEndWrite = timer.Now();
+		writer->WriteDouble(NSTokens::Key::timeWrite, (almostEndWrite - startWrite) / 1000.0, NSTokens::Separator::CommaAndBigSpaceSeparator);
+
+		writer->AdjustIndent(-1);
+		writer->WriteRecordEnd(NSTokens::Separator::BigSpaceSeparator);
+		writer->setQuotedKey(false);
+	}
+
     SnapShot* SnapShot::ParseSnapshotFromFile(FileReader* reader)
     {
         reader->ReadRecordStart();
@@ -264,6 +374,14 @@ namespace TTD
         snapwriter->WriteBool(NSTokens::Key::boolVal, spe->MaybeLongLivedRoot, NSTokens::Separator::CommaSeparator);
         snapwriter->WriteRecordEnd();
     }
+
+	void SnapShot::SnapRootPinEntryEmitTrimed(const NSSnapValues::SnapRootInfoEntry* spe, FileWriter* snapwriter, NSTokens::Separator separator)
+	{
+		snapwriter->WriteRecordStart(separator);
+		snapwriter->WriteAddrAsInt64(NSTokens::Key::objectId, spe->LogObject);
+		snapwriter->WriteBool(NSTokens::Key::maybeLongLivedRoot, spe->MaybeLongLivedRoot, NSTokens::Separator::CommaSeparator);
+		snapwriter->WriteRecordEnd();
+	}
 
     void SnapShot::SnapRootPinEntryParse(NSSnapValues::SnapRootInfoEntry* spe, bool readSeperator, FileReader* reader, SlabAllocator& alloc)
     {
@@ -607,7 +725,8 @@ namespace TTD
 
         TTD_SNAP_WRITER snapwriter(snapHandle, iofp.pfWriteBytesToStream, iofp.pfFlushAndCloseStream);
 
-        this->EmitSnapshotToFile(&snapwriter, threadContext);
+        // this->EmitSnapshotToFile(&snapwriter, threadContext);
+		this->EmitTrimedSnapshotToFile(&snapwriter, threadContext);
         snapwriter.FlushAndClose();
     }
 
