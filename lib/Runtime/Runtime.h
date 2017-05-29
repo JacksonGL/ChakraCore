@@ -60,6 +60,14 @@ class JITJavascriptString;
 #include "Debug/TTSupport.h"
 #include "Debug/TTSerialize.h"
 
+#if ENABLE_ALLOC_TRACING
+namespace AllocTracing
+{
+    class AllocDataWriter;
+    class AllocTracer;
+}
+#endif
+
 ////////
 
 namespace Js
@@ -543,6 +551,11 @@ enum tagDEBUG_EVENT_INFO_TYPE
 #include "Debug/TTEvents.h"
 #include "Debug/TTActionEvents.h"
 #include "Debug/TTEventLog.h"
+
+ #if ENABLE_ALLOC_TRACING
+#include "Debug/TTAllocTracing.h"
+#endif
+
 #endif
 
 #include "../WasmReader/WasmReader.h"

@@ -27,6 +27,7 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)TTSnapValues.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)TTSupport.cpp" />
     <ClCompile Include="TTExecutionInfo.cpp" />
+    <ClCompile Include="TTAllocTracing.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DebugContext.h" />
@@ -57,5 +58,6 @@
     <ClInclude Include="TTEventLog.h" />
     <ClInclude Include="TTExecutionInfo.h" />
     <ClInclude Include="TTSnapshotJSONEmitter.h" />
+    <ClInclude Include="TTAllocTracing.h" />
   </ItemGroup>
 </Project>
