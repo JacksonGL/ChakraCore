@@ -297,22 +297,46 @@ namespace TTD
         void EmitAddtlInfo_SnapHeapArgumentsInfo(const SnapObject* snpObject, FileWriter* writer)
         {
             SnapHeapArgumentsInfo* argsInfo = SnapObjectGetAddtlInfoAs<SnapHeapArgumentsInfo*, argsKind>(snpObject);
+			 
+			if (writer->getQuotedKey()) {
+				writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
+				writer->writeRawCharsWithKey(NSTokens::Key::addType, L"heapArgumentsInfo");
 
-            writer->WriteUInt32(NSTokens::Key::numberOfArgs, argsInfo->NumOfArguments, NSTokens::Separator::CommaAndBigSpaceSeparator);
+				writer->WriteUInt32(NSTokens::Key::numberOfArgs, argsInfo->NumOfArguments, NSTokens::Separator::CommaSeparator);
 
-            writer->WriteBool(NSTokens::Key::boolVal, argsInfo->IsFrameNullPtr, NSTokens::Separator::CommaSeparator);
-            writer->WriteBool(NSTokens::Key::boolVal, argsInfo->IsFrameJsNull, NSTokens::Separator::CommaSeparator);
-            writer->WriteAddr(NSTokens::Key::objectId, argsInfo->FrameObject, NSTokens::Separator::CommaSeparator);
+				writer->WriteBool(NSTokens::Key::boolVal, argsInfo->IsFrameNullPtr, NSTokens::Separator::CommaSeparator);
+				writer->WriteBool(NSTokens::Key::boolVal, argsInfo->IsFrameJsNull, NSTokens::Separator::CommaSeparator);
+				writer->WriteAddrAsInt64(NSTokens::Key::objectId, argsInfo->FrameObject, NSTokens::Separator::CommaSeparator);
 
-            writer->WriteLengthValue(argsInfo->FormalCount, NSTokens::Separator::CommaSeparator);
+				// writer->WriteLengthValue(argsInfo->FormalCount, NSTokens::Separator::CommaSeparator);
 
-            writer->WriteKey(NSTokens::Key::deletedArgs, NSTokens::Separator::CommaSeparator);
-            writer->WriteSequenceStart();
-            for(uint32 i = 0; i < argsInfo->FormalCount; ++i)
-            {
-                writer->WriteNakedByte(argsInfo->DeletedArgFlags[i], i != 0 ? NSTokens::Separator::CommaSeparator : NSTokens::Separator::NoSeparator);
-            }
-            writer->WriteSequenceEnd();
+				writer->WriteKey(NSTokens::Key::deletedArgs, NSTokens::Separator::CommaSeparator);
+				writer->WriteSequenceStart();
+				for (uint32 i = 0; i < argsInfo->FormalCount; ++i)
+				{
+					writer->WriteNakedByte(argsInfo->DeletedArgFlags[i], i != 0 ? NSTokens::Separator::CommaSeparator : NSTokens::Separator::NoSeparator);
+				}
+				writer->WriteSequenceEnd();
+
+				writer->WriteRecordEnd();
+			}
+			else {
+				writer->WriteUInt32(NSTokens::Key::numberOfArgs, argsInfo->NumOfArguments, NSTokens::Separator::CommaAndBigSpaceSeparator);
+
+				writer->WriteBool(NSTokens::Key::boolVal, argsInfo->IsFrameNullPtr, NSTokens::Separator::CommaSeparator);
+				writer->WriteBool(NSTokens::Key::boolVal, argsInfo->IsFrameJsNull, NSTokens::Separator::CommaSeparator);
+				writer->WriteAddr(NSTokens::Key::objectId, argsInfo->FrameObject, NSTokens::Separator::CommaSeparator);
+
+				writer->WriteLengthValue(argsInfo->FormalCount, NSTokens::Separator::CommaSeparator);
+
+				writer->WriteKey(NSTokens::Key::deletedArgs, NSTokens::Separator::CommaSeparator);
+				writer->WriteSequenceStart();
+				for (uint32 i = 0; i < argsInfo->FormalCount; ++i)
+				{
+					writer->WriteNakedByte(argsInfo->DeletedArgFlags[i], i != 0 ? NSTokens::Separator::CommaSeparator : NSTokens::Separator::NoSeparator);
+				}
+				writer->WriteSequenceEnd();
+			}
         }
 
         template <SnapObjectType argsKind>
@@ -745,6 +769,9 @@ namespace TTD
 					blockCount++;
 				}
 
+				writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
+				writer->writeRawCharsWithKey(NSTokens::Key::addType, L"arrayInfo");
+
 				// writer->WriteLengthValue(blockCount, NSTokens::Separator::CommaAndBigSpaceSeparator);
 				writer->WriteSequenceStartWithKey(NSTokens::Key::arrayInfo, NSTokens::Separator::CommaSeparator);
 				writer->AdjustIndent(1);
@@ -758,20 +785,29 @@ namespace TTD
 					for (uint32 i = currInfo->FirstIndex; i < currInfo->LastIndex; ++i)
 					{
 						uint32 j = (i - currInfo->FirstIndex);
-						writer->WriteRecordStart(j == 0 ? NSTokens::Separator::NoSeparator : NSTokens::Separator::CommaSeparator);
+						if (currInfo->ArrayValidTags[j]) {
+							writer->WriteRecordStart(j == 0 ? NSTokens::Separator::NoSeparator : NSTokens::Separator::CommaSeparator);
 
-						writer->WriteInt32(NSTokens::Key::isValid, currInfo->ArrayValidTags[j]);
-						if (currInfo->ArrayValidTags[j])
-						{
-							SnapArrayInfo_EmitValueTrimed(currInfo->ArrayRangeContents[j], writer);
+							// writer->WriteInt32(NSTokens::Key::isValid, currInfo->ArrayValidTags[j]);
+							if (currInfo->ArrayValidTags[j])
+							{
+								SnapArrayInfo_EmitValueTrimed(currInfo->ArrayRangeContents[j], writer);
+							}
+							writer->WriteRecordEnd();
 						}
-						writer->WriteRecordEnd();
+						else {
+							if (j != 0) writer->WriteSeperator(NSTokens::Separator::CommaSeparator);
+							writer->WriteNakedUInt32(0);
+						}
+						
 					}
 					writer->WriteSequenceEnd();
 					writer->WriteRecordEnd();
 				}
 				writer->AdjustIndent(-1);
 				writer->WriteSequenceEnd(NSTokens::Separator::BigSpaceSeparator);
+
+				writer->WriteRecordEnd();
 			}
 			else {
 				writer->WriteLengthValue(arrayInfo->Length, NSTokens::Separator::CommaSeparator);

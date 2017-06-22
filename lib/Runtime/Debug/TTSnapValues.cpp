@@ -203,6 +203,43 @@ namespace TTD
             writer->WriteRecordEnd();
         }
 
+		void EmitTTDVarTrimedWithoutBracket(TTDVar var, FileWriter* writer, NSTokens::Separator separator)
+		{
+			// writer->WriteRecordStart(separator);
+
+			if (var == nullptr)
+			{
+				// writer->WriteTagAsUInt32<TTDVarEmitTag>(NSTokens::Key::ttdVarTag, TTDVarEmitTag::TTDVarNull);
+				writer->WriteNull(NSTokens::Key::nullVal, separator);
+			}
+			else if (Js::TaggedNumber::Is(var))
+			{
+#if FLOATVAR
+				if (Js::TaggedInt::Is(var))
+				{
+#endif
+					// writer->WriteTagAsUInt32<TTDVarEmitTag>(NSTokens::Key::ttdVarTag, TTDVarEmitTag::TTDVarInt);
+					writer->WriteInt32(NSTokens::Key::i32Val, Js::TaggedInt::ToInt32(var), separator);
+#if FLOATVAR
+				}
+				else
+				{
+					TTDAssert(Js::JavascriptNumber::Is_NoTaggedIntCheck(var), "Only other tagged value we support!!!");
+
+					// writer->WriteTagAsUInt32<TTDVarEmitTag>(NSTokens::Key::ttdVarTag, TTDVarEmitTag::TTDVarDouble);
+					writer->WriteDouble(NSTokens::Key::doubleVal, Js::JavascriptNumber::GetValue(var), separator);
+				}
+#endif
+			}
+			else
+			{
+				// writer->WriteTagAsUInt32<TTDVarEmitTag>(NSTokens::Key::ttdVarTag, TTDVarEmitTag::TTDVarAddr);
+				writer->WriteAddrAsInt64(NSTokens::Key::ptrIdVal, TTD_CONVERT_VAR_TO_PTR_ID(var), separator);
+			}
+
+			// writer->WriteRecordEnd();
+		}
+
 		void EmitTTDVarTrimed(TTDVar var, FileWriter* writer, NSTokens::Separator separator)
 		{
 			writer->WriteRecordStart(separator);
@@ -500,7 +537,7 @@ namespace TTD
 			writer->WriteAddrAsInt64(NSTokens::Key::primitiveId, snapValue->PrimitiveValueId);
 			writer->WriteAddrAsInt64(NSTokens::Key::typeId, snapValue->SnapType->TypePtrId, NSTokens::Separator::CommaSeparator);
 
-			writer->WriteBool(NSTokens::Key::isWellKnownToken, snapValue->OptWellKnownToken != TTD_INVALID_WELLKNOWN_TOKEN, NSTokens::Separator::CommaSeparator);
+			// writer->WriteBool(NSTokens::Key::isWellKnownToken, snapValue->OptWellKnownToken != TTD_INVALID_WELLKNOWN_TOKEN, NSTokens::Separator::CommaSeparator);
 			if (snapValue->OptWellKnownToken != TTD_INVALID_WELLKNOWN_TOKEN)
 			{
 				writer->WriteWellKnownToken(NSTokens::Key::wellKnownToken, snapValue->OptWellKnownToken, NSTokens::Separator::CommaSeparator);
@@ -763,23 +800,23 @@ namespace TTD
 			writer->AdjustIndent(1);
 
 			writer->WriteAddrAsInt64(NSTokens::Key::slotId, slotInfo->SlotId, NSTokens::Separator::BigSpaceSeparator);
-			writer->WriteLogTagAsInt64(NSTokens::Key::ctxTag, slotInfo->ScriptContextLogId, NSTokens::Separator::CommaSeparator);
+			// writer->WriteLogTagAsInt64(NSTokens::Key::ctxTag, slotInfo->ScriptContextLogId, NSTokens::Separator::CommaSeparator);
 
-			writer->WriteBool(NSTokens::Key::isFunctionMetaData, slotInfo->isFunctionBodyMetaData, NSTokens::Separator::CommaSeparator);
+			// writer->WriteBool(NSTokens::Key::isFunctionMetaData, slotInfo->isFunctionBodyMetaData, NSTokens::Separator::CommaSeparator);
 			if (slotInfo->isFunctionBodyMetaData)
 			{
 				writer->WriteAddrAsInt64(NSTokens::Key::functionBodyId, slotInfo->OptFunctionBodyId, NSTokens::Separator::CommaSeparator);
 			}
 			else
 			{
-				writer->WriteBool(NSTokens::Key::isWellKnownToken, slotInfo->OptWellKnownDbgScope != TTD_INVALID_WELLKNOWN_TOKEN, NSTokens::Separator::CommaSeparator);
+				// writer->WriteBool(NSTokens::Key::isWellKnownToken, slotInfo->OptWellKnownDbgScope != TTD_INVALID_WELLKNOWN_TOKEN, NSTokens::Separator::CommaSeparator);
 				if (slotInfo->OptWellKnownDbgScope != TTD_INVALID_WELLKNOWN_TOKEN)
 				{
 					writer->WriteWellKnownToken(NSTokens::Key::wellKnownToken, slotInfo->OptWellKnownDbgScope, NSTokens::Separator::CommaSeparator);
 				}
 				else
 				{
-					writer->WriteAddrAsInt64(NSTokens::Key::debuggerScopeId, slotInfo->OptDebugScopeId, NSTokens::Separator::CommaSeparator);
+					// writer->WriteAddrAsInt64(NSTokens::Key::debuggerScopeId, slotInfo->OptDebugScopeId, NSTokens::Separator::CommaSeparator);
 				}
 			}
 
@@ -790,9 +827,9 @@ namespace TTD
 			{
 				writer->WriteRecordStart(i != 0 ? NSTokens::Separator::CommaAndBigSpaceSeparator : NSTokens::Separator::BigSpaceSeparator);
 				writer->WriteUInt32(NSTokens::Key::propertyId, slotInfo->PIDArray[i], NSTokens::Separator::NoSeparator);
-				writer->WriteKey(NSTokens::Key::entry, NSTokens::Separator::CommaSeparator);
+				// writer->WriteKey(NSTokens::Key::entry, NSTokens::Separator::CommaSeparator);
 
-				EmitTTDVarTrimed(slotInfo->Slots[i], writer, NSTokens::Separator::NoSeparator);
+				EmitTTDVarTrimedWithoutBracket(slotInfo->Slots[i], writer, NSTokens::Separator::CommaSeparator);
 
 				writer->WriteRecordEnd();
 			}
@@ -1056,6 +1093,7 @@ namespace TTD
 			writer->WriteAddrAsInt64(NSTokens::Key::ptrIdVal, capabilityInfo->CapabilityId);
 
 			writer->WriteKey(NSTokens::Key::entry, NSTokens::Separator::CommaSeparator);
+			writer->WriteSequenceStart();
 			EmitTTDVarTrimed(capabilityInfo->PromiseVar, writer, NSTokens::Separator::NoSeparator);
 
 			writer->WriteKey(NSTokens::Key::entry, NSTokens::Separator::CommaSeparator);
@@ -1063,6 +1101,7 @@ namespace TTD
 
 			writer->WriteKey(NSTokens::Key::entry, NSTokens::Separator::CommaSeparator);
 			EmitTTDVarTrimed(capabilityInfo->RejectVar, writer, NSTokens::Separator::NoSeparator);
+			writer->WriteSequenceEnd();
 
 			writer->WriteRecordEnd();
 		}
@@ -1131,8 +1170,8 @@ namespace TTD
 			writer->WriteAddrAsInt64(NSTokens::Key::ptrIdVal, reactionInfo->PromiseReactionId);
 
 			writer->WriteAddrAsInt64(NSTokens::Key::ptrIdVal, reactionInfo->HandlerObjId, NSTokens::Separator::CommaSeparator);
-			writer->WriteKey(NSTokens::Key::entry, NSTokens::Separator::CommaSeparator);
-			EmitPromiseCapabilityInfoTrimed(&reactionInfo->Capabilities, writer, NSTokens::Separator::NoSeparator);
+			// writer->WriteKey(NSTokens::Key::entry, NSTokens::Separator::CommaSeparator);
+			EmitPromiseCapabilityInfoTrimed(&reactionInfo->Capabilities, writer, NSTokens::Separator::CommaSeparator);
 
 			writer->WriteRecordEnd();
 		}

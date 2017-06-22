@@ -28,6 +28,7 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)TTSupport.cpp" />
     <ClCompile Include="TTExecutionInfo.cpp" />
     <ClCompile Include="TTAllocTracing.cpp" />
+    <ClCompile Include="TTMemAnalysis.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DebugContext.h" />
@@ -57,7 +58,11 @@
     <ClInclude Include="TTActionEvents.h" />
     <ClInclude Include="TTEventLog.h" />
     <ClInclude Include="TTExecutionInfo.h" />
-    <ClInclude Include="TTSnapshotJSONEmitter.h" />
     <ClInclude Include="TTAllocTracing.h" />
+    <ClInclude Include="TTMemAnalysis.h" />
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Chakra.Runtime.Debug.rc" />
   </ItemGroup>
 </Project>

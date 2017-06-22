@@ -6,6 +6,7 @@
 
 #if ENABLE_ALLOC_TRACING
 
+using namespace TTD;
 namespace AllocTracing
 {
     void AllocDataWriter::WriteChar_Internal(char16 c)
@@ -100,6 +101,80 @@ namespace AllocTracing
         writer.WriteLiteralString(" }");
     }
 
+
+	FileSourceEntry::FileSourceEntry() {
+		this->filename = nullptr;
+		this->source = nullptr;
+	}
+
+	FileSourceEntry::FileSourceEntry(const char16* filename, LPCUTF8 source) {
+		this->filename = filename;
+		this->source = source;
+	}
+
+	// intitialize the (static) file-to-source list variable
+	JsUtil::List<FileSourceEntry, HeapAllocator> SourceLocation::m_file_to_source_list(&HeapAllocator::Instance);
+
+	uint32 SourceLocation::addSourceItem(const char16* filename, LPCUTF8 source) {
+		// first search for the entry
+		int length = m_file_to_source_list.Count();
+		for (int i = 0; i < length; i++) {
+			FileSourceEntry* ptr = &(m_file_to_source_list.Item(i));
+			if (ptr->filename != filename || ptr->source != source) continue;
+			return i + 1;
+		}
+		// if not found, add it to the list
+		FileSourceEntry entry(filename, source);
+		SourceLocation::m_file_to_source_list.Add(entry);
+		return length + 1;
+	}
+
+	void SourceLocation::clearSourceItems() {
+		// first search for the entry
+		m_file_to_source_list.Clear();
+		m_file_to_source_list.Reset();
+	}
+
+	void SourceLocation::JSONWriteFileToSourceList(TextFormatWriter& writer, NSTokens::Separator sep) {
+		writer.WriteSequenceStartWithKey(NSTokens::Key::fileToSourceMap, sep);
+
+		writer.AdjustIndent(1);
+		int length = m_file_to_source_list.Count();
+		for (int i = 0; i < length; i++) {
+			if (i == 0) writer.WriteRecordStart();
+			else writer.WriteRecordStart(NSTokens::Separator::CommaAndBigSpaceSeparator);
+
+			FileSourceEntry* ptr = &(m_file_to_source_list.Item(i));
+
+			writer.WriteUInt32(NSTokens::Key::fileId, i+1);
+			writer.writeRawCharsWithKey(NSTokens::Key::filename, ptr->filename, NSTokens::Separator::CommaSeparator);
+
+			// write the source code
+			LPCUTF8 source = ptr->source;
+			size_t srcLen = strlen((char*)source);
+			char16* buffer = (char16*)malloc(srcLen * 2 + 2);
+			utf8::DecodeUnitsIntoAndNullTerminate(buffer, source, source + srcLen);
+			writer.writeRawCharsWithKey(NSTokens::Key::source, buffer, NSTokens::Separator::CommaSeparator);
+			delete[]buffer;
+
+			writer.WriteRecordEnd();
+		}
+		writer.AdjustIndent(-1);
+		writer.WriteSequenceEnd();
+	}
+
+	void SourceLocation::JSONWriteLocationDataTrimed(TextFormatWriter& writer) const
+	{
+		writer.WriteRecordStartWithKey(NSTokens::Key::src, NSTokens::Separator::BigSpaceSeparator);
+		writer.writeRawCharsWithKey(NSTokens::Key::function, this->m_function->GetDisplayName(), NSTokens::Separator::NoSeparator);
+		writer.WriteInt64(NSTokens::Key::line, this->m_line + 1, NSTokens::Separator::CommaSeparator);
+		writer.WriteInt64(NSTokens::Key::column, this->m_column, NSTokens::Separator::CommaSeparator);
+		// writer.writeRawCharsWithKey(NSTokens::Key::filename, this->m_function->GetSourceContextInfo()->url, NSTokens::Separator::CommaSeparator);
+		uint32 fileId = this->addSourceItem(this->m_function->GetSourceContextInfo()->url, this->m_function->GetUtf8SourceInfo()->GetSource());
+		writer.WriteUInt32(NSTokens::Key::fileId, fileId, NSTokens::Separator::CommaSeparator);
+		writer.WriteRecordEnd();
+	}
+
     AllocSiteStats::AllocSiteStats(ThreadContext* allocationContext)
         : m_threadContext(allocationContext), m_allocationCount(0), m_allocationLiveSet()
     {
@@ -174,6 +249,23 @@ namespace AllocTracing
         });
         writer.WriteChar(' ]');
     }
+
+	void AllocSiteStats::JSONWriteSiteDataTrimed(TTD::TextFormatWriter& writer) const
+	{
+		bool first = true;
+		writer.WriteSequenceStartWithKey(NSTokens::Key::objectIds, NSTokens::Separator::CommaAndBigSpaceSeparator);
+		this->m_allocationLiveSet->Map([&](Js::RecyclableObject* key, bool, const RecyclerWeakReference<Js::RecyclableObject>*)
+		{
+			if (!first)
+			{
+				writer.WriteSeperator(NSTokens::Separator::CommaSeparator);
+			}
+			first = false;
+			writer.WriteNakedAddrAsInt64(TTD_CONVERT_VAR_TO_PTR_ID(key));
+			// writer.WriteNakedInt64(reinterpret_cast<uint64>(key));
+		});
+		writer.WriteSequenceEnd();
+	}
 
     bool AllocTracer::IsInternalLocation(const AllocCallStackEntry& callEntry)
     {
@@ -269,6 +361,22 @@ namespace AllocTracing
         uint32 column = 0;
         AllocTracer::ExtractLineColumn(currStack, &line, &column);
 
+		// only create node for the top of the call stack
+		for (int32 i = 0; i < currentPaths->Count(); ++i)
+		{
+			AllocPathEntry* currPath = currentPaths->Item(i);
+			if (currPath->IsTerminalStatsEntry && currPath->Location->SameAsOtherLocation(cbody, line, column))
+			{
+				return currPath;
+			}
+		}
+
+		//no suitable entry found so create a new one
+		AllocPathEntry* tentry = AllocTracer::CreateTerminalAllocPathEntry(currStack, threadContext);
+		currentPaths->Add(tentry);
+		return tentry;
+
+		/*
         //If we are at the top of the call stack (bottom of the allocation path tree) get the stats entry
         if(position == 0)
         {
@@ -310,6 +418,7 @@ namespace AllocTracing
             //make resucrsive call
             return AllocTracer::ExtendPathTreeForAllocation(callStack, position - 1, eentry->CallerPaths, threadContext);
         }
+		*/
     }
 
     void AllocTracer::FreeAllocPathTree(AllocPathEntry* root)
@@ -443,6 +552,58 @@ namespace AllocTracing
         writer.WriteLiteralString("}");
     }
 
+
+	void AllocTracer::JSONWriteDataPathEntryTrimed(TextFormatWriter& writer, const AllocPathEntry* root, uint32 depth)
+	{
+		AssertMsg(root->IsInterestingSite, "Check this before trying to write!!!");
+		if (root->LiveCount <= 0) return;
+		uint32 localdepth = depth + 1;
+
+		writer.WriteRecordStart();
+		root->Location->JSONWriteLocationDataTrimed(writer);
+		writer.WriteSeperator(NSTokens::Separator::CommaAndBigSpaceSeparator);
+
+		writer.AdjustIndent(1);
+		writer.WriteRecordStartWithKey(NSTokens::Key::allocInfo);
+		writer.WriteInt64(NSTokens::Key::count, root->LiveCount);
+		writer.WriteInt64(NSTokens::Key::estimatedSize, root->LiveSizeEstimate, NSTokens::Separator::CommaSeparator);
+		writer.WriteRecordEnd();
+		writer.AdjustIndent(-1);
+		if (root->IsTerminalStatsEntry)
+		{
+			root->TerminalStats->JSONWriteSiteDataTrimed(writer);
+		}
+		else
+		{
+			writer.WriteSequenceStartWithKey(NSTokens::Key::subPaths, NSTokens::Separator::CommaAndBigSpaceSeparator);
+			writer.AdjustIndent(1);
+
+			bool first = true;
+			uint32 nesteddepth = localdepth + 1;
+			for (int32 i = 0; i < root->CallerPaths->Count(); ++i)
+			{
+				AllocPathEntry* cpe = root->CallerPaths->Item(i);
+				if (cpe->IsInterestingSite)
+				{
+					if (!first)
+					{
+						writer.WriteSeperator(NSTokens::Separator::CommaSeparator);
+					}
+					first = false;
+
+					writer.WriteSeperator(NSTokens::Separator::BigSpaceSeparator);
+					AllocTracer::JSONWriteDataPathEntryTrimed(writer, cpe, nesteddepth);
+				}
+			}
+			writer.WriteSeperator(NSTokens::Separator::BigSpaceSeparator);
+
+			writer.AdjustIndent(-1);
+			writer.WriteSequenceEnd();
+		}
+		writer.WriteSeperator(NSTokens::Separator::BigSpaceSeparator);
+		writer.WriteRecordEnd();
+	}
+
     AllocTracer::AllocTracer()
         : m_callStack(&HeapAllocator::Instance), m_prunedCallStack(&HeapAllocator::Instance), m_allocPathRoots(&HeapAllocator::Instance)
     {
@@ -478,6 +639,8 @@ namespace AllocTracing
         this->m_callStack.Last().BytecodeIndex = index;
     }
 
+	int AllocTracer::count = 0;
+
     void AllocTracer::AddAllocation(Js::RecyclableObject* obj)
     {
         for(int32 i = 0; i < this->m_callStack.Count(); ++i)
@@ -501,6 +664,7 @@ namespace AllocTracing
         tentry->TerminalStats->AddAllocation(obj);
 
         this->m_prunedCallStack.Clear();
+		this->m_prunedCallStack.Reset();
     }
 
     void AllocTracer::ForceAllData()
@@ -512,8 +676,19 @@ namespace AllocTracing
         }
     }
 
-    void AllocTracer::JSONWriteData(AllocDataWriter& writer) const
+    void AllocTracer::EmitTrimedAllocTrace(int64 snapId, ThreadContext* threadContext) const
     {
+		// printf("start emitting trimed alloc trace...\n");
+		char asciiResourceName[64];
+		sprintf_s(asciiResourceName, 64, "allocTracing_%I64i.json", snapId);
+
+		TTD::TTDataIOInfo& iofp = threadContext->TTDContext->TTDataIOInfo;
+		TTD::JsTTDStreamHandle traceHandle = iofp.pfOpenResourceStream(iofp.ActiveTTUriLength, iofp.ActiveTTUri, strlen(asciiResourceName), asciiResourceName, false, true);
+		TTDAssert(traceHandle != nullptr, "Failed to open snapshot resource stream for writing.");
+
+		TextFormatWriter writer(traceHandle, iofp.pfWriteBytesToStream, iofp.pfFlushAndCloseStream);
+		writer.setQuotedKey(true);
+
         size_t totalLive = 0;
         size_t totalSizeEstimate = 0;
         for(int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
@@ -534,25 +709,80 @@ namespace AllocTracing
         }
 
         bool first = true;
-        writer.WriteChar('[');
+		writer.WriteRecordStart();
+		writer.AdjustIndent(1);
+		writer.WriteSequenceStartWithKey(NSTokens::Key::allocations, NSTokens::Separator::BigSpaceSeparator);
+
+		writer.AdjustIndent(1);
         for(int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
         {
             AllocPathEntry* cpe = this->m_allocPathRoots.Item(i);
-            if(cpe->IsInterestingSite)
+            if(cpe->IsInterestingSite && cpe->LiveCount > 0)
             {
                 if(!first)
                 {
-                    writer.WriteChar(',');
+					writer.WriteSeperator(NSTokens::Separator::CommaSeparator);
                 }
                 first = false;
-
-                writer.WriteChar('\n');
-                AllocTracer::JSONWriteDataPathEntry(writer, cpe, 1);
+				writer.WriteSeperator(NSTokens::Separator::BigSpaceSeparator);
+                AllocTracer::JSONWriteDataPathEntryTrimed(writer, cpe, 1);
             }
         }
-        writer.WriteChar('\n');
-        writer.WriteChar(']');
+		writer.WriteSeperator(NSTokens::Separator::BigSpaceSeparator);
+		writer.AdjustIndent(-1);
+		writer.WriteSequenceEnd();
+
+		SourceLocation::JSONWriteFileToSourceList(writer, NSTokens::Separator::CommaAndBigSpaceSeparator);
+		SourceLocation::clearSourceItems();
+
+		writer.AdjustIndent(-1);
+		writer.WriteRecordEnd();
+
+		writer.FlushAndClose();
     }
+
+
+	void AllocTracer::JSONWriteData(AllocDataWriter& writer) const
+	{
+		size_t totalLive = 0;
+		size_t totalSizeEstimate = 0;
+		for (int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
+		{
+			AllocPathEntry* cpe = this->m_allocPathRoots.Item(i);
+			AllocTracer::EstimateMemoryUseInfo(cpe);
+
+			totalLive += cpe->LiveCount;
+			totalSizeEstimate += cpe->LiveSizeEstimate;
+		}
+
+		size_t countThreshold = (size_t)(totalLive * ALLOC_TRACING_INTERESTING_LOCATION_COUNT_THRESHOLD);
+		size_t estimatedSizeThreshold = (size_t)(totalSizeEstimate * ALLOC_TRACING_INTERESTING_LOCATION_SIZE_THRESHOLD);
+		for (int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
+		{
+			AllocPathEntry* cpe = this->m_allocPathRoots.Item(i);
+			AllocTracer::FlagInterestingSites(cpe, countThreshold, estimatedSizeThreshold);
+		}
+
+		bool first = true;
+		writer.WriteChar('[');
+		for (int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
+		{
+			AllocPathEntry* cpe = this->m_allocPathRoots.Item(i);
+			if (cpe->IsInterestingSite)
+			{
+				if (!first)
+				{
+					writer.WriteChar(',');
+				}
+				first = false;
+
+				writer.WriteChar('\n');
+				AllocTracer::JSONWriteDataPathEntry(writer, cpe, 1);
+			}
+		}
+		writer.WriteChar('\n');
+		writer.WriteChar(']');
+	}
 }
 
 #endif

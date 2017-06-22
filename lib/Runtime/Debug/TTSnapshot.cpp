@@ -101,7 +101,7 @@ namespace TTD
 
 	void SnapShot::EmitTrimedSnapshotToFile(FileWriter* writer, ThreadContext* threadContext) const
 	{
-		printf("start saving trimed snapshot to JSON");
+		// printf("start saving trimed snapshot to JSON\n");
 		TTDTimer timer;
 		double startWrite = timer.Now();
 		writer->setQuotedKey(true);
@@ -161,7 +161,7 @@ namespace TTD
 		SnapShot::EmitListHelperTrimed(NSTokens::Key::rootList, &SnapShot::SnapRootPinEntryEmitTrimed, this->m_rootList, writer);
 		
 		////
-		SnapShot::EmitListHelperTrimed(NSTokens::Key::objectHandlers, &NSSnapType::EmitSnapHandlerTrimed, this->m_handlerList, writer);
+		// SnapShot::EmitListHelperTrimed(NSTokens::Key::objectHandlers, &NSSnapType::EmitSnapHandlerTrimed, this->m_handlerList, writer);
 		SnapShot::EmitListHelperTrimed(NSTokens::Key::objectTypes, &NSSnapType::EmitSnapTypeTrimed, this->m_typeList, writer);
 		
 		
@@ -178,7 +178,6 @@ namespace TTD
 		}
 		writer->AdjustIndent(-1);
 		writer->WriteSequenceEnd(NSTokens::Separator::BigSpaceSeparator);
-
 		
 		SnapShot::EmitListHelperTrimed(NSTokens::Key::primitives, &NSSnapValues::EmitSnapPrimitiveValueTrimed, this->m_primitiveObjectList, writer);
 		
@@ -379,7 +378,7 @@ namespace TTD
 	{
 		snapwriter->WriteRecordStart(separator);
 		snapwriter->WriteAddrAsInt64(NSTokens::Key::objectId, spe->LogObject);
-		snapwriter->WriteBool(NSTokens::Key::maybeLongLivedRoot, spe->MaybeLongLivedRoot, NSTokens::Separator::CommaSeparator);
+		// snapwriter->WriteBool(NSTokens::Key::maybeLongLivedRoot, spe->MaybeLongLivedRoot, NSTokens::Separator::CommaSeparator);
 		snapwriter->WriteRecordEnd();
 	}
 
@@ -725,10 +724,26 @@ namespace TTD
 
         TTD_SNAP_WRITER snapwriter(snapHandle, iofp.pfWriteBytesToStream, iofp.pfFlushAndCloseStream);
 
-        // this->EmitSnapshotToFile(&snapwriter, threadContext);
-		this->EmitTrimedSnapshotToFile(&snapwriter, threadContext);
+        this->EmitSnapshotToFile(&snapwriter, threadContext);
         snapwriter.FlushAndClose();
     }
+
+	void SnapShot::EmitTrimedSnapshot(int64 snapId, ThreadContext* threadContext) const
+	{
+		// TTMemAnalysis::dump_prop_JSON = true;
+		char asciiResourceName[64];
+		sprintf_s(asciiResourceName, 64, "snap_%I64i.json", snapId);
+
+		TTDataIOInfo& iofp = threadContext->TTDContext->TTDataIOInfo;
+		JsTTDStreamHandle snapHandle = iofp.pfOpenResourceStream(iofp.ActiveTTUriLength, iofp.ActiveTTUri, strlen(asciiResourceName), asciiResourceName, false, true);
+		TTDAssert(snapHandle != nullptr, "Failed to open snapshot resource stream for writing.");
+
+		TTD_SNAP_WRITER snapwriter(snapHandle, iofp.pfWriteBytesToStream, iofp.pfFlushAndCloseStream);
+
+		this->EmitTrimedSnapshotToFile(&snapwriter, threadContext);
+		snapwriter.FlushAndClose();
+		// TTMemAnalysis::dump_prop_JSON = false;
+	}
 
     SnapShot* SnapShot::Parse(int64 snapId, ThreadContext* threadContext)
     {

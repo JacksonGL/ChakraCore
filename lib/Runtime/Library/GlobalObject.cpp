@@ -1663,6 +1663,12 @@ LHexError:
 
         if(function->GetScriptContext()->ShouldPerformReplayAction())
         {
+			// during replay also emit the snapshot into JS standard JSON file
+			Js::JavascriptString* jsString = Js::JavascriptString::FromVar(args[1]);
+			AutoArrayPtr<char> uri(HeapNewArrayZ(char, jsString->GetLength() * 3), jsString->GetLength() * 3);
+			size_t uriLength = utf8::EncodeInto((LPUTF8)((char*)uri), jsString->GetSz(), jsString->GetLength());
+			function->GetScriptContext()->GetThreadContext()->TTDLog->ExtractAndDumpSnapshotToJSON(uri, uriLength);
+
             function->GetScriptContext()->GetThreadContext()->TTDLog->ReplayEmitLogEvent();
 
             return jslib->GetTrue();

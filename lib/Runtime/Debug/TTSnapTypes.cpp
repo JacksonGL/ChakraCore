@@ -319,15 +319,15 @@ namespace TTD
 			writer->WriteAddrAsInt64(NSTokens::Key::typeId, sType->TypePtrId);
 
 			writer->WriteTagAsUInt32<Js::TypeId>(NSTokens::Key::jsTypeId, sType->JsTypeId, NSTokens::Separator::CommaSeparator);
-			writer->WriteLogTagAsInt64(NSTokens::Key::ctxTag, sType->ScriptContextLogId, NSTokens::Separator::CommaSeparator);
+			// writer->WriteLogTagAsInt64(NSTokens::Key::ctxTag, sType->ScriptContextLogId, NSTokens::Separator::CommaSeparator);
 
 			writer->WriteKey(NSTokens::Key::prototypeVar, NSTokens::Separator::CommaSeparator);
 			NSSnapValues::EmitTTDVarTrimed(sType->PrototypeVar, writer, NSTokens::Separator::NoSeparator);
 
-			TTD_PTR_ID handlerId = (sType->TypeHandlerInfo != nullptr) ? sType->TypeHandlerInfo->HandlerId : TTD_INVALID_PTR_ID;
-			writer->WriteAddrAsInt64(NSTokens::Key::handlerId, handlerId, NSTokens::Separator::CommaSeparator);
+			// TTD_PTR_ID handlerId = (sType->TypeHandlerInfo != nullptr) ? sType->TypeHandlerInfo->HandlerId : TTD_INVALID_PTR_ID;
+			// writer->WriteAddrAsInt64(NSTokens::Key::handlerId, handlerId, NSTokens::Separator::CommaSeparator);
 
-			writer->WriteBool(NSTokens::Key::hasNoEnumProp, sType->HasNoEnumerableProperties, NSTokens::Separator::CommaSeparator);
+			// writer->WriteBool(NSTokens::Key::hasNoEnumProp, sType->HasNoEnumerableProperties, NSTokens::Separator::CommaSeparator);
 
 			writer->WriteRecordEnd();
 		}

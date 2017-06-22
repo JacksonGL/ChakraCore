@@ -74,6 +74,7 @@ namespace TTD
         //serialize the TTDVar
         void EmitTTDVar(TTDVar var, FileWriter* writer, NSTokens::Separator separator);
 		void EmitTTDVarTrimed(TTDVar var, FileWriter* writer, NSTokens::Separator separator);
+		void EmitTTDVarTrimedWithoutBracket(TTDVar var, FileWriter* writer, NSTokens::Separator separator);
 
         //de-serialize the TTDVar
         TTDVar ParseTTDVar(bool readSeperator, FileReader* reader);

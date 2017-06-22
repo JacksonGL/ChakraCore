@@ -40,9 +40,9 @@ namespace TTD
 	}
 
 	//////////////////
-	char16* FileWriter::escape(const char16* buffer) {
+	const char16* FileWriter::escape(const char16* buffer) {
 		int i; size_t l = wcslen(buffer) + 1;
-		char16* dest = (char16*)calloc(l * 4 + 30, sizeof(char16));
+		char16* dest = (char16*)calloc(l * 6 + 30, sizeof(char16));
 		char16* ptr = dest;
 		char const* const hexdig = "0123456789ABCDEF";
 		for (i = 0; i<l; i++) {
@@ -225,6 +225,28 @@ namespace TTD
 		this->WriteNakedString(val);
 	}
 
+	void FileWriter::writeRawCharsWithKey(NSTokens::Key key, const char16* val, NSTokens::Separator separator)
+	{
+		if (this->getQuotedKey()) {
+			const char16* contents = this->escape(val);
+			this->WriteKey(key, separator);
+			size_t len = wcslen(contents);
+
+			this->WriteRawChar(_u('\"'));
+			this->WriteRawCharBuff(contents, len);
+			this->WriteRawChar(_u('\"'));
+			delete[] contents;
+		}
+		else {
+			this->WriteKey(key, separator);
+			size_t len = wcslen(val);
+
+			this->WriteRawChar(_u('\"'));
+			this->WriteRawCharBuff(val, len);
+			this->WriteRawChar(_u('\"'));
+		}
+	}
+
 	void FileWriter::WriteStringWithoutLen(NSTokens::Key key, const TTString& val, NSTokens::Separator separator)
 	{
 		this->WriteKey(key, separator);
@@ -294,9 +316,15 @@ namespace TTD
 
 		if (this->getQuotedKey()) 
 			this->WriteRawChar(_u('"'));
-        this->WriteRawCharBuff(kname, ksize);
+		// if (this->getQuotedKey()) {
+		// 	this->WriteNakedUInt32((uint32)key);
+		// }
+		// else {
+			this->WriteRawCharBuff(kname, ksize);
+		// }
+        
 		if (this->getQuotedKey())
-			this->WriteRawChar(_u('"'));
+		 	this->WriteRawChar(_u('"'));
         this->WriteRawChar(_u(':'));
     }
 
@@ -309,6 +337,7 @@ namespace TTD
 		size_t ksize = this->m_keyNameLengthArray[(uint32)key];
 
 		this->WriteRawChar(_u('"'));
+		// this->WriteNakedUInt32((uint32)key);
 		this->WriteRawCharBuff(kname, ksize);
 		this->WriteRawChar(_u('"'));
 		this->WriteRawChar(_u(':'));
@@ -442,6 +471,7 @@ namespace TTD
 			{
 				if (INT32_MAX <= val && val <= INT32_MAX && floor(val) == val)
 				{
+					// this->WriteNakedUInt32(1000);
 					this->WriteFormattedCharData(_u("%I64i"), (int64)val);
 				}
 				else
@@ -450,7 +480,7 @@ namespace TTD
 					//TODO: this is nice for visual debugging but we inherently lose precision
 					//      will want to change this to a dump of the bit representation of the number
 					//
-
+					// this->WriteNakedUInt32(1001);
 					this->WriteFormattedCharData(_u("%.32f"), val);
 				}
 			}
@@ -508,6 +538,7 @@ namespace TTD
 	void TextFormatWriter::WriteNakedAddrAsInt64(TTD_PTR_ID val, NSTokens::Separator separator)
 	{
 		this->WriteSeperator(separator);
+		// this->WriteNakedUInt32(1111);
 		this->WriteFormattedCharData(_u("%I64u"), val);
 	}
 
@@ -561,7 +592,7 @@ namespace TTD
 		{
 			// this->WriteFormattedCharData(_u("@%I32u"), val.Length);
 			this->WriteRawChar(_u('\"'));
-			char16* contents = this->escape(val.Contents);
+			const char16* contents = this->escape(val.Contents);
 			this->WriteRawCharBuff(contents, wcslen(contents));
 			delete[] contents;
 			this->WriteRawChar(_u('\"'));
@@ -610,7 +641,7 @@ namespace TTD
 	void TextFormatWriter::WriteInlinePropertyRecordNameTrimed(_In_reads_(length) const char16* pname, uint32 length, NSTokens::Separator separator)
 	{
 		this->WriteSeperator(separator);
-		char16* contents = this->escape(pname);
+		const char16* contents = this->escape(pname);
 
 		this->WriteRawChar(_u('\"'));
 		this->WriteRawCharBuff(contents, wcslen(contents));

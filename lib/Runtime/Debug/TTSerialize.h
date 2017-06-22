@@ -187,7 +187,7 @@ namespace TTD
 
         void FlushAndClose();
 		void WriteRawChars(const char16* buff, size_t bufflen);
-		char16* escape(const char16* str);
+		const char16* escape(const char16* str);
 
         ////
 		bool setQuotedKey(bool flag);
@@ -267,6 +267,7 @@ namespace TTD
         virtual void WriteNakedString(const TTString& val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
 		virtual void WriteNakedStringWithoutLen(const TTString& val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
         void WriteString(NSTokens::Key key, const TTString& val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator);
+		void writeRawCharsWithKey(NSTokens::Key key, const char16* val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator);
 		void WriteStringWithoutLen(NSTokens::Key key, const TTString& val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator);
 
         virtual void WriteNakedWellKnownToken(TTD_WELLKNOWN_TOKEN val, NSTokens::Separator separator = NSTokens::Separator::NoSeparator) = 0;
