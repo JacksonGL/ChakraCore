@@ -1074,13 +1074,13 @@ namespace TTD
 
             writer->WriteAddr(NSTokens::Key::ptrIdVal, capabilityInfo->CapabilityId);
 
-            writer->WriteKey(NSTokens::Key::entry, NSTokens::Separator::CommaSeparator);
+            writer->WriteKey(NSTokens::Key::promiseVar, NSTokens::Separator::CommaSeparator);
             EmitTTDVar(capabilityInfo->PromiseVar, writer, NSTokens::Separator::NoSeparator);
 
-            writer->WriteKey(NSTokens::Key::entry, NSTokens::Separator::CommaSeparator);
+            writer->WriteKey(NSTokens::Key::resolveVar, NSTokens::Separator::CommaSeparator);
             EmitTTDVar(capabilityInfo->ResolveVar, writer, NSTokens::Separator::NoSeparator);
 
-            writer->WriteKey(NSTokens::Key::entry, NSTokens::Separator::CommaSeparator);
+            writer->WriteKey(NSTokens::Key::rejectVar, NSTokens::Separator::CommaSeparator);
             EmitTTDVar(capabilityInfo->RejectVar, writer, NSTokens::Separator::NoSeparator);
 
             writer->WriteRecordEnd();
@@ -1088,7 +1088,7 @@ namespace TTD
 
 		void EmitPromiseCapabilityInfoTrimed(const SnapPromiseCapabilityInfo* capabilityInfo, FileWriter* writer, NSTokens::Separator separator)
 		{
-			writer->WriteRecordStart(separator);
+			writer->WriteRecordStartWithKey(NSTokens::Key::promiseCapInfo, NSTokens::Separator::CommaSeparator);
 
 			writer->WriteAddrAsInt64(NSTokens::Key::ptrIdVal, capabilityInfo->CapabilityId);
 
@@ -1167,9 +1167,9 @@ namespace TTD
 		{
 			writer->WriteRecordStart(separator);
 
-			writer->WriteAddrAsInt64(NSTokens::Key::ptrIdVal, reactionInfo->PromiseReactionId);
+			writer->WriteAddrAsInt64(NSTokens::Key::promiseReactionId, reactionInfo->PromiseReactionId);
 
-			writer->WriteAddrAsInt64(NSTokens::Key::ptrIdVal, reactionInfo->HandlerObjId, NSTokens::Separator::CommaSeparator);
+			writer->WriteAddrAsInt64(NSTokens::Key::handlerObjId, reactionInfo->HandlerObjId, NSTokens::Separator::CommaSeparator);
 			// writer->WriteKey(NSTokens::Key::entry, NSTokens::Separator::CommaSeparator);
 			EmitPromiseCapabilityInfoTrimed(&reactionInfo->Capabilities, writer, NSTokens::Separator::CommaSeparator);
 
