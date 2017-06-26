@@ -161,7 +161,7 @@ namespace TTD
 		SnapShot::EmitListHelperTrimed(NSTokens::Key::rootList, &SnapShot::SnapRootPinEntryEmitTrimed, this->m_rootList, writer);
 		
 		////
-		// SnapShot::EmitListHelperTrimed(NSTokens::Key::objectHandlers, &NSSnapType::EmitSnapHandlerTrimed, this->m_handlerList, writer);
+		SnapShot::EmitListHelperTrimed(NSTokens::Key::objectHandlers, &NSSnapType::EmitSnapHandlerTrimed, this->m_handlerList, writer);
 		SnapShot::EmitListHelperTrimed(NSTokens::Key::objectTypes, &NSSnapType::EmitSnapTypeTrimed, this->m_typeList, writer);
 		
 		

@@ -362,6 +362,7 @@ namespace AllocTracing
         AllocTracer::ExtractLineColumn(currStack, &line, &column);
 
 		// only create node for the top of the call stack
+		/*
 		for (int32 i = 0; i < currentPaths->Count(); ++i)
 		{
 			AllocPathEntry* currPath = currentPaths->Item(i);
@@ -370,10 +371,15 @@ namespace AllocTracing
 				return currPath;
 			}
 		}
+		*/
+		int64 key = (int64)(cbody + column * 1000000 + line);
+		if (currentPaths->ContainsKey(key)) {
+			return currentPaths->Item(key);
+		}
 
 		//no suitable entry found so create a new one
 		AllocPathEntry* tentry = AllocTracer::CreateTerminalAllocPathEntry(currStack, threadContext);
-		currentPaths->Add(tentry);
+		currentPaths->Add(key, tentry);
 		return tentry;
 
 		/*
@@ -425,11 +431,19 @@ namespace AllocTracing
     {
         if(!root->IsTerminalStatsEntry)
         {
+			/*
             for(int32 i = 0; i < root->CallerPaths->Count(); ++i)
             {
                 AllocTracer::FreeAllocPathTree(root->CallerPaths->Item(i));
             }
             root->CallerPaths->Clear();
+			*/
+
+			root->CallerPaths->EachValue([](AllocPathEntry* entry)
+			{
+				AllocTracer::FreeAllocPathTree(entry);
+			});
+			root->CallerPaths->Clear();
         }
 
         AllocTracer::FreeAllocPathEntry(root);
@@ -443,11 +457,17 @@ namespace AllocTracing
         }
         else
         {
+			/*
             for(int32 i = 0; i < root->CallerPaths->Count(); ++i)
             {
                 AllocPathEntry* cpe = root->CallerPaths->Item(i);
                 AllocTracer::ForceAllData(cpe);
             }
+			*/
+			root->CallerPaths->EachValue([](AllocPathEntry* entry)
+			{
+				AllocTracer::ForceAllData(entry);
+			});
         }
     }
 
@@ -459,6 +479,7 @@ namespace AllocTracing
         }
         else
         {
+			/*
             for(int32 i = 0; i < root->CallerPaths->Count(); ++i)
             {
                 AllocPathEntry* cpe = root->CallerPaths->Item(i);
@@ -467,6 +488,14 @@ namespace AllocTracing
                 root->LiveCount += cpe->LiveCount;
                 root->LiveSizeEstimate += cpe->LiveSizeEstimate;
             }
+			*/
+			root->CallerPaths->EachValue([&root](AllocPathEntry* cpe)
+			{
+				AllocTracer::EstimateMemoryUseInfo(cpe);
+
+				root->LiveCount += cpe->LiveCount;
+				root->LiveSizeEstimate += cpe->LiveSizeEstimate;
+			});
         }
     }
 
@@ -478,6 +507,7 @@ namespace AllocTracing
         }
         else
         {
+			/*
             for(int32 i = 0; i < root->CallerPaths->Count(); ++i)
             {
                 AllocPathEntry* cpe = root->CallerPaths->Item(i);
@@ -485,6 +515,13 @@ namespace AllocTracing
 
                 root->IsInterestingSite |= cpe->IsInterestingSite;
             }
+			*/
+			root->CallerPaths->EachValue([&countThreshold, &estimatedSizeThreshold, &root](AllocPathEntry* cpe)
+			{
+				AllocTracer::FlagInterestingSites(cpe, countThreshold, estimatedSizeThreshold);
+
+				root->IsInterestingSite |= cpe->IsInterestingSite;
+			});
         }
     }
 
@@ -527,6 +564,7 @@ namespace AllocTracing
 
             bool first = true;
             uint32 nesteddepth = localdepth + 1;
+			/*
             for(int32 i = 0; i < root->CallerPaths->Count(); ++i)
             {
                 AllocPathEntry* cpe = root->CallerPaths->Item(i);
@@ -542,6 +580,22 @@ namespace AllocTracing
                     AllocTracer::JSONWriteDataPathEntry(writer, cpe, nesteddepth);
                 }
             }
+			*/
+
+			root->CallerPaths->EachValue([&first, &writer, &nesteddepth](AllocPathEntry* cpe)
+			{
+				if (cpe->IsInterestingSite)
+				{
+					if (!first)
+					{
+						writer.WriteChar(',');
+					}
+					first = false;
+
+					writer.WriteChar('\n');
+					AllocTracer::JSONWriteDataPathEntry(writer, cpe, nesteddepth);
+				}
+			});
 
             writer.WriteChar('\n');
             AllocTracer::JSONWriteDataIndent(writer, localdepth);
@@ -580,6 +634,7 @@ namespace AllocTracing
 
 			bool first = true;
 			uint32 nesteddepth = localdepth + 1;
+			/*
 			for (int32 i = 0; i < root->CallerPaths->Count(); ++i)
 			{
 				AllocPathEntry* cpe = root->CallerPaths->Item(i);
@@ -595,6 +650,22 @@ namespace AllocTracing
 					AllocTracer::JSONWriteDataPathEntryTrimed(writer, cpe, nesteddepth);
 				}
 			}
+			*/
+
+			root->CallerPaths->EachValue([&first, &writer, &nesteddepth](AllocPathEntry* cpe)
+			{
+				if (cpe->IsInterestingSite)
+				{
+					if (!first)
+					{
+						writer.WriteSeperator(NSTokens::Separator::CommaSeparator);
+					}
+					first = false;
+
+					writer.WriteSeperator(NSTokens::Separator::BigSpaceSeparator);
+					AllocTracer::JSONWriteDataPathEntryTrimed(writer, cpe, nesteddepth);
+				}
+			});
 			writer.WriteSeperator(NSTokens::Separator::BigSpaceSeparator);
 
 			writer.AdjustIndent(-1);
@@ -612,10 +683,18 @@ namespace AllocTracing
 
     AllocTracer::~AllocTracer()
     {
+		/*
         for(int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
         {
             AllocTracer::FreeAllocPathTree(this->m_allocPathRoots.Item(i));
         }
+		this->m_allocPathRoots.Clear();
+		*/
+		
+		this->m_allocPathRoots.EachValue([](AllocPathEntry* entry)
+		{
+			AllocTracer::FreeAllocPathTree(entry);
+		});
         this->m_allocPathRoots.Clear();
     }
 
@@ -643,7 +722,8 @@ namespace AllocTracing
 
     void AllocTracer::AddAllocation(Js::RecyclableObject* obj)
     {
-        for(int32 i = 0; i < this->m_callStack.Count(); ++i)
+        /*
+		for(int32 i = 0; i < this->m_callStack.Count(); ++i)
         {
             const AllocCallStackEntry& ase = this->m_callStack.Item(i);
             if(!AllocTracer::IsInternalLocation(ase))
@@ -651,6 +731,16 @@ namespace AllocTracing
                 this->m_prunedCallStack.Add(ase);
             }
         }
+		*/
+		for (int32 i = this->m_callStack.Count()-1; i >=0 ; --i)
+		{
+			const AllocCallStackEntry& ase = this->m_callStack.Item(i);
+			if (!AllocTracer::IsInternalLocation(ase))
+			{
+				this->m_prunedCallStack.Add(ase);
+				break;
+			}
+		}
 
         //For now we skip Host driven allocations
         if(this->m_prunedCallStack.Count() == 0)
@@ -669,11 +759,17 @@ namespace AllocTracing
 
     void AllocTracer::ForceAllData()
     {
+		/*
         for(int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
         {
             AllocPathEntry* cpe = this->m_allocPathRoots.Item(i);
             AllocTracer::ForceAllData(cpe);
         }
+		*/
+		this->m_allocPathRoots.EachValue([this](AllocPathEntry* entry)
+		{
+			AllocTracer::ForceAllData(entry);
+		});
     }
 
     void AllocTracer::EmitTrimedAllocTrace(int64 snapId, ThreadContext* threadContext) const
@@ -689,45 +785,83 @@ namespace AllocTracing
 		TextFormatWriter writer(traceHandle, iofp.pfWriteBytesToStream, iofp.pfFlushAndCloseStream);
 		writer.setQuotedKey(true);
 
-        size_t totalLive = 0;
-        size_t totalSizeEstimate = 0;
-        for(int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
-        {
-            AllocPathEntry* cpe = this->m_allocPathRoots.Item(i);
-            AllocTracer::EstimateMemoryUseInfo(cpe);
+		size_t totalLive = 0;
+		size_t totalSizeEstimate = 0;
+		/*
+		for(int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
+		{
+		AllocPathEntry* cpe = this->m_allocPathRoots.Item(i);
+		AllocTracer::EstimateMemoryUseInfo(cpe);
 
-            totalLive += cpe->LiveCount;
-            totalSizeEstimate += cpe->LiveSizeEstimate;
-        }
+		totalLive += cpe->LiveCount;
+		totalSizeEstimate += cpe->LiveSizeEstimate;
+		}
+		*/
 
-        size_t countThreshold = (size_t)(totalLive * ALLOC_TRACING_INTERESTING_LOCATION_COUNT_THRESHOLD);
-        size_t estimatedSizeThreshold = (size_t)(totalSizeEstimate * ALLOC_TRACING_INTERESTING_LOCATION_SIZE_THRESHOLD);
-        for(int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
-        {
-            AllocPathEntry* cpe = this->m_allocPathRoots.Item(i);
-            AllocTracer::FlagInterestingSites(cpe, countThreshold, estimatedSizeThreshold);
-        }
+		this->m_allocPathRoots.EachValue([&totalLive, &totalSizeEstimate](AllocPathEntry* cpe)
+		{
+			AllocTracer::EstimateMemoryUseInfo(cpe);
 
-        bool first = true;
+			totalLive += cpe->LiveCount;
+			totalSizeEstimate += cpe->LiveSizeEstimate;
+		});
+
+
+
+		size_t countThreshold = (size_t)(totalLive * ALLOC_TRACING_INTERESTING_LOCATION_COUNT_THRESHOLD);
+		size_t estimatedSizeThreshold = (size_t)(totalSizeEstimate * ALLOC_TRACING_INTERESTING_LOCATION_SIZE_THRESHOLD);
+
+		/*
+		for(int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
+		{
+		AllocPathEntry* cpe = this->m_allocPathRoots.Item(i);
+		AllocTracer::FlagInterestingSites(cpe, countThreshold, estimatedSizeThreshold);
+		}
+		*/
+
+		this->m_allocPathRoots.EachValue([&countThreshold, &estimatedSizeThreshold](AllocPathEntry* cpe)
+		{
+			AllocTracer::FlagInterestingSites(cpe, countThreshold, estimatedSizeThreshold);
+		});
+
+		bool first = true;
 		writer.WriteRecordStart();
 		writer.AdjustIndent(1);
 		writer.WriteSequenceStartWithKey(NSTokens::Key::allocations, NSTokens::Separator::BigSpaceSeparator);
 
 		writer.AdjustIndent(1);
-        for(int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
-        {
-            AllocPathEntry* cpe = this->m_allocPathRoots.Item(i);
-            if(cpe->IsInterestingSite && cpe->LiveCount > 0)
-            {
-                if(!first)
-                {
+
+		/*
+		for(int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
+		{
+		AllocPathEntry* cpe = this->m_allocPathRoots.Item(i);
+		if(cpe->IsInterestingSite && cpe->LiveCount > 0)
+		{
+		if(!first)
+		{
+		writer.WriteSeperator(NSTokens::Separator::CommaSeparator);
+		}
+		first = false;
+		writer.WriteSeperator(NSTokens::Separator::BigSpaceSeparator);
+		AllocTracer::JSONWriteDataPathEntryTrimed(writer, cpe, 1);
+		}
+		}
+		*/
+
+		this->m_allocPathRoots.EachValue([&first, &writer](AllocPathEntry* cpe)
+		{
+			if (cpe->IsInterestingSite && cpe->LiveCount > 0)
+			{
+				if (!first)
+				{
 					writer.WriteSeperator(NSTokens::Separator::CommaSeparator);
-                }
-                first = false;
+				}
+				first = false;
 				writer.WriteSeperator(NSTokens::Separator::BigSpaceSeparator);
-                AllocTracer::JSONWriteDataPathEntryTrimed(writer, cpe, 1);
-            }
-        }
+				AllocTracer::JSONWriteDataPathEntryTrimed(writer, cpe, 1);
+			}
+		});
+
 		writer.WriteSeperator(NSTokens::Separator::BigSpaceSeparator);
 		writer.AdjustIndent(-1);
 		writer.WriteSequenceEnd();
@@ -744,6 +878,7 @@ namespace AllocTracing
 
 	void AllocTracer::JSONWriteData(AllocDataWriter& writer) const
 	{
+		/*
 		size_t totalLive = 0;
 		size_t totalSizeEstimate = 0;
 		for (int32 i = 0; i < this->m_allocPathRoots.Count(); ++i)
@@ -782,6 +917,7 @@ namespace AllocTracing
 		}
 		writer.WriteChar('\n');
 		writer.WriteChar(']');
+		*/
 	}
 }
 

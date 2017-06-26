@@ -20,8 +20,8 @@ if((CTX)->ShouldPerformReplayAction() && (CTX)->GetThreadContext()->AllocSiteTra
 #define ALLOC_TRACING_DYNAMIC_SIZE_DEFAULT 32
 #define ALLOC_TRACING_DYNAMIC_ENTRY_SIZE sizeof(Js::Var)
 
-#define ALLOC_TRACING_INTERESTING_LOCATION_COUNT_THRESHOLD 0.01
-#define ALLOC_TRACING_INTERESTING_LOCATION_SIZE_THRESHOLD 0.01
+#define ALLOC_TRACING_INTERESTING_LOCATION_COUNT_THRESHOLD 0.001
+#define ALLOC_TRACING_INTERESTING_LOCATION_SIZE_THRESHOLD 0.001
 
 namespace AllocTracing
 {
@@ -118,7 +118,8 @@ namespace AllocTracing
 
         //A struct that represents a Node in our allocation path tree
         struct AllocPathEntry;
-        typedef JsUtil::List<AllocTracer::AllocPathEntry*, HeapAllocator> CallerPathList;
+        // typedef JsUtil::List<AllocTracer::AllocPathEntry*, HeapAllocator> CallerPathList;
+		typedef JsUtil::BaseDictionary<int64, AllocPathEntry*, HeapAllocator, PrimeSizePolicy, DefaultComparer> CallerPathList;
 
         struct AllocPathEntry
         {
@@ -145,7 +146,8 @@ namespace AllocTracing
         static void FreeAllocPathEntry(AllocPathEntry* entry);
 
         //The roots (starting at the line with the allocation) for the caller trees or each allocation
-        JsUtil::List<AllocPathEntry*, HeapAllocator> m_allocPathRoots;
+        // JsUtil::List<AllocPathEntry*, HeapAllocator> m_allocPathRoots;
+		JsUtil::BaseDictionary<int64, AllocPathEntry*, HeapAllocator, PrimeSizePolicy, DefaultComparer> m_allocPathRoots;
 
         static AllocPathEntry* ExtendPathTreeForAllocation(const JsUtil::List<AllocCallStackEntry, HeapAllocator>& callStack, int32 position, CallerPathList* currentPaths, ThreadContext* threadContext);
         static void FreeAllocPathTree(AllocPathEntry* root);

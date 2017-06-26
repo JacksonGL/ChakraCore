@@ -522,6 +522,16 @@ namespace TTD
 			EmitDiagnosticOriginInformation(snpObject->DiagOriginInfo, writer, NSTokens::Separator::NoSeparator);
 #endif
 
+			// emit the id of objectArray if there is one
+			if (snpObject->SnapType->JsTypeId == Js::TypeIds_Object) 
+			{
+				Js::DynamicObject* dobj = (Js::DynamicObject*)(snpObject->ObjectPtrId);
+				if (dobj->GetObjectArray() != nullptr)
+				{
+					writer->WriteAddrAsInt64(NSTokens::Key::objArrId, TTD_CONVERT_VAR_TO_PTR_ID(dobj->GetObjectArray()), NSTokens::Separator::CommaSeparator);
+				}
+			}
+
 			// writer->WriteBool(NSTokens::Key::isDepOn, snpObject->OptDependsOnInfo != nullptr, NSTokens::Separator::CommaSeparator);
 			if (snpObject->OptDependsOnInfo != nullptr)
 			{
