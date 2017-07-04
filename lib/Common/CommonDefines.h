@@ -396,8 +396,6 @@
 #if ENABLE_TTD
 //A workaround for profile based creation of Native Arrays -- we may or may not want to allow since it differs in record/replay and (currently) asserts in our snap compare
 #define TTD_NATIVE_PROFILE_ARRAY_WORK_AROUND 1
-//dump object property names in the snapshot JSON file
-// #define DUMP_PROP_NAME_IN_SNAPSHOT 0
 
 //See also -- Disabled fast path on property enumeration, random number generation, disabled new/eval code cache, and others.
 //            Disabled ActivationObjectEx and others.
@@ -410,7 +408,7 @@
 #if ENABLE_DEBUG_CONFIG_OPTIONS
 #define ENABLE_TTD_INTERNAL_DIAGNOSTICS 1
 #else
-#define ENABLE_TTD_INTERNAL_DIAGNOSTICS 1
+#define ENABLE_TTD_INTERNAL_DIAGNOSTICS 0
 #endif
 
 #define TTD_LOG_READER TextFormatReader

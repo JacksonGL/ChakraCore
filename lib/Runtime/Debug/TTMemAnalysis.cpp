@@ -10,8 +10,8 @@
 
 namespace TTD
 {
-	SnapShot* TTMemAnalysis::recentSnapShot = nullptr;
-	bool TTMemAnalysis::dump_prop_JSON = true;
+    SnapShot* TTMemAnalysis::recentSnapShot = nullptr;
+    bool TTMemAnalysis::dump_prop_JSON = true;
 }
 
 #endif

@@ -44,7 +44,7 @@ namespace TTD
 
         void EventLogEntry_Emit(const EventLogEntry* evt, EventLogEntryVTableEntry* evtFPVTable, FileWriter* writer, ThreadContext* threadContext, NSTokens::Separator separator)
         {
-			writer->WriteRecordStart(separator);
+            writer->WriteRecordStart(separator);
 
             writer->WriteTag<EventKind>(NSTokens::Key::eventKind, evt->EventKind);
             writer->WriteInt32(NSTokens::Key::eventResultStatus, evt->ResultStatus, NSTokens::Separator::CommaSeparator);
@@ -53,11 +53,11 @@ namespace TTD
             writer->WriteInt64(NSTokens::Key::eventTime, evt->EventTimeStamp, NSTokens::Separator::CommaSeparator);
 #endif
 
-			auto emitFP = evtFPVTable[(uint32)evt->EventKind].EmitFP;
-			if (emitFP != nullptr)
-			{
-				emitFP(evt, writer, threadContext);
-			}
+            auto emitFP = evtFPVTable[(uint32)evt->EventKind].EmitFP;
+            if (emitFP != nullptr)
+            {
+                emitFP(evt, writer, threadContext);
+            }
             writer->WriteRecordEnd();
         }
 
@@ -148,7 +148,7 @@ namespace TTD
             if(snapEvt->Snap != nullptr)
             {
                 snapEvt->Snap->EmitSnapshot(snapEvt->RestoreTimestamp, threadContext);
-				snapEvt->Snap->EmitTrimedSnapshot(snapEvt->RestoreTimestamp, threadContext);
+                snapEvt->Snap->EmitTrimedSnapshot(snapEvt->RestoreTimestamp, threadContext);
             }
         }
 

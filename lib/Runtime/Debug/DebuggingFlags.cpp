@@ -18,7 +18,7 @@ DebuggingFlags::DebuggingFlags() :
 
 bool DebuggingFlags::GetForceInterpreter() const
 {
-	return this->m_forceInterpreter;
+    return this->m_forceInterpreter;
 }
 
 void DebuggingFlags::SetForceInterpreter(bool value)

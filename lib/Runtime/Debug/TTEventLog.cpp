@@ -845,8 +845,7 @@ namespace TTD
 
         AutoArrayPtr<char> uri(HeapNewArrayZ(char, uriString->GetLength() * 3), uriString->GetLength() * 3);
         size_t uriLength = utf8::EncodeInto((LPUTF8)((char*)uri), uriString->GetSz(), uriString->GetLength());
-		
-		this->EmitLog(uri, uriLength);
+        this->EmitLog(uri, uriLength);
     }
 
     void EventLog::ReplayEmitLogEvent()
@@ -1311,7 +1310,6 @@ namespace TTD
 
     void EventLog::DoRtrSnapIfNeeded()
     {
-		// this function should be called during replay mode
         TTDAssert(this->m_currentReplayEventIterator.IsValid() && NSLogEvents::IsJsRTActionRootCall(this->m_currentReplayEventIterator.Current()), "Something in wrong with the event position.");
         this->SetSnapshotOrInflateInProgress(true);
         this->PushMode(TTDMode::ExcludedExecutionTTAction);
@@ -1322,11 +1320,11 @@ namespace TTD
             //Be careful to ensure that caller is actually doing this
             AUTO_NESTED_HANDLED_EXCEPTION_TYPE((ExceptionType)(ExceptionType_OutOfMemory | ExceptionType_JavascriptException));
 
-			// grab the snapshot object here
+            // grab the snapshot object here
             rootCall->AdditionalReplayInfo->RtRSnap = this->DoSnapshotExtract_Helper(0.0);
-			// get the recent snapshot
-			TTMemAnalysis::recentSnapShot = rootCall->AdditionalReplayInfo->RtRSnap;
-			// TTMemAnalysis::recentSnapShot->EmitTrimedSnapshot(0, this->m_threadContext);
+            // get the recent snapshot
+            TTMemAnalysis::recentSnapShot = rootCall->AdditionalReplayInfo->RtRSnap;
+            // TTMemAnalysis::recentSnapShot->EmitTrimedSnapshot(0, this->m_threadContext);
         }
 
         this->PopMode(TTDMode::ExcludedExecutionTTAction);
@@ -2450,27 +2448,27 @@ namespace TTD
         return evt;
     }
 
-	// newly added function to extract and dump snapshot to standard JS JSON file during the replay
-	void EventLog::ExtractAndDumpSnapshotToJSON(const char* emitUri, size_t emitUriLength)
-	{
-		//force a GC to get weak containers in a consistent state
-		TTDTimer timer;
-		double startTime = timer.Now();
-		this->m_threadContext->GetRecycler()->CollectNow<CollectNowForceInThread>();
-		this->m_threadContext->TTDContext->SyncRootsBeforeSnapshot_Record();
-		double endTime = timer.Now();
+    // newly added function to extract and dump snapshot to standard JS JSON file during the replay
+    void EventLog::ExtractAndDumpSnapshotToJSON(const char* emitUri, size_t emitUriLength)
+    {
+        //force a GC to get weak containers in a consistent state
+        TTDTimer timer;
+        double startTime = timer.Now();
+        this->m_threadContext->GetRecycler()->CollectNow<CollectNowForceInThread>();
+        this->m_threadContext->TTDContext->SyncRootsBeforeSnapshot_Record();
+        double endTime = timer.Now();
 
-		//do the rest of the snapshot
-		this->SetSnapshotOrInflateInProgress(true);
-		this->PushMode(TTDMode::ExcludedExecutionTTAction);
+        //do the rest of the snapshot
+        this->SetSnapshotOrInflateInProgress(true);
+        this->PushMode(TTDMode::ExcludedExecutionTTAction);
 
-		SnapShot* snapshot = this->DoSnapshotExtract_Helper((endTime - startTime) / 1000.0);
+        SnapShot* snapshot = this->DoSnapshotExtract_Helper((endTime - startTime) / 1000.0);
 
-		snapshot->EmitTrimedSnapshot((int64)endTime, this->m_threadContext, emitUri, emitUriLength);
+        snapshot->EmitTrimedSnapshot((int64)endTime, this->m_threadContext, emitUri, emitUriLength);
 
-		this->PopMode(TTDMode::ExcludedExecutionTTAction);
-		this->SetSnapshotOrInflateInProgress(false);
-	}
+        this->PopMode(TTDMode::ExcludedExecutionTTAction);
+        this->SetSnapshotOrInflateInProgress(false);
+    }
 
     void EventLog::EmitLog(const char* emitUri, size_t emitUriLength)
     {
@@ -2610,44 +2608,44 @@ namespace TTD
 
         //emit the properties
         writer.WriteLengthValue(this->m_propertyRecordPinSet->Count(), NSTokens::Separator::CommaSeparator);
-		bool firstProperty;
+        bool firstProperty;
 
-		// if dump a separate JSON file containing all property names
-		if (TTMemAnalysis::dump_prop_JSON) {
-			const char* logfilename2 = "prop.json";
-			JsTTDStreamHandle logHandle2 = iofp.pfOpenResourceStream(iofp.ActiveTTUriLength, iofp.ActiveTTUri, strlen(logfilename2), logfilename2, false, true);
-			TTDAssert(logHandle2 != nullptr, "Failed to initialize strem for writing TTD Log.");
+        // if dump a separate JSON file containing all property names
+        if (TTMemAnalysis::dump_prop_JSON) {
+            const char* logfilename2 = "prop.json";
+            JsTTDStreamHandle logHandle2 = iofp.pfOpenResourceStream(iofp.ActiveTTUriLength, iofp.ActiveTTUri, strlen(logfilename2), logfilename2, false, true);
+            TTDAssert(logHandle2 != nullptr, "Failed to initialize strem for writing TTD Log.");
 
-			TTD_LOG_WRITER writer2(logHandle2, iofp.pfWriteBytesToStream, iofp.pfFlushAndCloseStream);
+            TTD_LOG_WRITER writer2(logHandle2, iofp.pfWriteBytesToStream, iofp.pfFlushAndCloseStream);
 
-			writer2.setQuotedKey(true);
-			writer2.WriteRecordStart();
-			writer2.AdjustIndent(1);
+            writer2.setQuotedKey(true);
+            writer2.WriteRecordStart();
+            writer2.AdjustIndent(1);
 
-			writer2.WriteSequenceStartWithKey(NSTokens::Key::properties, NSTokens::Separator::NoSeparator);
-			writer.AdjustIndent(1);
-			firstProperty = true;
-			for (auto iter = this->m_propertyRecordPinSet->GetIterator(); iter.IsValid(); iter.MoveNext())
-			{
-				NSTokens::Separator sep = (!firstProperty) ? NSTokens::Separator::CommaAndBigSpaceSeparator : NSTokens::Separator::BigSpaceSeparator;
-				NSSnapType::EmitPropertyRecordAsSnapPropertyRecordTrimed(iter.CurrentValue(), &writer2, sep);
+            writer2.WriteSequenceStartWithKey(NSTokens::Key::properties, NSTokens::Separator::NoSeparator);
+            writer.AdjustIndent(1);
+            firstProperty = true;
+            for (auto iter = this->m_propertyRecordPinSet->GetIterator(); iter.IsValid(); iter.MoveNext())
+            {
+                NSTokens::Separator sep = (!firstProperty) ? NSTokens::Separator::CommaAndBigSpaceSeparator : NSTokens::Separator::BigSpaceSeparator;
+                NSSnapType::EmitPropertyRecordAsSnapPropertyRecordTrimed(iter.CurrentValue(), &writer2, sep);
 
-				firstProperty = false;
-			}
-			writer2.AdjustIndent(-1);
-			writer2.WriteSequenceEnd(NSTokens::Separator::BigSpaceSeparator);
+                firstProperty = false;
+            }
+            writer2.AdjustIndent(-1);
+            writer2.WriteSequenceEnd(NSTokens::Separator::BigSpaceSeparator);
 
-			writer2.AdjustIndent(-1);
-			writer2.WriteRecordEnd();
-			writer2.FlushAndClose();
+            writer2.AdjustIndent(-1);
+            writer2.WriteRecordEnd();
+            writer2.FlushAndClose();
 
-			// emit the alloc traing
-			// if (this->m_threadContext->AllocSiteTracer != nullptr) {
-			//	printf("alloc traing\n");
-			//	this->m_threadContext->AllocSiteTracer->ForceAllData();
-			//	this->m_threadContext->AllocSiteTracer->EmitTrimedAllocTrace(0, this->m_threadContext);
-			// }
-		}
+            // emit the alloc traing
+            // if (this->m_threadContext->AllocSiteTracer != nullptr) {
+            //    printf("alloc traing\n");
+            //    this->m_threadContext->AllocSiteTracer->ForceAllData();
+            //    this->m_threadContext->AllocSiteTracer->EmitTrimedAllocTrace(0, this->m_threadContext);
+            // }
+        }
 
         writer.WriteSequenceStart_DefaultKey(NSTokens::Separator::CommaSeparator);
         writer.AdjustIndent(1);

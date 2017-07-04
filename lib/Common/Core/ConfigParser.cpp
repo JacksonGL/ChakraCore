@@ -152,7 +152,7 @@ void ConfigParser::ParseRegistryKey(HKEY hk, CmdLineArgsParser &parser)
     // released, the number of possible values is limited to reduce surface area.
     dwValue = 0;
     dwSize = sizeof(dwValue);
-	if (NOERROR == RegGetValueW(hk, nullptr, _u("JScriptJIT"), RRF_RT_DWORD, nullptr, (LPBYTE)&dwValue, &dwSize))
+    if (NOERROR == RegGetValueW(hk, nullptr, _u("JScriptJIT"), RRF_RT_DWORD, nullptr, (LPBYTE)&dwValue, &dwSize))
     {
         Js::ConfigFlagsTable &configFlags = Js::Configuration::Global.flags;
         switch (dwValue)

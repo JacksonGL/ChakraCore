@@ -1661,14 +1661,14 @@ LHexError:
             return jslib->GetFalse();
         }
 
-		Js::JavascriptString* jsString = Js::JavascriptString::FromVar(args[1]);
-		AutoArrayPtr<char> uri(HeapNewArrayZ(char, jsString->GetLength() * 3), jsString->GetLength() * 3);
-		size_t uriLength = utf8::EncodeInto((LPUTF8)((char*)uri), jsString->GetSz(), jsString->GetLength());
+        Js::JavascriptString* jsString = Js::JavascriptString::FromVar(args[1]);
+        AutoArrayPtr<char> uri(HeapNewArrayZ(char, jsString->GetLength() * 3), jsString->GetLength() * 3);
+        size_t uriLength = utf8::EncodeInto((LPUTF8)((char*)uri), jsString->GetSz(), jsString->GetLength());
 
         if(function->GetScriptContext()->ShouldPerformReplayAction())
         {
-			// during replay also emit the snapshot into JS standard JSON file
-			function->GetScriptContext()->GetThreadContext()->TTDLog->ExtractAndDumpSnapshotToJSON(uri, uriLength);
+            // during replay also emit the snapshot into JS standard JSON file
+            function->GetScriptContext()->GetThreadContext()->TTDLog->ExtractAndDumpSnapshotToJSON(uri, uriLength);
 
             function->GetScriptContext()->GetThreadContext()->TTDLog->ReplayEmitLogEvent();
 
@@ -1679,19 +1679,19 @@ LHexError:
         {
             function->GetScriptContext()->GetThreadContext()->TTDLog->RecordEmitLogEvent(jsString);
 
-			// capture the JSON snapshot during the recording phase
-			try {
-				function->GetScriptContext()->GetThreadContext()->TTDLog->ExtractAndDumpSnapshotToJSON(uri, uriLength);
-			}
-			catch (void * ex) {
-				if (ex != nullptr) { printf("[!]"); }
-			}
-			AllocTracing::AllocTracer* tracer = function->GetScriptContext()->GetThreadContext()->AllocSiteTracer;
-			if (tracer != nullptr)
-			{
-				tracer->ForceAllData();
-				tracer->EmitTrimedAllocTrace(0, function->GetScriptContext()->GetThreadContext());
-			}
+            // capture the JSON snapshot during the recording phase
+            try {
+                function->GetScriptContext()->GetThreadContext()->TTDLog->ExtractAndDumpSnapshotToJSON(uri, uriLength);
+            }
+            catch (...) {
+                printf("[!]: Snapshot extraction failed.");
+            }
+            AllocTracing::AllocTracer* tracer = function->GetScriptContext()->GetThreadContext()->AllocSiteTracer;
+            if (tracer != nullptr)
+            {
+                tracer->ForceAllData();
+                tracer->EmitTrimedAllocTrace(0, function->GetScriptContext()->GetThreadContext());
+            }
 
             return jslib->GetTrue();
         }

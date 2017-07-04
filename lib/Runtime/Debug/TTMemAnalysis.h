@@ -11,11 +11,11 @@
 #define TT_MEM_ANALYSIS 1
 namespace TTD
 {
-	class TTMemAnalysis {
-	public:
-		static SnapShot* recentSnapShot;
-		static bool dump_prop_JSON;
-	};
+    class TTMemAnalysis {
+    public:
+        static SnapShot* recentSnapShot;
+        static bool dump_prop_JSON;
+    };
 }
 #endif // TT_MEM_ANALYSIS
 #endif // ENABLE_TTD
