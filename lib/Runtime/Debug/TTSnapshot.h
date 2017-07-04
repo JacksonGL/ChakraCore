@@ -207,7 +207,7 @@ namespace TTD
         void EmitSnapshot(int64 snapId, ThreadContext* threadContext) const;
 
 		//serialize the trimed snapshot data 
-		void EmitTrimedSnapshot(int64 snapId, ThreadContext* threadContext) const;
+		void EmitTrimedSnapshot(int64 snapId, ThreadContext* threadContext, const char* emitUri = nullptr, size_t emitUriLength = 0) const;
 
         //de-serialize the snapshot data
         static SnapShot* Parse(int64 snapId, ThreadContext* threadContext);

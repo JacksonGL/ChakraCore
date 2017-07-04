@@ -1658,6 +1658,7 @@ namespace TTD
                 fbInfo->OptParentBodyId = TTD_CONVERT_FUNCTIONBODY_TO_PTR_ID(parentBody);
                 fbInfo->OptLine = fb->GetLineNumber();
                 fbInfo->OptColumn = fb->GetColumnNumber();
+				fbInfo->fileId = AllocTracing::SourceLocation::addSourceItem(fb->GetSourceContextInfo()->url, fb->GetUtf8SourceInfo());
             }
 
             ExtractSnapFunctionBodyScopeChain(fbInfo->OptKnownPath != TTD_INVALID_WELLKNOWN_TOKEN, fbInfo->ScopeChainInfo, fb, alloc);
@@ -1775,7 +1776,7 @@ namespace TTD
 			writer->WriteLogTagAsInt64(NSTokens::Key::ctxTag, fbInfo->ScriptContextLogId, NSTokens::Separator::CommaSeparator);
 			writer->WriteStringWithoutLen(NSTokens::Key::name, fbInfo->FunctionName, NSTokens::Separator::CommaSeparator);
 
-			writer->WriteBool(NSTokens::Key::isWellKnownToken, fbInfo->OptKnownPath != nullptr, NSTokens::Separator::CommaSeparator);
+			// writer->WriteBool(NSTokens::Key::isWellKnownToken, fbInfo->OptKnownPath != nullptr, NSTokens::Separator::CommaSeparator);
 			if (fbInfo->OptKnownPath != TTD_INVALID_WELLKNOWN_TOKEN)
 			{
 				writer->WriteWellKnownToken(NSTokens::Key::wellKnownToken, fbInfo->OptKnownPath, NSTokens::Separator::CommaSeparator);
@@ -1783,8 +1784,14 @@ namespace TTD
 			else
 			{
 				writer->WriteAddrAsInt64(NSTokens::Key::parentBodyId, fbInfo->OptParentBodyId, NSTokens::Separator::CommaSeparator);
+				writer->WriteInt64(NSTokens::Key::fileId, fbInfo->fileId, NSTokens::Separator::CommaSeparator);
 				writer->WriteInt64(NSTokens::Key::line, fbInfo->OptLine, NSTokens::Separator::CommaSeparator);
 				writer->WriteInt64(NSTokens::Key::column, fbInfo->OptColumn, NSTokens::Separator::CommaSeparator);
+				// Js::FunctionBody* fb = (Js::FunctionBody*)(fbInfo->FunctionBodyId);
+				// writer->writeRawCharsWithKey(NSTokens::Key::filename, fb->GetSourceContextInfo()->url, NSTokens::Separator::CommaSeparator);
+				// writer->WriteInt64(NSTokens::Key::line, fb->GetLineNumber(), NSTokens::Separator::CommaSeparator);
+				// writer->WriteInt64(NSTokens::Key::column, fb->GetColumnNumber(), NSTokens::Separator::CommaSeparator);
+				// AllocTracing::SourceLocation::addSourceItem(fb->GetSourceContextInfo()->url, fb->GetUtf8SourceInfo()->GetSource());
 			}
 
 			// writer->WriteKey(NSTokens::Key::scopeChain, NSTokens::Separator::CommaSeparator);

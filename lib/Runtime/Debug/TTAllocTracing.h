@@ -6,7 +6,7 @@
 
 #if ENABLE_ALLOC_TRACING
 #define DO_REPLAY_ALLOC_TRACE(CTX, ALLOC) \
-if((CTX)->ShouldPerformReplayAction() && (CTX)->GetThreadContext()->AllocSiteTracer != nullptr) \
+if(/* (CTX)->ShouldPerformReplayAction() && */ (CTX)->GetThreadContext()->AllocSiteTracer != nullptr) \
 {\
     (CTX)->GetThreadContext()->AllocSiteTracer->AddAllocation(ALLOC);\
 }
@@ -20,8 +20,8 @@ if((CTX)->ShouldPerformReplayAction() && (CTX)->GetThreadContext()->AllocSiteTra
 #define ALLOC_TRACING_DYNAMIC_SIZE_DEFAULT 32
 #define ALLOC_TRACING_DYNAMIC_ENTRY_SIZE sizeof(Js::Var)
 
-#define ALLOC_TRACING_INTERESTING_LOCATION_COUNT_THRESHOLD 0.001
-#define ALLOC_TRACING_INTERESTING_LOCATION_SIZE_THRESHOLD 0.001
+#define ALLOC_TRACING_INTERESTING_LOCATION_COUNT_THRESHOLD 0.000
+#define ALLOC_TRACING_INTERESTING_LOCATION_SIZE_THRESHOLD 0.000
 
 namespace AllocTracing
 {
@@ -51,9 +51,10 @@ namespace AllocTracing
 	{
 	public:
 		FileSourceEntry();
-		FileSourceEntry(const char16* filename, LPCUTF8 source);
+		FileSourceEntry(const char16* filename, Js::Utf8SourceInfo* utf8SourceInfo);
+		// ~FileSourceEntry();
 		const char16* filename;
-		LPCUTF8 source;
+		const char16* source;
 	};
 
     //A class that represents a source location -- either an allocation line or a call site in the code
@@ -74,7 +75,7 @@ namespace AllocTracing
         void JSONWriteLocationData(AllocDataWriter& writer) const;
 		void SourceLocation::JSONWriteLocationDataTrimed(TTD::TextFormatWriter& writer) const;
 		
-		static uint32 SourceLocation::addSourceItem(const char16* filename, LPCUTF8 source);
+		static uint32 SourceLocation::addSourceItem(const char16* filename, Js::Utf8SourceInfo* utf8SourceInfo);
 		static void SourceLocation::JSONWriteFileToSourceList(TTD::TextFormatWriter& writer, TTD::NSTokens::Separator sep);
 		static void SourceLocation::clearSourceItems();
     };

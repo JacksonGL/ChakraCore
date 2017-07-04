@@ -733,6 +733,7 @@ namespace TTD
     struct DiagnosticOrigin
     {
         int32 SourceLine;
+		int64 FileId;
         uint32 EventTime;
         uint64 TimeHash;
     };
@@ -741,9 +742,10 @@ namespace TTD
 
     void InitializeDiagnosticOriginInformation(DiagnosticOrigin& info);
     void CopyDiagnosticOriginInformation(DiagnosticOrigin& infoInto, const DiagnosticOrigin& infoFrom);
-    void SetDiagnosticOriginInformation(DiagnosticOrigin& info, uint32 sourceLine, uint64 eTime, uint64 fTime, uint64 lTime);
+    void SetDiagnosticOriginInformation(DiagnosticOrigin& info, uint32 sourceLine, int64 fileId, uint64 eTime, uint64 fTime, uint64 lTime);
 
     void EmitDiagnosticOriginInformation(const DiagnosticOrigin& info, FileWriter* writer, NSTokens::Separator separator);
+	void EmitTrimedDiagnosticOriginInformation(const DiagnosticOrigin& info, FileWriter* writer, NSTokens::Separator separator);
     void ParseDiagnosticOriginInformation(DiagnosticOrigin& info, bool readSeperator, FileReader* reader);
 #endif
 

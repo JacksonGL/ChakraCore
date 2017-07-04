@@ -942,7 +942,7 @@
 //TODO: can probably combine all of this for a fast check InReplay and then a slow check inside (InDebug || Alloc)
 
 #if ENABLE_ALLOC_TRACING
-#define SHOULD_DO_TTD_ALLOC_TRACING(CTX) ((CTX)->ShouldPerformReplayAction() & ((CTX)->GetThreadContext()->AllocSiteTracer != nullptr))
+#define SHOULD_DO_TTD_ALLOC_TRACING(CTX) (/* (CTX)->ShouldPerformReplayAction() & */ ((CTX)->GetThreadContext()->AllocSiteTracer != nullptr))
 #else
 #define SHOULD_DO_TTD_ALLOC_TRACING(CTX) false
 #endif

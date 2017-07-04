@@ -157,7 +157,7 @@ JsErrorCode CreateContextCore(_In_ JsRuntimeHandle runtimeHandle, _In_ TTDRecord
         bool doDebug = true;
 #else
         bool noNative = TTD_FORCE_NOJIT_MODE || threadContext->TTDLog->IsDebugModeFlagSet();
-        bool doDebug = TTD_FORCE_DEBUG_MODE || threadContext->TTDLog->IsDebugModeFlagSet();
+        bool doDebug = TTD_FORCE_DEBUG_MODE || threadContext->TTDLog->IsDebugModeFlagSet() || threadContext->doAllocTracing;
 #endif
 
         threadContext->TTDLog->PushMode(TTD::TTDMode::ExcludedExecutionTTAction);
@@ -251,7 +251,7 @@ void CALLBACK SetActiveJsRTContext_TTDCallback(void* runtimeHandle, Js::ScriptCo
 
 //A create runtime function that we can funnel to for regular and record or debug aware creation
 JsErrorCode CreateRuntimeCore(_In_ JsRuntimeAttributes attributes,
-    _In_opt_ const char* optTTUri, size_t optTTUriCount, bool isRecord, bool isReplay, bool isDebug,
+    _In_opt_ const char* optTTUri, size_t optTTUriCount, bool isRecord, bool isReplay, bool isDebug, bool isAllocTrace,
     _In_ UINT32 snapInterval, _In_ UINT32 snapHistoryLength,
     _In_opt_ TTDOpenResourceStreamCallback openResourceStream, _In_opt_ JsTTDReadBytesFromStreamCallback readBytesFromStream,
     _In_opt_ JsTTDWriteBytesToStreamCallback writeBytesToStream, _In_opt_ JsTTDFlushAndCloseStreamCallback flushAndCloseStream,
@@ -286,6 +286,8 @@ JsErrorCode CreateRuntimeCore(_In_ JsRuntimeAttributes attributes,
         AllocationPolicyManager * policyManager = HeapNew(AllocationPolicyManager, (attributes & JsRuntimeAttributeDisableBackgroundWork) == 0);
         bool enableExperimentalFeatures = (attributes & JsRuntimeAttributeEnableExperimentalFeatures) != 0;
         ThreadContext * threadContext = HeapNew(ThreadContext, policyManager, threadService, enableExperimentalFeatures);
+
+		threadContext->doAllocTracing = isAllocTrace;
 
         if (((attributes & JsRuntimeAttributeDisableBackgroundWork) != 0)
 #ifdef ENABLE_DEBUG_CONFIG_OPTIONS
@@ -391,7 +393,7 @@ JsErrorCode CreateRuntimeCore(_In_ JsRuntimeAttributes attributes,
 CHAKRA_API JsCreateRuntime(_In_ JsRuntimeAttributes attributes, _In_opt_ JsThreadServiceCallback threadService, _Out_ JsRuntimeHandle *runtimeHandle)
 {
     return CreateRuntimeCore(attributes,
-        nullptr /*optRecordUri*/, 0 /*optRecordUriCount */, false /*isRecord*/, false /*isReplay*/, false /*isDebug*/,
+        nullptr /*optRecordUri*/, 0 /*optRecordUriCount */, false /*isRecord*/, false /*isReplay*/, false /*isDebug*/, false /*isAllocTrace*/,
         UINT_MAX /*optSnapInterval*/, UINT_MAX /*optLogLength*/,
         nullptr, nullptr, nullptr, nullptr, /*TTD IO handlers*/
         threadService, runtimeHandle);
@@ -3401,7 +3403,7 @@ CHAKRA_API JsRunSerializedScriptWithCallback(_In_ JsSerializedScriptLoadSourceCa
 
 /////////////////////
 
-CHAKRA_API JsTTDCreateRecordRuntime(_In_ JsRuntimeAttributes attributes, _In_ size_t snapInterval, _In_ size_t snapHistoryLength,
+CHAKRA_API JsTTDCreateRecordRuntime(_In_ JsRuntimeAttributes attributes, _In_ size_t snapInterval, _In_ size_t snapHistoryLength, _In_ bool enableAllocTrace,
     _In_ TTDOpenResourceStreamCallback openResourceStream, _In_ JsTTDWriteBytesToStreamCallback writeBytesToStream, _In_ JsTTDFlushAndCloseStreamCallback flushAndCloseStream,
     _In_opt_ JsThreadServiceCallback threadService, _Out_ JsRuntimeHandle *runtime)
 {
@@ -3413,13 +3415,13 @@ CHAKRA_API JsTTDCreateRecordRuntime(_In_ JsRuntimeAttributes attributes, _In_ si
         return JsErrorInvalidArgument;
     }
 
-    return CreateRuntimeCore(attributes, nullptr, 0, true, false, false, (uint32)snapInterval, (uint32)snapHistoryLength,
+    return CreateRuntimeCore(attributes, nullptr, 0, true, false, false, enableAllocTrace,(uint32)snapInterval, (uint32)snapHistoryLength,
         openResourceStream, nullptr, writeBytesToStream, flushAndCloseStream,
         threadService, runtime);
 #endif
 }
 
-CHAKRA_API JsTTDCreateReplayRuntime(_In_ JsRuntimeAttributes attributes, _In_reads_(infoUriCount) const char* infoUri, _In_ size_t infoUriCount, _In_ bool enableDebugging,
+CHAKRA_API JsTTDCreateReplayRuntime(_In_ JsRuntimeAttributes attributes, _In_reads_(infoUriCount) const char* infoUri, _In_ size_t infoUriCount, _In_ bool enableDebugging, _In_ bool enableAllocTracing,
     _In_ TTDOpenResourceStreamCallback openResourceStream, _In_ JsTTDReadBytesFromStreamCallback readBytesFromStream, _In_ JsTTDWriteBytesToStreamCallback writeBytesToStream, 
 	_In_ JsTTDFlushAndCloseStreamCallback flushAndCloseStream, _In_opt_ JsThreadServiceCallback threadService, _Out_ JsRuntimeHandle *runtime)
 {
@@ -3427,7 +3429,7 @@ CHAKRA_API JsTTDCreateReplayRuntime(_In_ JsRuntimeAttributes attributes, _In_rea
     return JsErrorCategoryUsage;
 #else
 
-    return CreateRuntimeCore(attributes, infoUri, infoUriCount, false, true, enableDebugging, UINT_MAX, UINT_MAX,
+    return CreateRuntimeCore(attributes, infoUri, infoUriCount, false, true, enableDebugging, enableAllocTracing, UINT_MAX, UINT_MAX,
         openResourceStream, readBytesFromStream, writeBytesToStream, flushAndCloseStream,
         threadService, runtime);
 #endif
@@ -4090,7 +4092,6 @@ CHAKRA_API JsTTDAllocTracingEnable()
     JsrtContext *currentContext = JsrtContext::GetCurrent();
     JsErrorCode cCheck = CheckContext(currentContext, true);
     TTDAssert(cCheck == JsNoError, "This shouldn't happen!!!");
-
     Js::ScriptContext* scriptContext = currentContext->GetScriptContext();
     ThreadContext* threadContext = scriptContext->GetThreadContext();
     TTDAssert(threadContext->IsRuntimeInTTDMode(), "Should only happen in TT debugging mode.");
@@ -4098,7 +4099,6 @@ CHAKRA_API JsTTDAllocTracingEnable()
     try
     {
         AUTO_NESTED_HANDLED_EXCEPTION_TYPE((ExceptionType)(ExceptionType_OutOfMemory | ExceptionType_JavascriptException));
-
         threadContext->AllocSiteTracer = HeapNew(AllocTracing::AllocTracer);
     }
     catch(...)
@@ -4106,7 +4106,6 @@ CHAKRA_API JsTTDAllocTracingEnable()
         //Encountered OOM in alloc tracing initialization
         return JsErrorCategoryFatal;
     }
-
     return JsNoError;
 #endif
 }
@@ -4142,18 +4141,16 @@ CHAKRA_API JsTTDAllocTracingCompleteAndEmit(_In_reads_(allocFileSize) char* allo
             //Do a GC to ensure all the collectable object have been collected
             threadContext->GetRecycler()->CollectNow<CollectNowForceInThread>();
 
+			// collect the snapshot first, since it adds source files to the alloc tracer dataset
+			// if (TTD::TTMemAnalysis::recentSnapShot != nullptr) {
+			// 	// dump the memory snapshot
+			// 	TTD::TTMemAnalysis::recentSnapShot->EmitTrimedSnapshot(0, threadContext);
+			// }
+
             AllocTracing::AllocDataWriter writer;
 
-			printf("Start emitting alloc tracing info...\n");
             // threadContext->AllocSiteTracer->JSONWriteData(writer);
 			threadContext->AllocSiteTracer->EmitTrimedAllocTrace(0, threadContext);
-
-            //
-            //TODO: Take a new snapshot and emit it here!!!
-            //
-			if (TTD::TTMemAnalysis::recentSnapShot != nullptr) {
-				TTD::TTMemAnalysis::recentSnapShot->EmitTrimedSnapshot(0, threadContext);
-			}
         }
         END_ENTER_SCRIPT
     }

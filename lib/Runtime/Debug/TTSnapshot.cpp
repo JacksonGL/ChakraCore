@@ -159,7 +159,7 @@ namespace TTD
 
 		// emit the root list of entries
 		SnapShot::EmitListHelperTrimed(NSTokens::Key::rootList, &SnapShot::SnapRootPinEntryEmitTrimed, this->m_rootList, writer);
-		
+
 		////
 		SnapShot::EmitListHelperTrimed(NSTokens::Key::objectHandlers, &NSSnapType::EmitSnapHandlerTrimed, this->m_handlerList, writer);
 		SnapShot::EmitListHelperTrimed(NSTokens::Key::objectTypes, &NSSnapType::EmitSnapTypeTrimed, this->m_typeList, writer);
@@ -180,7 +180,7 @@ namespace TTD
 		writer->WriteSequenceEnd(NSTokens::Separator::BigSpaceSeparator);
 		
 		SnapShot::EmitListHelperTrimed(NSTokens::Key::primitives, &NSSnapValues::EmitSnapPrimitiveValueTrimed, this->m_primitiveObjectList, writer);
-		
+
 		// writer->WriteLengthValue(this->m_compoundObjectList.Count(), NSTokens::Separator::CommaAndBigSpaceSeparator);
 		writer->WriteSequenceStartWithKey(NSTokens::Key::objects, NSTokens::Separator::CommaAndBigSpaceSeparator);
 		writer->AdjustIndent(1);
@@ -194,7 +194,6 @@ namespace TTD
 		writer->AdjustIndent(-1);
 		writer->WriteSequenceEnd(NSTokens::Separator::BigSpaceSeparator);
 
-		
 		////
 		SnapShot::EmitListHelperTrimed(NSTokens::Key::scopes, &NSSnapValues::EmitScriptFunctionScopeInfoTrimed, this->m_scopeEntries, writer);
 		SnapShot::EmitListHelperTrimed(NSTokens::Key::slotArrays, &NSSnapValues::EmitSlotArrayInfoTrimed, this->m_slotArrayEntries, writer);
@@ -728,21 +727,23 @@ namespace TTD
         snapwriter.FlushAndClose();
     }
 
-	void SnapShot::EmitTrimedSnapshot(int64 snapId, ThreadContext* threadContext) const
+	void SnapShot::EmitTrimedSnapshot(int64 snapId, ThreadContext* threadContext, const char* emitUri, size_t emitUriLength) const
 	{
-		// TTMemAnalysis::dump_prop_JSON = true;
 		char asciiResourceName[64];
 		sprintf_s(asciiResourceName, 64, "snap_%I64i.json", snapId);
-
 		TTDataIOInfo& iofp = threadContext->TTDContext->TTDataIOInfo;
+		if (emitUri != nullptr)
+		{
+			iofp.ActiveTTUriLength = emitUriLength;
+			iofp.ActiveTTUri = emitUri;
+		}
+		
 		JsTTDStreamHandle snapHandle = iofp.pfOpenResourceStream(iofp.ActiveTTUriLength, iofp.ActiveTTUri, strlen(asciiResourceName), asciiResourceName, false, true);
 		TTDAssert(snapHandle != nullptr, "Failed to open snapshot resource stream for writing.");
 
 		TTD_SNAP_WRITER snapwriter(snapHandle, iofp.pfWriteBytesToStream, iofp.pfFlushAndCloseStream);
-
 		this->EmitTrimedSnapshotToFile(&snapwriter, threadContext);
 		snapwriter.FlushAndClose();
-		// TTMemAnalysis::dump_prop_JSON = false;
 	}
 
     SnapShot* SnapShot::Parse(int64 snapId, ThreadContext* threadContext)

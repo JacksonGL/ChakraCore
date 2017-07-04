@@ -518,20 +518,12 @@ namespace TTD
 			// writer->WriteBool(NSTokens::Key::isCrossSite, !!snpObject->IsCrossSite, NSTokens::Separator::CommaSeparator);
 
 #if ENABLE_OBJECT_SOURCE_TRACKING
-			writer->WriteKey(NSTokens::Key::originInfo, NSTokens::Separator::CommaSeparator);
-			EmitDiagnosticOriginInformation(snpObject->DiagOriginInfo, writer, NSTokens::Separator::NoSeparator);
-#endif
-
-			// emit the id of objectArray if there is one
-			if (snpObject->SnapType->JsTypeId == Js::TypeIds_Object) 
+			if (snpObject->DiagOriginInfo.FileId)
 			{
-				Js::DynamicObject* dobj = (Js::DynamicObject*)(snpObject->ObjectPtrId);
-				if (dobj->GetObjectArray() != nullptr)
-				{
-					writer->WriteAddrAsInt64(NSTokens::Key::objArrId, TTD_CONVERT_VAR_TO_PTR_ID(dobj->GetObjectArray()), NSTokens::Separator::CommaSeparator);
-				}
+				writer->WriteKey(NSTokens::Key::originInfo, NSTokens::Separator::CommaSeparator);
+				EmitTrimedDiagnosticOriginInformation(snpObject->DiagOriginInfo, writer, NSTokens::Separator::NoSeparator);
 			}
-
+#endif
 			// writer->WriteBool(NSTokens::Key::isDepOn, snpObject->OptDependsOnInfo != nullptr, NSTokens::Separator::CommaSeparator);
 			if (snpObject->OptDependsOnInfo != nullptr)
 			{
@@ -548,7 +540,10 @@ namespace TTD
 			{
 				const NSSnapType::SnapHandler* handler = snpObject->SnapType->TypeHandlerInfo;
 
-				// writer->WriteAddrAsInt64(NSTokens::Key::optIndexedObjectArray, snpObject->OptIndexedObjectArray, NSTokens::Separator::CommaSeparator);
+				if (snpObject->OptIndexedObjectArray != 0)
+				{
+					writer->WriteAddrAsInt64(NSTokens::Key::objArrId, snpObject->OptIndexedObjectArray, NSTokens::Separator::CommaSeparator);
+				}
 
 				if (handler->MaxPropertyIndex == 0)
 				{

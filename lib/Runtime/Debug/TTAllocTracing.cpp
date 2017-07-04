@@ -107,24 +107,48 @@ namespace AllocTracing
 		this->source = nullptr;
 	}
 
-	FileSourceEntry::FileSourceEntry(const char16* filename, LPCUTF8 source) {
-		this->filename = filename;
-		this->source = source;
+	FileSourceEntry::FileSourceEntry(const char16* filename, Js::Utf8SourceInfo* utf8SourceInfo) {
+		// copy the file name
+		if (filename != nullptr) { // filename could be nullptr
+			char16* name = (char16*)malloc((wcslen(filename) + 1) * sizeof(char16));
+			wcscpy_s(name, (wcslen(filename) + 1), filename);
+			this->filename = name;
+		}
+		// copy the source code
+		LPCUTF8 source = utf8SourceInfo->GetSource();
+		int32 cchLength = utf8SourceInfo->GetCchLength();
+		size_t cbLength = utf8SourceInfo->GetCbLength();
+		char16* buffer = (char16*)malloc((cchLength + 1) * 4 * sizeof(char16));
+		utf8::DecodeOptions options = utf8SourceInfo->IsCesu8() ? utf8::doAllowThreeByteSurrogates : utf8::doDefault;
+		utf8::DecodeUnitsIntoAndNullTerminate(buffer, source, source + cbLength, options);
+		this->source = buffer;
 	}
+	/*
+	FileSourceEntry::~FileSourceEntry() {
+		if (this->filename != nullptr) {
+			delete[](this->filename);
+		}
+		if (this->source != nullptr) {
+			delete[](this->source);
+		}
+	}
+	*/
 
 	// intitialize the (static) file-to-source list variable
 	JsUtil::List<FileSourceEntry, HeapAllocator> SourceLocation::m_file_to_source_list(&HeapAllocator::Instance);
 
-	uint32 SourceLocation::addSourceItem(const char16* filename, LPCUTF8 source) {
+	uint32 SourceLocation::addSourceItem(const char16* filename, Js::Utf8SourceInfo* utf8SourceInfo) {
+		if (filename == nullptr) return 0;
 		// first search for the entry
 		int length = m_file_to_source_list.Count();
 		for (int i = 0; i < length; i++) {
 			FileSourceEntry* ptr = &(m_file_to_source_list.Item(i));
-			if (ptr->filename != filename || ptr->source != source) continue;
+			// if (ptr->filename != filename || ptr->source != source) continue;
+			if (memcmp(ptr->filename, filename, wcslen(filename) * 2)) continue;
 			return i + 1;
 		}
 		// if not found, add it to the list
-		FileSourceEntry entry(filename, source);
+		FileSourceEntry entry(filename, utf8SourceInfo);
 		SourceLocation::m_file_to_source_list.Add(entry);
 		return length + 1;
 	}
@@ -132,7 +156,7 @@ namespace AllocTracing
 	void SourceLocation::clearSourceItems() {
 		// first search for the entry
 		m_file_to_source_list.Clear();
-		m_file_to_source_list.Reset();
+		// m_file_to_source_list.Reset();
 	}
 
 	void SourceLocation::JSONWriteFileToSourceList(TextFormatWriter& writer, NSTokens::Separator sep) {
@@ -148,14 +172,11 @@ namespace AllocTracing
 
 			writer.WriteUInt32(NSTokens::Key::fileId, i+1);
 			writer.writeRawCharsWithKey(NSTokens::Key::filename, ptr->filename, NSTokens::Separator::CommaSeparator);
+			// delete[](ptr->filename); // free the copied string
 
 			// write the source code
-			LPCUTF8 source = ptr->source;
-			size_t srcLen = strlen((char*)source);
-			char16* buffer = (char16*)malloc(srcLen * 2 + 2);
-			utf8::DecodeUnitsIntoAndNullTerminate(buffer, source, source + srcLen);
-			writer.writeRawCharsWithKey(NSTokens::Key::source, buffer, NSTokens::Separator::CommaSeparator);
-			delete[]buffer;
+			writer.writeRawCharsWithKey(NSTokens::Key::source, ptr->source, NSTokens::Separator::CommaSeparator);
+			// delete[](ptr->source); // free the copied string
 
 			writer.WriteRecordEnd();
 		}
@@ -170,7 +191,7 @@ namespace AllocTracing
 		writer.WriteInt64(NSTokens::Key::line, this->m_line + 1, NSTokens::Separator::CommaSeparator);
 		writer.WriteInt64(NSTokens::Key::column, this->m_column, NSTokens::Separator::CommaSeparator);
 		// writer.writeRawCharsWithKey(NSTokens::Key::filename, this->m_function->GetSourceContextInfo()->url, NSTokens::Separator::CommaSeparator);
-		uint32 fileId = this->addSourceItem(this->m_function->GetSourceContextInfo()->url, this->m_function->GetUtf8SourceInfo()->GetSource());
+		uint32 fileId = this->addSourceItem(this->m_function->GetSourceContextInfo()->url, this->m_function->GetUtf8SourceInfo());
 		writer.WriteUInt32(NSTokens::Key::fileId, fileId, NSTokens::Separator::CommaSeparator);
 		writer.WriteRecordEnd();
 	}
@@ -732,7 +753,7 @@ namespace AllocTracing
             }
         }
 		*/
-		for (int32 i = this->m_callStack.Count()-1; i >=0 ; --i)
+		for (int32 i = this->m_callStack.Count() - 1; i >=0 ; --i)
 		{
 			const AllocCallStackEntry& ase = this->m_callStack.Item(i);
 			if (!AllocTracer::IsInternalLocation(ase))
@@ -741,7 +762,6 @@ namespace AllocTracing
 				break;
 			}
 		}
-
         //For now we skip Host driven allocations
         if(this->m_prunedCallStack.Count() == 0)
         {
@@ -774,7 +794,6 @@ namespace AllocTracing
 
     void AllocTracer::EmitTrimedAllocTrace(int64 snapId, ThreadContext* threadContext) const
     {
-		// printf("start emitting trimed alloc trace...\n");
 		char asciiResourceName[64];
 		sprintf_s(asciiResourceName, 64, "allocTracing_%I64i.json", snapId);
 
@@ -805,8 +824,6 @@ namespace AllocTracing
 			totalLive += cpe->LiveCount;
 			totalSizeEstimate += cpe->LiveSizeEstimate;
 		});
-
-
 
 		size_t countThreshold = (size_t)(totalLive * ALLOC_TRACING_INTERESTING_LOCATION_COUNT_THRESHOLD);
 		size_t estimatedSizeThreshold = (size_t)(totalSizeEstimate * ALLOC_TRACING_INTERESTING_LOCATION_SIZE_THRESHOLD);
@@ -847,7 +864,6 @@ namespace AllocTracing
 		}
 		}
 		*/
-
 		this->m_allocPathRoots.EachValue([&first, &writer](AllocPathEntry* cpe)
 		{
 			if (cpe->IsInterestingSite && cpe->LiveCount > 0)

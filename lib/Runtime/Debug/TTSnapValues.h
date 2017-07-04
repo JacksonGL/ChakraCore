@@ -397,6 +397,9 @@ namespace TTD
 
             //The (possibly empty) scope chain info
             SnapFunctionBodyScopeChain ScopeChainInfo;
+
+			//The id of the source code file that contains this function
+			int64 fileId;
         };
 
         void ExtractFunctionBodyInfo(FunctionBodyResolveInfo* fbInfo, Js::FunctionBody* fb, bool isWellKnown, SlabAllocator& alloc);

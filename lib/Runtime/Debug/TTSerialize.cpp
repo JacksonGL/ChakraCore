@@ -41,11 +41,11 @@ namespace TTD
 
 	//////////////////
 	const char16* FileWriter::escape(const char16* buffer) {
-		int i; size_t l = wcslen(buffer) + 1;
-		char16* dest = (char16*)calloc(l * 6 + 30, sizeof(char16));
+		size_t len = wcslen(buffer);
+		char16* dest = (char16*)calloc(len * 6 * 2 + 30, sizeof(char16));
 		char16* ptr = dest;
 		char const* const hexdig = "0123456789ABCDEF";
-		for (i = 0; i<l; i++) {
+		for (int i = 0; i < len; i++) {
 			char16 c = buffer[i];
 			if (L' ' <= c && c <= L'~' && c != '\\' && c != '"') {
 				*ptr++ = c;
@@ -1972,9 +1972,10 @@ namespace TTD
         infoInto.TimeHash = infoFrom.TimeHash;
     }
 
-    void SetDiagnosticOriginInformation(DiagnosticOrigin& info, uint32 sourceLine, uint64 eTime, uint64 fTime, uint64 lTime)
+    void SetDiagnosticOriginInformation(DiagnosticOrigin& info, uint32 sourceLine, int64 fileId, uint64 eTime, uint64 fTime, uint64 lTime)
     {
         info.SourceLine = sourceLine;
+		info.FileId = fileId;
         info.EventTime = (uint32)eTime;
         info.TimeHash = ((uint32)(lTime << 32)) | ((uint32)fTime);
     }
@@ -1987,6 +1988,16 @@ namespace TTD
         writer->WriteUInt64(NSTokens::Key::u64Val, info.TimeHash, NSTokens::Separator::CommaSeparator);
         writer->WriteRecordEnd();
     }
+
+	void EmitTrimedDiagnosticOriginInformation(const DiagnosticOrigin& info, FileWriter* writer, NSTokens::Separator separator)
+	{
+		writer->WriteRecordStart(separator);
+		writer->WriteInt64(NSTokens::Key::fileId, info.FileId);
+		writer->WriteInt32(NSTokens::Key::line, info.SourceLine, NSTokens::Separator::CommaSeparator);
+		writer->WriteUInt32(NSTokens::Key::eventTime, info.EventTime, NSTokens::Separator::CommaSeparator);
+		writer->WriteUInt64(NSTokens::Key::u64Val, info.TimeHash, NSTokens::Separator::CommaSeparator);
+		writer->WriteRecordEnd();
+	}
 
     void ParseDiagnosticOriginInformation(DiagnosticOrigin& info, bool readSeperator, FileReader* reader)
     {

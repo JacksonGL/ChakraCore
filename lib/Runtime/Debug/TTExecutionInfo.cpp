@@ -859,7 +859,17 @@ namespace TTD
         uint32 startOffset = cfinfo.Function->GetStatementStartOffset(cfinfo.CurrentStatementIndex);
         cfinfo.Function->GetSourceLineFromStartOffset_TTD(startOffset, &srcLine, &srcColumn);
 
-        SetDiagnosticOriginInformation(originInfo, srcLine, cfinfo.Function->GetFunctionBody()->GetScriptContext()->GetThreadContext()->TTDLog->GetLastEventTime(), cfinfo.FunctionTime, cfinfo.LoopTime);
+		int64 fileId = 0;
+		if (cfinfo.Function->GetFunctionBody()->GetSourceContextInfo()->url != nullptr)
+		{
+			fileId = AllocTracing::SourceLocation::addSourceItem(
+				cfinfo.Function->GetFunctionBody()->GetSourceContextInfo()->url, 
+				cfinfo.Function->GetFunctionBody()->GetUtf8SourceInfo());
+			srcLine = cfinfo.Function->GetFunctionBody()->GetLineNumber();
+			srcColumn = cfinfo.Function->GetFunctionBody()->GetColumnNumber();
+		}
+
+        SetDiagnosticOriginInformation(originInfo, srcLine, fileId, cfinfo.Function->GetFunctionBody()->GetScriptContext()->GetThreadContext()->TTDLog->GetLastEventTime(), cfinfo.FunctionTime, cfinfo.LoopTime);
     }
 #endif
 
