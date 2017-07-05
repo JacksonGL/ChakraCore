@@ -300,7 +300,7 @@ namespace TTD
              
             if (writer->getQuotedKey()) {
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"heapArgumentsInfo");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("heapArgumentsInfo"));
 
                 writer->WriteUInt32(NSTokens::Key::numberOfArgs, argsInfo->NumOfArguments, NSTokens::Separator::CommaSeparator);
 
@@ -770,7 +770,7 @@ namespace TTD
                 }
 
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"arrayInfo");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("arrayInfo"));
 
                 // writer->WriteLengthValue(blockCount, NSTokens::Separator::CommaAndBigSpaceSeparator);
                 writer->WriteSequenceStartWithKey(NSTokens::Key::arrayInfo, NSTokens::Separator::CommaSeparator);

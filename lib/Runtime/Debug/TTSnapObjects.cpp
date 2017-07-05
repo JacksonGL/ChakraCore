@@ -861,7 +861,7 @@ namespace TTD
 
             if (writer->getQuotedKey()) {
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"functionInfo");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("functionInfo"));
                 writer->WriteAddrAsInt64(NSTokens::Key::functionBodyId, snapFuncInfo->BodyRefId, NSTokens::Separator::CommaSeparator);
 
                 writer->WriteStringWithoutLen(NSTokens::Key::name, snapFuncInfo->DebugFunctionName, NSTokens::Separator::CommaSeparator);
@@ -944,7 +944,7 @@ namespace TTD
 
             if (writer->getQuotedKey()) {
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"externalFuncInfo");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("externalFuncInfo"));
                 writer->WriteKey(NSTokens::Key::name, NSTokens::Separator::CommaSeparator);
                 NSSnapValues::EmitTTDVarTrimed(snapName, writer, NSTokens::Separator::NoSeparator);
                 writer->WriteRecordEnd();
@@ -997,7 +997,7 @@ namespace TTD
 
             if (writer->getQuotedKey()) {
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"revokerFuncInfo");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("revokerFuncInfo"));
                 writer->WriteAddrAsInt64(NSTokens::Key::objectId, *revokeTrgt, NSTokens::Separator::CommaSeparator);
                 writer->WriteRecordEnd();
             }
@@ -1056,7 +1056,7 @@ namespace TTD
 
             if (writer->getQuotedKey()) {
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"boundFuncInfo");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("boundFuncInfo"));
                 writer->WriteAddrAsInt64(NSTokens::Key::boundFunction, snapBoundInfo->TargetFunction, NSTokens::Separator::CommaSeparator);
                 writer->WriteAddrAsInt64(NSTokens::Key::boundThis, snapBoundInfo->BoundThis, NSTokens::Separator::CommaSeparator);
                 // writer->WriteLengthValue(snapBoundInfo->ArgCount, NSTokens::Separator::CommaSeparator);
@@ -1249,7 +1249,7 @@ namespace TTD
 
             if (writer->getQuotedKey()) {
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"promiseInfo");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("promiseInfo"));
                 writer->WriteUInt32(NSTokens::Key::u32Val, promiseInfo->Status, NSTokens::Separator::CommaSeparator);
 
                 writer->WriteKey(NSTokens::Key::resultValue, NSTokens::Separator::CommaSeparator);
@@ -1389,7 +1389,7 @@ namespace TTD
 
             if (writer->getQuotedKey()) {
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"promiseResRejInfo");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("promiseResRejInfo"));
                 writer->WriteAddrAsInt64(NSTokens::Key::ptrIdVal, rrfInfo->PromiseId, NSTokens::Separator::CommaSeparator);
                 writer->WriteBool(NSTokens::Key::boolVal, rrfInfo->IsReject, NSTokens::Separator::CommaSeparator);
 
@@ -1454,7 +1454,7 @@ namespace TTD
 
             if (writer->getQuotedKey()) {
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"promiseReactTaskFuncInfo");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("promiseReactTaskFuncInfo"));
                 // writer->WriteKey(NSTokens::Key::entry, NSTokens::Separator::CommaSeparator);
                 NSSnapValues::EmitTTDVarTrimedWithoutBracket(rInfo->Argument, writer, NSTokens::Separator::CommaSeparator);
 
@@ -1523,7 +1523,7 @@ namespace TTD
 
             if (writer->getQuotedKey()) {
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"promiseAllResElemFuncInfo");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("promiseAllResElemFuncInfo"));
 
                 writer->WriteKey(NSTokens::Key::entry, NSTokens::Separator::CommaSeparator);
                 NSSnapValues::EmitPromiseCapabilityInfoTrimed(&aInfo->Capabilities, writer, NSTokens::Separator::NoSeparator);
@@ -1614,7 +1614,7 @@ namespace TTD
 
             if (writer->getQuotedKey()) {
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"boxedInfo");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("boxedInfo"));
 
                 writer->WriteKey(NSTokens::Key::boxedInfo, NSTokens::Separator::CommaSeparator);
                 NSSnapValues::EmitTTDVarTrimed(snapBoxedVar, writer, NSTokens::Separator::NoSeparator);
@@ -1662,7 +1662,7 @@ namespace TTD
 
             if (writer->getQuotedKey()) {
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"dateInfo");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("dateInfo"));
                 writer->WriteDouble(NSTokens::Key::doubleVal, *dateInfo, NSTokens::Separator::CommaSeparator);
                 writer->WriteRecordEnd();
             }
@@ -1710,7 +1710,7 @@ namespace TTD
             if (writer->getQuotedKey()) {
 
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"regexInfo");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("regexInfo"));
 
                 writer->WriteStringWithoutLen(NSTokens::Key::stringVal, regexInfo->RegexStr, NSTokens::Separator::CommaAndBigSpaceSeparator);
 
@@ -1901,7 +1901,7 @@ namespace TTD
 
             if (writer->getQuotedKey()) {
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"ES5ArrayInfo");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("ES5ArrayInfo"));
                 // writer->WriteLengthValue(es5Info->GetterSetterCount, NSTokens::Separator::CommaSeparator);
                 writer->WriteBool(NSTokens::Key::boolVal, es5Info->IsLengthWritable, NSTokens::Separator::CommaSeparator);
 
@@ -2054,7 +2054,7 @@ namespace TTD
                 if (buffInfo->Length > 0)
                 {
                     writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                    writer->writeRawCharsWithKey(NSTokens::Key::addType, L"bufferInfo");
+                    writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("bufferInfo"));
                     writer->WriteUInt32(NSTokens::Key::length, buffInfo->Length, NSTokens::Separator::CommaSeparator);
 
                     writer->WriteSequenceStartWithKey(NSTokens::Key::buffInfo, NSTokens::Separator::CommaSeparator);
@@ -2203,7 +2203,7 @@ namespace TTD
             
             if (writer->getQuotedKey()) {
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"typedArrayInfo");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("typedArrayInfo"));
 
                 writer->WriteUInt32(NSTokens::Key::offset, typedArrayInfo->ByteOffset, NSTokens::Separator::CommaAndBigSpaceSeparator);
                 writer->WriteLengthValue(typedArrayInfo->Length, NSTokens::Separator::CommaSeparator);
@@ -2292,7 +2292,7 @@ namespace TTD
                 if (setInfo->SetSize > 0)
                 {
                     writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                    writer->writeRawCharsWithKey(NSTokens::Key::addType, L"setInfo");
+                    writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("setInfo"));
 
                     writer->WriteSequenceStartWithKey(NSTokens::Key::setInfo, NSTokens::Separator::CommaSeparator);
                     for (uint32 i = 0; i < setInfo->SetSize; ++i)
@@ -2413,7 +2413,7 @@ namespace TTD
                 if (mapInfo->MapSize > 0)
                 {
                     writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                    writer->writeRawCharsWithKey(NSTokens::Key::addType, L"mapInfo");
+                    writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("mapInfo"));
 
                     writer->WriteSequenceStartWithKey(NSTokens::Key::mapInfo, NSTokens::Separator::CommaSeparator);
                     for (uint32 i = 0; i < mapInfo->MapSize; i += 2)
@@ -2514,7 +2514,7 @@ namespace TTD
 
             if (writer->getQuotedKey()) {
                 writer->WriteRecordStartWithKey(NSTokens::Key::addInfo, NSTokens::Separator::CommaAndBigSpaceSeparator);
-                writer->writeRawCharsWithKey(NSTokens::Key::addType, L"proxy");
+                writer->writeRawCharsWithKey(NSTokens::Key::addType, _u("proxy"));
                 writer->WriteAddrAsInt64(NSTokens::Key::handlerId, proxyInfo->HandlerId, NSTokens::Separator::CommaSeparator);
                 writer->WriteAddrAsInt64(NSTokens::Key::objectId, proxyInfo->TargetId, NSTokens::Separator::CommaSeparator);
                 writer->WriteRecordEnd();
