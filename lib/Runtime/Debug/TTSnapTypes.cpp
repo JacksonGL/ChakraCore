@@ -188,8 +188,8 @@ namespace TTD
 
             // writer->WriteLengthValue(snapHandler->MaxPropertyIndex, NSTokens::Separator::CommaSeparator);
 
-            if (snapHandler->MaxPropertyIndex >= 0)
-            {
+            // if (snapHandler->MaxPropertyIndex >= 0)
+            // {
                 writer->WriteSequenceStartWithKey(NSTokens::Key::properties, NSTokens::Separator::CommaSeparator);
                 writer->AdjustIndent(1);
                 for (uint32 i = 0; i < snapHandler->MaxPropertyIndex; ++i)
@@ -202,7 +202,7 @@ namespace TTD
                 }
                 writer->AdjustIndent(-1);
                 writer->WriteSequenceEnd(NSTokens::Separator::BigSpaceSeparator);
-            }
+            // }
 
             writer->WriteRecordEnd();
         }
