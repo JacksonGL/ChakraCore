@@ -4141,16 +4141,16 @@ CHAKRA_API JsTTDAllocTracingCompleteAndEmit(_In_reads_(allocFileSize) char* allo
             //Do a GC to ensure all the collectable object have been collected
             threadContext->GetRecycler()->CollectNow<CollectNowForceInThread>();
 
-			// collect the snapshot first, since it adds source files to the alloc tracer dataset
-			// if (TTD::TTMemAnalysis::recentSnapShot != nullptr) {
-			// 	// dump the memory snapshot
-			// 	TTD::TTMemAnalysis::recentSnapShot->EmitTrimedSnapshot(0, threadContext);
-			// }
+            // collect the snapshot first, since it adds source files to the alloc tracer dataset
+            // if (TTD::TTMemAnalysis::recentSnapShot != nullptr) {
+            //     // dump the memory snapshot
+            //     TTD::TTMemAnalysis::recentSnapShot->EmitTrimedSnapshot(0, threadContext);
+            // }
 
             AllocTracing::AllocDataWriter writer;
 
             // threadContext->AllocSiteTracer->JSONWriteData(writer);
-			threadContext->AllocSiteTracer->EmitTrimedAllocTrace(0, threadContext);
+            threadContext->AllocSiteTracer->EmitTrimedAllocTrace(0, threadContext);
         }
         END_ENTER_SCRIPT
     }

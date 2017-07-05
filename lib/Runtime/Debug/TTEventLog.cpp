@@ -2453,16 +2453,13 @@ namespace TTD
     {
         //force a GC to get weak containers in a consistent state
         TTDTimer timer;
-        double startTime = timer.Now();
-        this->m_threadContext->GetRecycler()->CollectNow<CollectNowForceInThread>();
-        this->m_threadContext->TTDContext->SyncRootsBeforeSnapshot_Record();
         double endTime = timer.Now();
 
         //do the rest of the snapshot
         this->SetSnapshotOrInflateInProgress(true);
         this->PushMode(TTDMode::ExcludedExecutionTTAction);
 
-        SnapShot* snapshot = this->DoSnapshotExtract_Helper((endTime - startTime) / 1000.0);
+        SnapShot* snapshot = this->DoSnapshotExtract_Helper(0.0);
 
         snapshot->EmitTrimedSnapshot((int64)endTime, this->m_threadContext, emitUri, emitUriLength);
 
