@@ -268,7 +268,7 @@ namespace AllocTracing
             first = false;
             writer.WriteObjectId(key);
         });
-        writer.WriteChar(' ]');
+        writer.WriteLiteralString(" ]");
     }
 
     void AllocSiteStats::JSONWriteSiteDataTrimed(TTD::TextFormatWriter& writer) const
