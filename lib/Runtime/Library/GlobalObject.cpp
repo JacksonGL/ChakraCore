@@ -1662,7 +1662,7 @@ LHexError:
         }
 
         Js::JavascriptString* jsString = Js::JavascriptString::FromVar(args[1]);
-        AutoArrayPtr<char> uri(HeapNewArrayZ(char, jsString->GetLength() * 3), jsString->GetLength() * 3);
+        const char* uri = HeapNewArrayZ(char, jsString->GetLength() * 3);
         size_t uriLength = utf8::EncodeInto((LPUTF8)((char*)uri), jsString->GetSz(), jsString->GetLength());
         ThreadContext* threadContext = function->GetScriptContext()->GetThreadContext();
 
