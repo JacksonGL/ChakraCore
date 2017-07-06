@@ -78,8 +78,8 @@ struct JsAPIHooks
     typedef JsErrorCode(WINAPI *JsrtCreateExternalArrayBuffer)(void *data, unsigned int byteLength, JsFinalizeCallback finalizeCallback, void *callbackState, JsValueRef *result);
     typedef JsErrorCode(WINAPI *JsrtCreatePropertyId)(const char *name, size_t length, JsPropertyIdRef *propertyId);
 
-    typedef JsErrorCode(WINAPI *JsrtTTDCreateRecordRuntimePtr)(JsRuntimeAttributes attributes, size_t snapInterval, size_t snapHistoryLength, TTDOpenResourceStreamCallback openResourceStream, JsTTDWriteBytesToStreamCallback writeBytesToStream, JsTTDFlushAndCloseStreamCallback flushAndCloseStream, JsThreadServiceCallback threadService, JsRuntimeHandle *runtime);
-    typedef JsErrorCode(WINAPI *JsrtTTDCreateReplayRuntimePtr)(JsRuntimeAttributes attributes, const char* infoUri, size_t infoUriCount, bool enableDebugging, TTDOpenResourceStreamCallback openResourceStream, JsTTDReadBytesFromStreamCallback readBytesFromStream, JsTTDFlushAndCloseStreamCallback flushAndCloseStream, JsThreadServiceCallback threadService, JsRuntimeHandle *runtime);
+    typedef JsErrorCode(WINAPI *JsrtTTDCreateRecordRuntimePtr)(JsRuntimeAttributes attributes, size_t snapInterval, size_t snapHistoryLength, bool enableAllocTracing, TTDOpenResourceStreamCallback openResourceStream, JsTTDWriteBytesToStreamCallback writeBytesToStream, JsTTDFlushAndCloseStreamCallback flushAndCloseStream, JsThreadServiceCallback threadService, JsRuntimeHandle *runtime);
+    typedef JsErrorCode(WINAPI *JsrtTTDCreateReplayRuntimePtr)(JsRuntimeAttributes attributes, const char* infoUri, size_t infoUriCount, bool enableDebugging, bool enableAllocTracing, TTDOpenResourceStreamCallback openResourceStream, JsTTDReadBytesFromStreamCallback readBytesFromStream, JsTTDWriteBytesToStreamCallback writeBytesToStream, JsTTDFlushAndCloseStreamCallback flushAndCloseStream, JsThreadServiceCallback threadService, JsRuntimeHandle *runtime);
     typedef JsErrorCode(WINAPI *JsrtTTDCreateContextPtr)(JsRuntimeHandle runtime, bool useRuntimeTTDMode, JsContextRef *newContext);
     typedef JsErrorCode(WINAPI *JsrtTTDNotifyContextDestroyPtr)(JsContextRef context);
 
