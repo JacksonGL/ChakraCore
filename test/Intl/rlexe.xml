@@ -2,6 +2,14 @@
 <regress-exe>
   <test>
     <default>
+      <files>Basics.js</files>
+      <tags>Intl,exclude_winglob</tags>
+      <compile-flags>-args summary -endargs</compile-flags>
+    </default>
+  </test>
+
+  <test>
+    <default>
       <files>Collator.js</files>
       <tags>Intl,exclude_winglob</tags>
     </default>
@@ -24,7 +32,7 @@
     <default>
       <files>NumberFormat.js</files>
       <baseline>NumberFormat.baseline</baseline>
-      <tags>Intl,exclude_winglob</tags>
+      <tags>Intl,exclude_winglob,exclude_drt</tags>
     </default>
   </test>
   <test>
@@ -32,22 +40,6 @@
       <files>NumberFormatOptions.js</files>
       <compile-flags>-args summary -endargs</compile-flags>
       <tags>Intl</tags>
-    </default>
-  </test>
-  <test>
-    <default>
-      <!-- Variant of test to run on Win10 -->
-      <files>NumberFormatOptionsImplSpecific-Win10.js</files>
-      <compile-flags>-args summary -endargs</compile-flags>
-      <tags>Intl,exclude_winBlue,exclude_win8,exclude_win7</tags>
-    </default>
-  </test>
-  <test>
-    <default>
-      <!-- Variant of test to run on WinBlue and earlier -->
-      <files>NumberFormatOptionsImplSpecific-WinBlue.js</files>
-      <compile-flags>-args summary -endargs</compile-flags>
-      <tags>Intl,exclude_win10</tags>
     </default>
   </test>
 
@@ -78,6 +70,13 @@
       <tags>Intl,exclude_winglob</tags>
     </default>
   </test>
+  <test>
+    <default>
+      <files>IntlTaintingPreInitTests.js</files>
+      <baseline>IntlTaintingPreInitTests.baseline</baseline>
+      <tags>Intl,exclude_winglob,exclude_drt</tags>
+    </default>
+  </test>
 
   <test>
     <default>
@@ -85,10 +84,24 @@
       <tags>Intl,exclude_winglob</tags>
     </default>
   </test>
+  <test>
+    <default>
+      <files>IntlIdentities.js</files>
+      <compile-flags>-args summary -endargs</compile-flags>
+      <tags>Intl,exclude_winglob</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <compile-flags> -Intl -debugLaunch -dbgbaseline:IntlReturnedValueTests.js.dbg.baseline</compile-flags>
+      <files>IntlReturnedValueTests.js</files>
+      <tags>Intl,exclude_winglob</tags>
+    </default>
+  </test>
 
   <test>
     <default>
-      <!-- TODO (doilij) investigate why -ExtendedErrorStackForTestHost inserts tabs at the beginning of some frames -->
+      <!-- TODO investigate why -ExtendedErrorStackForTestHost inserts tabs at the beginning of some frames (Microsoft/ChakraCore#3130) -->
       <files>IntlInternalsHiddenFromExceptionStackTest.js</files>
       <baseline>IntlInternalsHiddenFromExceptionStackTest.baseline</baseline>
       <compile-flags>-ExtendedErrorStackForTestHost-</compile-flags>
@@ -97,7 +110,7 @@
   </test>
   <test>
     <default>
-      <!-- TODO (doilij) investigate why -ExtendedErrorStackForTestHost inserts tabs at the beginning of some frames -->
+      <!-- TODO investigate why -ExtendedErrorStackForTestHost inserts tabs at the beginning of some frames (Microsoft/ChakraCore#3130) -->
       <files>IntlInternalsHiddenFromFirstChanceExceptionStackTest.js</files>
       <baseline>IntlInternalsHiddenFromFirstChanceExceptionStackTest.baseline</baseline>
       <compile-flags>-ExtendedErrorStackForTestHost-</compile-flags>
