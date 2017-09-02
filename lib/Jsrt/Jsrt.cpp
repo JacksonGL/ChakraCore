@@ -4170,7 +4170,6 @@ CHAKRA_API JsTTDReplayExecution(_Inout_ JsTTDMoveMode* moveMode, _Out_ int64_t* 
 #endif
 }
 
-<<<<<<< HEAD
 CHAKRA_API JsTTDAllocTracingEnable()
 {
 #if !ENABLE_TTD || !ENABLE_ALLOC_TRACING
@@ -4251,10 +4250,8 @@ CHAKRA_API JsTTDAllocTracingCompleteAndEmit(_In_reads_(allocFileSize) char* allo
 #endif
 }
 
-#ifdef CHAKRACOREBUILD_
-=======
+
 #ifdef _CHAKRACOREBUILD
->>>>>>> 5a9d0ee1bc25af874e11de5f8999d030ee2961de
 
 template <class SrcChar, class DstChar>
 static void CastCopy(const SrcChar* src, DstChar* dst, size_t count)
